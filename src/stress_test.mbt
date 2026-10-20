@@ -83,3 +83,72 @@ test "stress counting removals never lose remaining keys" {
     }
   }
 }
+
+///|
+test "stress cuckoo operations preserve live keys and count" {
+  for round = 0; round < 20; round = round + 1 {
+    let filter = @src.CuckooFilter::with_size(16, 4)
+    let key_count = 64
+    let live : Array[Int32] = Array::make(key_count, 0)
+    let mut seed = round * 977 + 1
+    for step = 0; step < 1000; step = step + 1 {
+      seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+      let key = seed % key_count
+      let action = seed / 31 % 3
+      if action == 0 {
+        if filter.insert(key) {
+          live[key] = live[key] + 1
+        }
+      } else if action == 1 {
+        if live[key] > 0 {
+          assert_true(filter.remove(key))
+          live[key] = live[key] - 1
+        }
+      } else if live[key] > 0 {
+        assert_true(filter.contains(key))
+      }
+    }
+    let mut expected = 0
+    for key = 0; key < key_count; key = key + 1 {
+      expected = expected + live[key]
+      if live[key] > 0 {
+        assert_true(filter.contains(key))
+      }
+    }
+    assert_eq(filter.count(), expected)
+  }
+}
+
+///|
+test "stress counting operations preserve live keys and count" {
+  for round = 0; round < 20; round = round + 1 {
+    let filter = @src.CountingBloomFilter::with_size(256, 4)
+    let key_count = 64
+    let live : Array[Int32] = Array::make(key_count, 0)
+    let mut seed = round * 613 + 7
+    for step = 0; step < 1000; step = step + 1 {
+      seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+      let key = seed % key_count
+      let action = seed / 31 % 3
+      if action == 0 {
+        filter.insert(key)
+        live[key] = live[key] + 1
+      } else if action == 1 {
+        if live[key] > 0 {
+          assert_true(filter.remove(key))
+          live[key] = live[key] - 1
+        }
+      } else if live[key] > 0 {
+        assert_true(filter.contains(key))
+      }
+    }
+    let mut expected = 0
+    for key = 0; key < key_count; key = key + 1 {
+      expected = expected + live[key]
+      if live[key] > 0 {
+        assert_true(filter.contains(key))
+      }
+    }
+    assert_eq(filter.count(), expected)
+  }
+}
