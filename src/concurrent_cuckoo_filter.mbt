@@ -182,3 +182,20 @@ pub fn ConcurrentCuckooFilter::memory_bytes(
 ) -> Int64 {
   self.with_lock(filter => filter.memory_bytes())
 }
+
+///|
+/// Encode the underlying filter as a portable byte sequence while holding the
+/// lock.
+pub fn ConcurrentCuckooFilter::to_bytes(self : ConcurrentCuckooFilter) -> Bytes {
+  self.with_lock(filter => filter.to_bytes())
+}
+
+///|
+/// Restore a thread-safe cuckoo filter from data produced by `to_bytes`.
+///
+/// Panics if the data is invalid, just like `CuckooFilter::from_bytes`.
+pub fn ConcurrentCuckooFilter::from_bytes(
+  data : Bytes,
+) -> ConcurrentCuckooFilter {
+  { state: @ref.Ref(CuckooFilter::from_bytes(data)), mutex: mutex_new(), }
+}

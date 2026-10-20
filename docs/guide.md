@@ -216,10 +216,12 @@ let restored = @src.BloomFilter::from_bytes(data)
 assert_true(restored.contains("saved"))
 ```
 
-The same methods exist on `CountingBloomFilter` and `CuckooFilter`. Hashing uses
-fixed seeds, so standard `Hash` implementations produce the same positions in a
-new process. `from_bytes` panics on truncated data, a different filter type, an
-unsupported version, or an invalid configuration.
+The same methods exist on `CountingBloomFilter` and `CuckooFilter`. The
+concurrent wrappers also expose `to_bytes()` and `from_bytes()`, copying the
+underlying filter while holding the lock. Hashing uses fixed seeds, so standard
+`Hash` implementations produce the same positions in a new process.
+`from_bytes` panics on truncated data, a different filter type, an unsupported
+version, or an invalid configuration.
 
 ## Configuration and Errors
 

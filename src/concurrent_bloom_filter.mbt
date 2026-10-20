@@ -181,3 +181,18 @@ pub fn ConcurrentBloomFilter::false_positive_rate(
 ) -> Double {
   self.with_lock(filter => filter.false_positive_rate())
 }
+
+///|
+/// Encode the underlying filter as a portable byte sequence while holding the
+/// lock.
+pub fn ConcurrentBloomFilter::to_bytes(self : ConcurrentBloomFilter) -> Bytes {
+  self.with_lock(filter => filter.to_bytes())
+}
+
+///|
+/// Restore a thread-safe Bloom filter from data produced by `to_bytes`.
+///
+/// Panics if the data is invalid, just like `BloomFilter::from_bytes`.
+pub fn ConcurrentBloomFilter::from_bytes(data : Bytes) -> ConcurrentBloomFilter {
+  { state: @ref.Ref(BloomFilter::from_bytes(data)), mutex: mutex_new(), }
+}

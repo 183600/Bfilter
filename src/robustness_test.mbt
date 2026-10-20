@@ -100,3 +100,26 @@ test "panic serialization rejects cuckoo counts above capacity" {
   bytes.unsafe_write_uint32_le(16, 5U)
   @src.CuckooFilter::from_bytes(Bytes::from_array(bytes.exact_view())) |> ignore
 }
+
+///|
+test "concurrent filters serialize and restore while locked" {
+  let bloom = @src.ConcurrentBloomFilter::with_size(1024, 4)
+  bloom.insert("bloom")
+  let restored_bloom = @src.ConcurrentBloomFilter::from_bytes(bloom.to_bytes())
+  assert_true(restored_bloom.contains("bloom"))
+  assert_eq(restored_bloom.count(), 1)
+  let counting = @src.ConcurrentCountingBloomFilter::with_size(512, 4)
+  counting.insert("counting")
+  let restored_counting = @src.ConcurrentCountingBloomFilter::from_bytes(
+    counting.to_bytes(),
+  )
+  assert_true(restored_counting.contains("counting"))
+  assert_true(restored_counting.remove("counting"))
+  let cuckoo = @src.ConcurrentCuckooFilter::with_size(64, 4)
+  assert_true(cuckoo.insert("cuckoo"))
+  let restored_cuckoo = @src.ConcurrentCuckooFilter::from_bytes(
+    cuckoo.to_bytes(),
+  )
+  assert_true(restored_cuckoo.contains("cuckoo"))
+  assert_true(restored_cuckoo.remove("cuckoo"))
+}
