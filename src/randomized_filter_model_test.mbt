@@ -131,6 +131,8 @@ test "randomized cuckoo intersections preserve shared live keys" {
         assert_true(common.count_of(key) >= 1)
       }
     }
+    assert_true(common.is_subset_of(left))
+    assert_true(common.is_subset_of(right))
     assert_true(common.count() <= left.count().min(right.count()))
     let restored = @src.CuckooFilter::from_bytes(common.to_bytes())
     assert_eq(restored.count(), common.count())
