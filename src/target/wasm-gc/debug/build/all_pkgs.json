@@ -1,9 +1,0 @@
-{
-  "packages": [
-    {
-      "root": "moon/test",
-      "rel": "single",
-      "artifact": "/home/qwe12345678/bfilter/src/target/wasm-gc/debug/build/single/single.mi"
-    }
-  ]
-}
