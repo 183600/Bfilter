@@ -10,6 +10,7 @@ pub struct CuckooFilter {
   priv bucket_count : Int32
   priv bucket_size : Int32
   priv mut inserted : Int32
+  priv mut random_state : UInt64
 }
 
 ///|
@@ -59,11 +60,13 @@ pub fn CuckooFilter::with_size(
     abort("cuckoo filter size is too large")
   }
   let slot_count = bucket_count * bucket_size
+  let seed = (bucket_count.to_uint64() << 32) | bucket_size.to_uint64() | 1UL
   {
     buckets: FixedArray::make(slot_count, b'\x00'),
     bucket_count,
     bucket_size,
     inserted: 0,
+    random_state: mix64(seed),
   }
 }
 
@@ -87,6 +90,21 @@ fn[T : Hash] CuckooFilter::key_info(
   let index = (hash & mask).to_int()
   let fingerprint = ((hash >> 32) % 255UL + 1UL).to_byte()
   (index, fingerprint)
+}
+
+///|
+/// Per-filter pseudo-random state used to pick eviction victims.
+///
+/// Cuckoo insertion walks a chain of alternate buckets; a deterministic victim
+/// choice makes the chain revisit the same slots and fail well below capacity.
+/// The state is seeded from the filter layout so behavior stays reproducible.
+fn CuckooFilter::next_random(self : CuckooFilter) -> UInt64 {
+  let mut state = self.random_state
+  state = state ^ (state << 13)
+  state = state ^ (state >> 7)
+  state = state ^ (state << 17)
+  self.random_state = state
+  state
 }
 
 ///|
@@ -184,14 +202,14 @@ fn CuckooFilter::insert_fingerprint(
   let evictions : Array[(Int32, Int32, Byte)] = []
   let mut index = index1
   let mut current = fingerprint
-  for kick = 0; kick < 128; kick = kick + 1 {
+  for kick = 0; kick < 512; kick = kick + 1 {
     let empty = self.find_empty(index)
     if empty >= 0 {
       self.buckets[index * self.bucket_size + empty] = current
       self.inserted += 1
       return true
     }
-    let slot = (current.to_int() + kick) % self.bucket_size
+    let slot = (self.next_random() % self.bucket_size.to_uint64()).to_int()
     let position = index * self.bucket_size + slot
     let displaced = self.buckets[position]
     evictions.push((index, slot, displaced))
@@ -344,18 +362,22 @@ fn CuckooFilter::try_union_with(
 }
 
 ///|
-fn CuckooFilter::rebuild_union(
+fn CuckooFilter::retry_union(
   first : CuckooFilter,
   second : CuckooFilter,
 ) -> CuckooFilter? {
-  let result = CuckooFilter::with_size(first.bucket_count, first.bucket_size)
-  if !result.insert_fingerprints_from(first) {
-    return None
+  for attempt = 0; attempt < 16; attempt = attempt + 1 {
+    let result = CuckooFilter::with_size(first.bucket_count, first.bucket_size)
+    result.random_state = mix64(
+      result.random_state ^ ((attempt.to_uint64() + 1UL) * 0x2545F4914F6CDD1DUL),
+    )
+    if result.insert_fingerprints_from(first) {
+      if result.insert_fingerprints_from(second) {
+        return Some(result)
+      }
+    }
   }
-  if !result.insert_fingerprints_from(second) {
-    return None
-  }
-  Some(result)
+  None
 }
 
 ///|
@@ -385,9 +407,9 @@ pub fn CuckooFilter::union(
       match other.try_union_with(self) {
         Some(result) => Some(result)
         None =>
-          match CuckooFilter::rebuild_union(self, other) {
+          match CuckooFilter::retry_union(self, other) {
             Some(result) => Some(result)
-            None => CuckooFilter::rebuild_union(other, self)
+            None => CuckooFilter::retry_union(other, self)
           }
       }
   }
@@ -611,6 +633,7 @@ pub fn CuckooFilter::copy(self : CuckooFilter) -> CuckooFilter {
     bucket_count: self.bucket_count,
     bucket_size: self.bucket_size,
     inserted: self.inserted,
+    random_state: self.random_state,
   }
 }
 
