@@ -218,6 +218,22 @@ pub fn[K : Hash] CuckooFilter::insert(self : CuckooFilter, key : K) -> Bool {
 }
 
 ///|
+/// Insert `key` only when its fingerprint is not already present.
+///
+/// Returns `true` when the fingerprint was inserted. Returns `false` when the
+/// key may already be present or when there was no room to insert it.
+pub fn[K : Hash] CuckooFilter::insert_if_absent(
+  self : CuckooFilter,
+  key : K,
+) -> Bool {
+  if self.contains(key) {
+    false
+  } else {
+    self.insert(key)
+  }
+}
+
+///|
 /// Test whether the fingerprint of `key` is present in either candidate
 /// bucket. Results may contain false positives but never false negatives for
 /// successfully inserted keys.

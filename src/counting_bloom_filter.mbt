@@ -106,6 +106,38 @@ pub fn[K : Hash] CountingBloomFilter::insert(
 }
 
 ///|
+/// Insert `key` only when at least one selected counter is zero.
+///
+/// Returns `true` when the key was inserted, or `false` when every selected
+/// counter was positive and the key may already be present. False positives
+/// can therefore suppress an insertion that would otherwise be harmless.
+pub fn[K : Hash] CountingBloomFilter::insert_if_absent(
+  self : CountingBloomFilter,
+  key : K,
+) -> Bool {
+  let (h1, h2) = key_hashes(key)
+  let slot_count = self.slot_count.to_uint64()
+  for i = 0; i < self.hash_count; i = i + 1 {
+    let pos = bit_index(h1, h2, i, slot_count)
+    if self.counter_at(pos) == 0UL {
+      guard self.inserted < 2147483647 else {
+        abort("counting bloom filter insertion count overflow")
+      }
+      for j = 0; j < self.hash_count; j = j + 1 {
+        let remaining = bit_index(h1, h2, j, slot_count)
+        let value = self.counter_at(remaining)
+        if value < 65535UL {
+          self.set_counter(remaining, value + 1UL)
+        }
+      }
+      self.inserted += 1
+      return true
+    }
+  }
+  false
+}
+
+///|
 /// Remove one insertion of `key` by decrementing every selected counter.
 ///
 /// Returns `true` when all counters were positive and were decremented. A key

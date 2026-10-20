@@ -109,6 +109,37 @@ pub fn[K : Hash] BloomFilter::insert(self : BloomFilter, key : K) -> Unit {
 }
 
 ///|
+/// Insert `key` only when it is definitely absent.
+///
+/// Returns `true` when the key was inserted, or `false` when every selected bit
+/// was already set and the key may already be present. False positives can
+/// therefore suppress an insertion that would otherwise be harmless.
+pub fn[K : Hash] BloomFilter::insert_if_absent(
+  self : BloomFilter,
+  key : K,
+) -> Bool {
+  let (h1, h2) = key_hashes(key)
+  let bit_count = self.bit_count.to_uint64()
+  for i = 0; i < self.hash_count; i = i + 1 {
+    let pos = bit_index(h1, h2, i, bit_count)
+    let mask = 1UL << (pos % 64)
+    if (self.words[pos / 64] & mask) == 0UL {
+      guard self.inserted < 2147483647 else {
+        abort("bloom filter insertion count overflow")
+      }
+      for j = i; j < self.hash_count; j = j + 1 {
+        let remaining = bit_index(h1, h2, j, bit_count)
+        self.words[remaining / 64] = self.words[remaining / 64] |
+          (1UL << (remaining % 64))
+      }
+      self.inserted += 1
+      return true
+    }
+  }
+  false
+}
+
+///|
 /// Test whether `key` may have been inserted.
 ///
 /// `false` means the key is definitely absent. `true` means it is either

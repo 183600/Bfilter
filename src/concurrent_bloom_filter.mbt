@@ -65,6 +65,16 @@ pub fn[K : Hash] ConcurrentBloomFilter::insert(
 }
 
 ///|
+/// Insert a key only when it is definitely absent. The check and insertion are
+/// atomic with respect to the other methods.
+pub fn[K : Hash] ConcurrentBloomFilter::insert_if_absent(
+  self : ConcurrentBloomFilter,
+  key : K,
+) -> Bool {
+  self.with_lock(filter => filter.insert_if_absent(key))
+}
+
+///|
 /// Test whether a key may be present.
 pub fn[K : Hash] ConcurrentBloomFilter::contains(
   self : ConcurrentBloomFilter,

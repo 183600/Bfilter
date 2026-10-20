@@ -58,6 +58,16 @@ pub fn[K : Hash] ConcurrentCountingBloomFilter::insert(
 }
 
 ///|
+/// Insert a key only when it is definitely absent. The check and insertion are
+/// atomic with respect to the other methods.
+pub fn[K : Hash] ConcurrentCountingBloomFilter::insert_if_absent(
+  self : ConcurrentCountingBloomFilter,
+  key : K,
+) -> Bool {
+  self.with_lock(filter => filter.insert_if_absent(key))
+}
+
+///|
 /// Remove one insertion of a key. The operation is atomic with respect to the
 /// other methods.
 pub fn[K : Hash] ConcurrentCountingBloomFilter::remove(

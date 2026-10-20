@@ -55,7 +55,20 @@ All three filter types and their concurrent wrappers expose the same batch
 helpers.
 
 Bloom filters do not support deletion. Inserting the same key repeatedly is
-allowed and increments `count()` each time.
+allowed and increments `count()` each time. `insert_if_absent(key)` inserts
+only when at least one selected bit is unset, returning `true` on insertion and
+`false` when the key may already be present:
+
+```moonbit
+let filter = @src.BloomFilter::new(1000, 0.01)
+assert_true(filter.insert_if_absent("once"))
+assert_false(filter.insert_if_absent("once"))
+assert_eq(filter.count(), 1)
+```
+
+False positives can suppress an insertion that would otherwise be harmless.
+The counting and cuckoo variants provide the same method, and the concurrent
+wrappers make the check and insertion atomic.
 
 Filters with identical `bit_count()` and `hash_count()` can be combined.
 `union` returns a filter that reports keys from either input, `intersection`
@@ -126,6 +139,10 @@ assert_true(filter.remove("task"))
 assert_eq(filter.count_of("task"), 1)
 ```
 
+`insert_if_absent(key)` inserts only when at least one selected counter is
+zero; it returns `false` without changing the filter when the key may already
+be present.
+
 Counting filters with identical `slot_count()` and `hash_count()` support the
 same set algebra as Bloom filters, with counters merged per slot. `union` takes
 the larger counter and preserves the larger multiplicity of duplicate keys,
@@ -173,7 +190,8 @@ whether every operation succeeded.
 
 `count_of(key)` counts matching fingerprints in the key's two candidate
 buckets. Duplicate insertions are therefore observable, and the count decreases
-as copies are removed:
+as copies are removed. `insert_if_absent(key)` returns `false` when the
+fingerprint is already present or when the filter has no room for it.
 
 Filters with the same bucket layout can be combined. `union` copies the
 fingerprints of both inputs and returns `None` if the combined entries do not

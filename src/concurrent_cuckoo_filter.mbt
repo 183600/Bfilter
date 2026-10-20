@@ -53,6 +53,16 @@ pub fn[K : Hash] ConcurrentCuckooFilter::insert(
 }
 
 ///|
+/// Insert a key only when its fingerprint is not already present. The check and
+/// insertion are atomic with respect to the other methods.
+pub fn[K : Hash] ConcurrentCuckooFilter::insert_if_absent(
+  self : ConcurrentCuckooFilter,
+  key : K,
+) -> Bool {
+  self.with_lock(filter => filter.insert_if_absent(key))
+}
+
+///|
 /// Count the fingerprints matching a key in its candidate buckets. The lookup
 /// is atomic with respect to the other methods.
 pub fn[K : Hash] ConcurrentCuckooFilter::count_of(
