@@ -149,3 +149,27 @@ test "bench cuckoo union n=1000" (b : @bench.T) {
     b.keep(combined)
   })
 }
+
+///|
+test "bench bloom intersection n=1000" (b : @bench.T) {
+  let left = @src.BloomFilter::new(1000, 0.01)
+  let right = @src.BloomFilter::new(1000, 0.01)
+  left.insert_all(bench_keys)
+  right.insert_all(bench_keys)
+  b.bench(fn() {
+    let common = left.intersection(right)
+    b.keep(common)
+  })
+}
+
+///|
+test "bench counting intersection n=1000" (b : @bench.T) {
+  let left = @src.CountingBloomFilter::new(1000, 0.01)
+  let right = @src.CountingBloomFilter::new(1000, 0.01)
+  left.insert_all(bench_keys)
+  right.insert_all(bench_keys)
+  b.bench(fn() {
+    let common = left.intersection(right)
+    b.keep(common)
+  })
+}
