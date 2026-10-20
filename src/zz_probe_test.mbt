@@ -21,31 +21,16 @@ test "probe cuckoo key multiset rebuild" {
       kb.push(key)
     }
   }
-  println("ka=" + ka.length().to_string() + " kb=" + kb.length().to_string())
+  assert_true(a.contains_all(ka))
+  assert_true(b.contains_all(kb))
   let f = @src.CuckooFilter::with_size(bc, bs)
-  let mut ok = true
   for k in ka {
-    if !f.insert(k) {
-      ok = false
-      println(
-        "fresh ka fail key=" + k.to_string() + " count=" + f.count().to_string(),
-      )
-      break
-    }
+    assert_true(f.insert(k))
   }
-  if ok {
-    for k in kb {
-      if !f.insert(k) {
-        ok = false
-        println(
-          "fresh kb fail key=" +
-          k.to_string() +
-          " count=" +
-          f.count().to_string(),
-        )
-        break
-      }
-    }
+  for k in kb {
+    assert_true(f.insert(k))
   }
-  println("fresh total=" + f.count().to_string())
+  assert_eq(f.count(), ka.length() + kb.length())
+  assert_true(f.contains_all(ka))
+  assert_true(f.contains_all(kb))
 }
