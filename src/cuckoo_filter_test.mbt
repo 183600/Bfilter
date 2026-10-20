@@ -76,8 +76,7 @@ test "cuckoo filter clear restores fresh insertion state" {
   cleared.clear()
   let fresh = @src.CuckooFilter::with_size(4, 2)
   let keys = [
-    11_000_042, 11_000_027, 11_000_056, 11_000_017, 11_000_054, 11_000_055,
-    11_000_036,
+    11_000_042, 11_000_027, 11_000_056, 11_000_017, 11_000_054, 11_000_055, 11_000_036,
   ]
   for key in keys {
     assert_true(cleared.insert(key))

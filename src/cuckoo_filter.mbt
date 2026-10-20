@@ -181,11 +181,81 @@ fn CuckooFilter::bucket_remove(
 }
 
 ///|
+/// Try to make room for `fingerprint` by moving occupants along an augmenting
+/// path from `start` to a bucket with an empty slot.
+///
+/// Each moved fingerprint stays inside its own candidate pair because it only
+/// moves to the alternate bucket of its current bucket. A breadth-first search
+/// finds such a path whenever one exists, which avoids reporting the filter as
+/// full while a valid placement is still reachable.
+fn CuckooFilter::insert_fingerprint_bfs(
+  self : CuckooFilter,
+  start : Int32,
+  fingerprint : Byte,
+) -> Bool {
+  let empty_start = self.find_empty(start)
+  if empty_start >= 0 {
+    self.buckets[start * self.bucket_size + empty_start] = fingerprint
+    self.inserted += 1
+    return true
+  }
+  let visited = FixedArray::make(self.bucket_count, false)
+  let parent = FixedArray::make(self.bucket_count, -1)
+  let parent_slot = FixedArray::make(self.bucket_count, -1)
+  let queue : Array[Int32] = []
+  queue.push(start)
+  visited[start] = true
+  let mut head = 0
+  while head < queue.length() {
+    let bucket = queue[head]
+    head = head + 1
+    let base = bucket * self.bucket_size
+    for slot = 0; slot < self.bucket_size; slot = slot + 1 {
+      let occupant = self.buckets[base + slot]
+      if occupant == b'\x00' {
+        continue
+      }
+      let alternate = self.alternate_index(bucket, occupant)
+      if alternate == bucket || visited[alternate] {
+        continue
+      }
+      let empty = self.find_empty(alternate)
+      if empty >= 0 {
+        let mut child = alternate
+        let mut empty_slot = empty
+        parent[child] = bucket
+        parent_slot[child] = slot
+        while child != start {
+          let previous = parent[child]
+          let previous_slot = parent_slot[child]
+          let moved = self.buckets[previous * self.bucket_size + previous_slot]
+          self.buckets[child * self.bucket_size + empty_slot] = moved
+          self.buckets[previous * self.bucket_size + previous_slot] = b'\x00'
+          empty_slot = previous_slot
+          child = previous
+        }
+        self.buckets[start * self.bucket_size + empty_slot] = fingerprint
+        self.inserted += 1
+        return true
+      }
+      visited[alternate] = true
+      parent[alternate] = bucket
+      parent_slot[alternate] = slot
+      queue.push(alternate)
+    }
+  }
+  false
+}
+
+///|
 fn CuckooFilter::insert_fingerprint(
   self : CuckooFilter,
   index1 : Int32,
   fingerprint : Byte,
 ) -> Bool {
+  if self.inserted >= self.capacity() {
+    return false
+  }
   let index2 = self.alternate_index(index1, fingerprint)
   let empty1 = self.find_empty(index1)
   if empty1 >= 0 {
@@ -221,15 +291,22 @@ fn CuckooFilter::insert_fingerprint(
     let (bucket, slot, fingerprint) = evictions[i]
     self.buckets[bucket * self.bucket_size + slot] = fingerprint
   }
-  false
+  if self.insert_fingerprint_bfs(index1, fingerprint) {
+    true
+  } else if index2 != index1 {
+    self.insert_fingerprint_bfs(index2, fingerprint)
+  } else {
+    false
+  }
 }
 
 ///|
 /// Insert `key`, returning `false` if the filter is full.
 ///
-/// When both candidate buckets are full, the filter performs up to 128
-/// evictions. A failed attempt restores all displaced fingerprints before
-/// returning, so a failed insert never loses existing entries.
+/// When both candidate buckets are full, the filter performs up to 512 random
+/// evictions and then searches for an augmenting path to an empty slot. A
+/// failed attempt restores all displaced fingerprints before returning, so a
+/// failed insert never loses existing entries.
 pub fn[K : Hash] CuckooFilter::insert(self : CuckooFilter, key : K) -> Bool {
   let (index1, fingerprint) = self.key_info(key)
   self.insert_fingerprint(index1, fingerprint)
@@ -645,7 +722,9 @@ pub fn CuckooFilter::clear(self : CuckooFilter) -> Unit {
     self.buckets[i] = b'\x00'
   }
   self.inserted = 0
-  let seed = (self.bucket_count.to_uint64() << 32) | self.bucket_size.to_uint64() | 1UL
+  let seed = (self.bucket_count.to_uint64() << 32) |
+    self.bucket_size.to_uint64() |
+    1UL
   self.random_state = mix64(seed)
 }
 

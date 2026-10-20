@@ -214,11 +214,5 @@ pub fn CuckooFilter::from_bytes(data : Bytes) -> CuckooFilter {
     abort("cuckoo insertion count does not match stored fingerprints")
   }
   let seed = (bucket_count.to_uint64() << 32) | bucket_size.to_uint64() | 1UL
-  {
-    buckets,
-    bucket_count,
-    bucket_size,
-    inserted,
-    random_state: mix64(seed),
-  }
+  { buckets, bucket_count, bucket_size, inserted, random_state: mix64(seed), }
 }

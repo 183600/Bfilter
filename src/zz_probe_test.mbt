@@ -27,7 +27,9 @@ test "probe cuckoo key multiset rebuild" {
   for k in ka {
     if !f.insert(k) {
       ok = false
-      println("fresh ka fail key=" + k.to_string() + " count=" + f.count().to_string())
+      println(
+        "fresh ka fail key=" + k.to_string() + " count=" + f.count().to_string(),
+      )
       break
     }
   }
@@ -35,7 +37,12 @@ test "probe cuckoo key multiset rebuild" {
     for k in kb {
       if !f.insert(k) {
         ok = false
-        println("fresh kb fail key=" + k.to_string() + " count=" + f.count().to_string())
+        println(
+          "fresh kb fail key=" +
+          k.to_string() +
+          " count=" +
+          f.count().to_string(),
+        )
         break
       }
     }
