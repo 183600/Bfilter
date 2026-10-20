@@ -540,6 +540,7 @@ pub fn CuckooFilter::merge(self : CuckooFilter, other : CuckooFilter) -> Bool {
         self.buckets[i] = result.buckets[i]
       }
       self.inserted = result.inserted
+      self.random_state = result.random_state
       true
     }
     None => false
