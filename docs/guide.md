@@ -135,6 +135,28 @@ assert_true(filter.contains("session"))
 assert_true(filter.remove("session"))
 ```
 
+## Occupancy and Storage
+
+Every filter exposes read-only statistics without scanning keys:
+
+- `BloomFilter::set_bit_count()` counts the bits set to one, while
+  `fill_ratio()` divides that count by `bit_count()`.
+- `CountingBloomFilter::occupied_slot_count()` counts slots with a positive
+  counter, while `fill_ratio()` divides that count by `slot_count()`.
+- `CuckooFilter::load_factor()` divides the stored fingerprint count by the
+  total number of slots.
+- `memory_bytes()` reports the size of the backing array.
+
+The concurrent wrappers expose the same methods and acquire the mutex before
+reading. For example:
+
+```moonbit
+let filter = @src.BloomFilter::new(1000, 0.01)
+filter.insert("value")
+let ratio = filter.fill_ratio()
+assert_true(ratio > 0.0 && ratio <= 1.0)
+```
+
 ## Configuration and Errors
 
 Constructors panic on invalid arguments:

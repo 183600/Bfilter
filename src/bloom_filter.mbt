@@ -179,6 +179,28 @@ pub fn BloomFilter::hash_count(self : BloomFilter) -> Int32 {
 }
 
 ///|
+/// Number of bits currently set to one.
+pub fn BloomFilter::set_bit_count(self : BloomFilter) -> Int32 {
+  let mut total = 0
+  for i = 0; i < self.words.length(); i = i + 1 {
+    total = total + self.words[i].popcnt()
+  }
+  total
+}
+
+///|
+/// Fraction of addressable bits currently set to one, in `[0, 1]`.
+pub fn BloomFilter::fill_ratio(self : BloomFilter) -> Double {
+  self.set_bit_count().to_double() / self.bit_count.to_double()
+}
+
+///|
+/// Number of bytes occupied by the bit array.
+pub fn BloomFilter::memory_bytes(self : BloomFilter) -> Int64 {
+  self.words.length().to_int64() * 8L
+}
+
+///|
 /// Estimated false-positive rate for the current insertion count.
 ///
 /// The estimate uses `(1 - exp(-k * n / m))^k`, where `n` is the insertion

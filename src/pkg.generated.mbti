@@ -15,11 +15,14 @@ pub fn[K : Hash] BloomFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] BloomFilter::contains_all(Self, ArrayView[K]) -> Bool
 pub fn BloomFilter::count(Self) -> Int32
 pub fn BloomFilter::false_positive_rate(Self) -> Double
+pub fn BloomFilter::fill_ratio(Self) -> Double
 pub fn BloomFilter::hash_count(Self) -> Int32
 pub fn[K : Hash] BloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] BloomFilter::insert_all(Self, ArrayView[K]) -> Unit
 pub fn BloomFilter::is_empty(Self) -> Bool
+pub fn BloomFilter::memory_bytes(Self) -> Int64
 pub fn BloomFilter::new(Int32, Double) -> Self
+pub fn BloomFilter::set_bit_count(Self) -> Int32
 pub fn BloomFilter::with_size(Int32, Int32) -> Self
 
 pub struct ConcurrentBloomFilter {
@@ -31,11 +34,14 @@ pub fn[K : Hash] ConcurrentBloomFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
 pub fn ConcurrentBloomFilter::count(Self) -> Int32
 pub fn ConcurrentBloomFilter::false_positive_rate(Self) -> Double
+pub fn ConcurrentBloomFilter::fill_ratio(Self) -> Double
 pub fn ConcurrentBloomFilter::hash_count(Self) -> Int32
 pub fn[K : Hash] ConcurrentBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] ConcurrentBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
 pub fn ConcurrentBloomFilter::is_empty(Self) -> Bool
+pub fn ConcurrentBloomFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentBloomFilter::new(Int32, Double) -> Self
+pub fn ConcurrentBloomFilter::set_bit_count(Self) -> Int32
 pub fn ConcurrentBloomFilter::with_size(Int32, Int32) -> Self
 
 pub struct ConcurrentCountingBloomFilter {
@@ -46,11 +52,14 @@ pub fn[K : Hash] ConcurrentCountingBloomFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCountingBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
 pub fn ConcurrentCountingBloomFilter::count(Self) -> Int32
 pub fn ConcurrentCountingBloomFilter::false_positive_rate(Self) -> Double
+pub fn ConcurrentCountingBloomFilter::fill_ratio(Self) -> Double
 pub fn ConcurrentCountingBloomFilter::hash_count(Self) -> Int32
 pub fn[K : Hash] ConcurrentCountingBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] ConcurrentCountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
 pub fn ConcurrentCountingBloomFilter::is_empty(Self) -> Bool
+pub fn ConcurrentCountingBloomFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentCountingBloomFilter::new(Int32, Double) -> Self
+pub fn ConcurrentCountingBloomFilter::occupied_slot_count(Self) -> Int32
 pub fn[K : Hash] ConcurrentCountingBloomFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
 pub fn ConcurrentCountingBloomFilter::slot_count(Self) -> Int32
@@ -68,6 +77,8 @@ pub fn ConcurrentCuckooFilter::count(Self) -> Int32
 pub fn[K : Hash] ConcurrentCuckooFilter::insert(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCuckooFilter::insert_all(Self, ArrayView[K]) -> Bool
 pub fn ConcurrentCuckooFilter::is_empty(Self) -> Bool
+pub fn ConcurrentCuckooFilter::load_factor(Self) -> Double
+pub fn ConcurrentCuckooFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentCuckooFilter::new(Int32) -> Self
 pub fn[K : Hash] ConcurrentCuckooFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCuckooFilter::remove_all(Self, ArrayView[K]) -> Bool
@@ -81,11 +92,14 @@ pub fn[K : Hash] CountingBloomFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] CountingBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
 pub fn CountingBloomFilter::count(Self) -> Int32
 pub fn CountingBloomFilter::false_positive_rate(Self) -> Double
+pub fn CountingBloomFilter::fill_ratio(Self) -> Double
 pub fn CountingBloomFilter::hash_count(Self) -> Int32
 pub fn[K : Hash] CountingBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] CountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
 pub fn CountingBloomFilter::is_empty(Self) -> Bool
+pub fn CountingBloomFilter::memory_bytes(Self) -> Int64
 pub fn CountingBloomFilter::new(Int32, Double) -> Self
+pub fn CountingBloomFilter::occupied_slot_count(Self) -> Int32
 pub fn[K : Hash] CountingBloomFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] CountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
 pub fn CountingBloomFilter::slot_count(Self) -> Int32
@@ -103,6 +117,8 @@ pub fn CuckooFilter::count(Self) -> Int32
 pub fn[K : Hash] CuckooFilter::insert(Self, K) -> Bool
 pub fn[K : Hash] CuckooFilter::insert_all(Self, ArrayView[K]) -> Bool
 pub fn CuckooFilter::is_empty(Self) -> Bool
+pub fn CuckooFilter::load_factor(Self) -> Double
+pub fn CuckooFilter::memory_bytes(Self) -> Int64
 pub fn CuckooFilter::new(Int32) -> Self
 pub fn[K : Hash] CuckooFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] CuckooFilter::remove_all(Self, ArrayView[K]) -> Bool

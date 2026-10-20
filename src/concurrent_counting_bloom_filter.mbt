@@ -144,6 +144,30 @@ pub fn ConcurrentCountingBloomFilter::hash_count(
 }
 
 ///|
+/// Number of slots with a positive counter.
+pub fn ConcurrentCountingBloomFilter::occupied_slot_count(
+  self : ConcurrentCountingBloomFilter,
+) -> Int32 {
+  self.with_lock(filter => filter.occupied_slot_count())
+}
+
+///|
+/// Fraction of slots with a positive counter.
+pub fn ConcurrentCountingBloomFilter::fill_ratio(
+  self : ConcurrentCountingBloomFilter,
+) -> Double {
+  self.with_lock(filter => filter.fill_ratio())
+}
+
+///|
+/// Number of bytes occupied by the underlying packed counters.
+pub fn ConcurrentCountingBloomFilter::memory_bytes(
+  self : ConcurrentCountingBloomFilter,
+) -> Int64 {
+  self.with_lock(filter => filter.memory_bytes())
+}
+
+///|
 /// Estimated false-positive rate for the current insertion count.
 pub fn ConcurrentCountingBloomFilter::false_positive_rate(
   self : ConcurrentCountingBloomFilter,

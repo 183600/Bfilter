@@ -138,3 +138,19 @@ pub fn ConcurrentCuckooFilter::bucket_size(
 ) -> Int32 {
   self.with_lock(filter => filter.bucket_size())
 }
+
+///|
+/// Fraction of slots currently holding a fingerprint.
+pub fn ConcurrentCuckooFilter::load_factor(
+  self : ConcurrentCuckooFilter,
+) -> Double {
+  self.with_lock(filter => filter.load_factor())
+}
+
+///|
+/// Number of bytes occupied by the underlying fingerprint array.
+pub fn ConcurrentCuckooFilter::memory_bytes(
+  self : ConcurrentCuckooFilter,
+) -> Int64 {
+  self.with_lock(filter => filter.memory_bytes())
+}

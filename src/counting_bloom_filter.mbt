@@ -232,6 +232,39 @@ pub fn CountingBloomFilter::hash_count(self : CountingBloomFilter) -> Int32 {
 }
 
 ///|
+/// Number of slots with a positive counter.
+pub fn CountingBloomFilter::occupied_slot_count(
+  self : CountingBloomFilter,
+) -> Int32 {
+  let mut total = 0
+  for i = 0; i < self.counters.length(); i = i + 1 {
+    let word = self.counters[i]
+    for lane = 0; lane < 4; lane = lane + 1 {
+      if ((word >> (lane * 16)) & 0xFFFFUL) != 0UL {
+        total = total + 1
+      }
+    }
+  }
+  total
+}
+
+///|
+/// Fraction of slots with a positive counter, in `[0, 1]`.
+pub fn CountingBloomFilter::fill_ratio(
+  self : CountingBloomFilter,
+) -> Double {
+  self.occupied_slot_count().to_double() / self.slot_count.to_double()
+}
+
+///|
+/// Number of bytes occupied by the packed counters.
+pub fn CountingBloomFilter::memory_bytes(
+  self : CountingBloomFilter,
+) -> Int64 {
+  self.counters.length().to_int64() * 8L
+}
+
+///|
 /// Estimated false-positive rate for the current insertion count.
 ///
 /// Uses the same formula as `BloomFilter::false_positive_rate`, with the slot

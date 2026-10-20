@@ -122,6 +122,30 @@ pub fn ConcurrentBloomFilter::hash_count(self : ConcurrentBloomFilter) -> Int32 
 }
 
 ///|
+/// Number of bits currently set to one.
+pub fn ConcurrentBloomFilter::set_bit_count(
+  self : ConcurrentBloomFilter,
+) -> Int32 {
+  self.with_lock(filter => filter.set_bit_count())
+}
+
+///|
+/// Fraction of addressable bits currently set to one.
+pub fn ConcurrentBloomFilter::fill_ratio(
+  self : ConcurrentBloomFilter,
+) -> Double {
+  self.with_lock(filter => filter.fill_ratio())
+}
+
+///|
+/// Number of bytes occupied by the underlying bit array.
+pub fn ConcurrentBloomFilter::memory_bytes(
+  self : ConcurrentBloomFilter,
+) -> Int64 {
+  self.with_lock(filter => filter.memory_bytes())
+}
+
+///|
 /// Estimated false-positive rate for the current insertion count.
 pub fn ConcurrentBloomFilter::false_positive_rate(
   self : ConcurrentBloomFilter,

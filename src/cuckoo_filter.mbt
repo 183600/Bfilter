@@ -290,3 +290,16 @@ pub fn CuckooFilter::bucket_count(self : CuckooFilter) -> Int32 {
 pub fn CuckooFilter::bucket_size(self : CuckooFilter) -> Int32 {
   self.bucket_size
 }
+
+///|
+/// Fraction of slots currently holding a fingerprint, in `[0, 1]`.
+pub fn CuckooFilter::load_factor(self : CuckooFilter) -> Double {
+  self.inserted.to_double() /
+  (self.bucket_count * self.bucket_size).to_double()
+}
+
+///|
+/// Number of bytes occupied by the fingerprint array.
+pub fn CuckooFilter::memory_bytes(self : CuckooFilter) -> Int64 {
+  self.buckets.length().to_int64()
+}
