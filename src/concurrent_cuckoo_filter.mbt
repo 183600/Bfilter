@@ -151,11 +151,27 @@ pub fn ConcurrentCuckooFilter::bucket_size(
 }
 
 ///|
+/// Total number of fingerprints the filter can hold.
+pub fn ConcurrentCuckooFilter::capacity(
+  self : ConcurrentCuckooFilter,
+) -> Int32 {
+  self.with_lock(filter => filter.capacity())
+}
+
+///|
 /// Fraction of slots currently holding a fingerprint.
 pub fn ConcurrentCuckooFilter::load_factor(
   self : ConcurrentCuckooFilter,
 ) -> Double {
   self.with_lock(filter => filter.load_factor())
+}
+
+///|
+/// Estimate the false-positive rate from the average bucket occupancy.
+pub fn ConcurrentCuckooFilter::false_positive_rate(
+  self : ConcurrentCuckooFilter,
+) -> Double {
+  self.with_lock(filter => filter.false_positive_rate())
 }
 
 ///|

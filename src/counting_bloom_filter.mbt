@@ -272,6 +272,25 @@ pub fn CountingBloomFilter::fill_ratio(
 }
 
 ///|
+/// Estimate the number of distinct keys represented by the occupied slots.
+///
+/// Uses the same occupancy formula as `BloomFilter::estimated_item_count`, with
+/// the slot count in place of the bit count.
+pub fn CountingBloomFilter::estimated_item_count(
+  self : CountingBloomFilter,
+) -> Double {
+  let m = self.slot_count.to_double()
+  let x = self.occupied_slot_count().to_double()
+  if x == 0.0 {
+    0.0
+  } else if x >= m {
+    @double.infinity
+  } else {
+    -(m / self.hash_count.to_double()) * @math.ln(1.0 - x / m)
+  }
+}
+
+///|
 /// Number of bytes occupied by the packed counters.
 pub fn CountingBloomFilter::memory_bytes(
   self : CountingBloomFilter,

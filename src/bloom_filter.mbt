@@ -287,6 +287,23 @@ pub fn BloomFilter::fill_ratio(self : BloomFilter) -> Double {
 }
 
 ///|
+/// Estimate the number of distinct keys represented by the current set bits.
+///
+/// Uses `-(m / k) * ln(1 - X / m)`, where `X` is the number of set bits. The
+/// estimate is `0` for an empty filter and infinite once every bit is set.
+pub fn BloomFilter::estimated_item_count(self : BloomFilter) -> Double {
+  let m = self.bit_count.to_double()
+  let x = self.set_bit_count().to_double()
+  if x == 0.0 {
+    0.0
+  } else if x >= m {
+    @double.infinity
+  } else {
+    -(m / self.hash_count.to_double()) * @math.ln(1.0 - x / m)
+  }
+}
+
+///|
 /// Number of bytes occupied by the bit array.
 pub fn BloomFilter::memory_bytes(self : BloomFilter) -> Int64 {
   self.words.length().to_int64() * 8L

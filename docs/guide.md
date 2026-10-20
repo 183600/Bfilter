@@ -179,7 +179,11 @@ Every filter exposes read-only statistics without scanning keys:
 - `CountingBloomFilter::occupied_slot_count()` counts slots with a positive
   counter, while `fill_ratio()` divides that count by `slot_count()`.
 - `CuckooFilter::load_factor()` divides the stored fingerprint count by the
-  total number of slots.
+  total number of slots, which is reported by `capacity()`.
+- `estimated_item_count()` derives the number of distinct keys from occupancy
+  for the two Bloom variants. It returns infinity when every slot is occupied.
+- `CuckooFilter::false_positive_rate()` estimates the current rate from the
+  average bucket occupancy and the eight-bit fingerprint size.
 - `memory_bytes()` reports the size of the backing array.
 
 The concurrent wrappers expose the same methods and acquire the mutex before

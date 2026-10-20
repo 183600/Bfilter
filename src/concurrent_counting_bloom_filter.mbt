@@ -171,6 +171,14 @@ pub fn ConcurrentCountingBloomFilter::fill_ratio(
 }
 
 ///|
+/// Estimate the number of distinct keys represented by the occupied slots.
+pub fn ConcurrentCountingBloomFilter::estimated_item_count(
+  self : ConcurrentCountingBloomFilter,
+) -> Double {
+  self.with_lock(filter => filter.estimated_item_count())
+}
+
+///|
 /// Number of bytes occupied by the underlying packed counters.
 pub fn ConcurrentCountingBloomFilter::memory_bytes(
   self : ConcurrentCountingBloomFilter,

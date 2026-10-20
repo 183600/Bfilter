@@ -149,6 +149,14 @@ pub fn ConcurrentBloomFilter::fill_ratio(
 }
 
 ///|
+/// Estimate the number of distinct keys represented by the current set bits.
+pub fn ConcurrentBloomFilter::estimated_item_count(
+  self : ConcurrentBloomFilter,
+) -> Double {
+  self.with_lock(filter => filter.estimated_item_count())
+}
+
+///|
 /// Number of bytes occupied by the underlying bit array.
 pub fn ConcurrentBloomFilter::memory_bytes(
   self : ConcurrentBloomFilter,

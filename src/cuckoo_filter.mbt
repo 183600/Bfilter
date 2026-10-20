@@ -305,10 +305,31 @@ pub fn CuckooFilter::bucket_size(self : CuckooFilter) -> Int32 {
 }
 
 ///|
+/// Total number of fingerprints the filter can hold.
+pub fn CuckooFilter::capacity(self : CuckooFilter) -> Int32 {
+  self.bucket_count * self.bucket_size
+}
+
+///|
 /// Fraction of slots currently holding a fingerprint, in `[0, 1]`.
 pub fn CuckooFilter::load_factor(self : CuckooFilter) -> Double {
-  self.inserted.to_double() /
-  (self.bucket_count * self.bucket_size).to_double()
+  self.inserted.to_double() / self.capacity().to_double()
+}
+
+///|
+/// Estimate the false-positive rate from the average bucket occupancy.
+///
+/// A query checks two buckets and compares eight-bit fingerprints, so the
+/// estimate is `1 - (1 - 1/256)^(2 * load)`, where `load` is the average number
+/// of fingerprints per bucket. An empty filter returns `0`.
+pub fn CuckooFilter::false_positive_rate(self : CuckooFilter) -> Double {
+  if self.inserted == 0 {
+    0.0
+  } else {
+    let average_load = self.inserted.to_double() /
+      self.bucket_count.to_double()
+    1.0 - @math.pow(1.0 - 1.0 / 256.0, 2.0 * average_load)
+  }
 }
 
 ///|
