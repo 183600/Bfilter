@@ -164,6 +164,7 @@ pub fn CuckooFilter::new(Int32) -> Self
 pub fn[K : Hash] CuckooFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] CuckooFilter::remove_all(Self, ArrayView[K]) -> Bool
 pub fn CuckooFilter::to_bytes(Self) -> Bytes
+pub fn CuckooFilter::union(Self, Self) -> Self?
 pub fn CuckooFilter::with_size(Int32, Int32) -> Self
 
 // Type aliases

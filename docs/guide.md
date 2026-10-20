@@ -156,6 +156,21 @@ evicted fingerprints before returning, so a failed insert cannot lose existing
 entries. `insert_all` and `remove_all` continue after a failure and report
 whether every operation succeeded.
 
+Filters with the same bucket layout can be combined. `union` copies the
+fingerprints of both inputs and returns `None` if the combined entries do not
+fit, leaving both inputs unchanged:
+
+```moonbit
+let left = @src.CuckooFilter::with_size(64, 4)
+let right = @src.CuckooFilter::with_size(64, 4)
+assert_true(left.insert("left"))
+assert_true(right.insert("right"))
+match left.union(right) {
+  Some(combined) => assert_true(combined.contains_all(["left", "right"]))
+  None => abort("combined filter is full")
+}
+```
+
 ## Concurrent Bloom Filter
 
 `ConcurrentBloomFilter` wraps a `BloomFilter` and serializes every operation

@@ -132,13 +132,11 @@ fn CuckooFilter::bucket_remove(
 }
 
 ///|
-/// Insert `key`, returning `false` if the filter is full.
-///
-/// When both candidate buckets are full, the filter performs up to 128
-/// evictions. A failed attempt restores all displaced fingerprints before
-/// returning, so a failed insert never loses existing entries.
-pub fn[K : Hash] CuckooFilter::insert(self : CuckooFilter, key : K) -> Bool {
-  let (index1, fingerprint) = self.key_info(key)
+fn CuckooFilter::insert_fingerprint(
+  self : CuckooFilter,
+  index1 : Int32,
+  fingerprint : Byte,
+) -> Bool {
   let index2 = self.alternate_index(index1, fingerprint)
   let empty1 = self.find_empty(index1)
   if empty1 >= 0 {
@@ -175,6 +173,17 @@ pub fn[K : Hash] CuckooFilter::insert(self : CuckooFilter, key : K) -> Bool {
     self.buckets[bucket * self.bucket_size + slot] = fingerprint
   }
   false
+}
+
+///|
+/// Insert `key`, returning `false` if the filter is full.
+///
+/// When both candidate buckets are full, the filter performs up to 128
+/// evictions. A failed attempt restores all displaced fingerprints before
+/// returning, so a failed insert never loses existing entries.
+pub fn[K : Hash] CuckooFilter::insert(self : CuckooFilter, key : K) -> Bool {
+  let (index1, fingerprint) = self.key_info(key)
+  self.insert_fingerprint(index1, fingerprint)
 }
 
 ///|
@@ -224,6 +233,39 @@ pub fn[K : Hash] CuckooFilter::insert_all(
     }
   }
   inserted_all
+}
+
+///|
+/// Build a new filter that reports every key present in either input.
+///
+/// Both filters must use the same bucket count and bucket size. Fingerprints
+/// are copied into their original buckets, which preserves each key's two
+/// candidate buckets, and evictions keep that invariant. Returns `None` when
+/// the combined fingerprints do not fit in the available slots; the inputs are
+/// left unchanged in that case.
+pub fn CuckooFilter::union(
+  self : CuckooFilter,
+  other : CuckooFilter,
+) -> CuckooFilter? {
+  guard self.bucket_count == other.bucket_count &&
+    self.bucket_size == other.bucket_size else {
+    abort("cuckoo filters must have the same bucket count and size")
+  }
+  guard self.inserted <= 2147483647 - other.inserted else {
+    abort("cuckoo filter insertion count overflow")
+  }
+  let result = self.copy()
+  for bucket = 0; bucket < other.bucket_count; bucket = bucket + 1 {
+    let base = bucket * other.bucket_size
+    for slot = 0; slot < other.bucket_size; slot = slot + 1 {
+      let fingerprint = other.buckets[base + slot]
+      if fingerprint != b'\x00' &&
+        !result.insert_fingerprint(bucket, fingerprint) {
+        return None
+      }
+    }
+  }
+  Some(result)
 }
 
 ///|
