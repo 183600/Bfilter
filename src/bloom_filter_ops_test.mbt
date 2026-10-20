@@ -64,3 +64,22 @@ test "panic bloom filter subset rejects incompatible sizes" {
   let right = @src.BloomFilter::with_size(128, 2)
   left.is_subset_of(right) |> ignore
 }
+
+///|
+test "panic bloom filter union rejects insertion count overflow" {
+  let left_bytes = @src.BloomFilter::with_size(64, 1)
+    .to_bytes()
+    .to_fixedarray()
+  left_bytes.unsafe_write_uint32_le(16, 2147483647U)
+  let right_bytes = @src.BloomFilter::with_size(64, 1)
+    .to_bytes()
+    .to_fixedarray()
+  right_bytes.unsafe_write_uint32_le(16, 2147483647U)
+  let left = @src.BloomFilter::from_bytes(
+    Bytes::from_array(left_bytes.exact_view()),
+  )
+  let right = @src.BloomFilter::from_bytes(
+    Bytes::from_array(right_bytes.exact_view()),
+  )
+  left.union(right) |> ignore
+}

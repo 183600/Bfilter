@@ -176,6 +176,9 @@ pub fn BloomFilter::union(
   other : BloomFilter,
 ) -> BloomFilter {
   self.ensure_compatible(other)
+  guard self.inserted <= 2147483647 - other.inserted else {
+    abort("bloom filter insertion count overflow")
+  }
   let result = BloomFilter::with_size(self.bit_count, self.hash_count)
   for i = 0; i < result.words.length(); i = i + 1 {
     result.words[i] = self.words[i] | other.words[i]
