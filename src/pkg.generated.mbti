@@ -159,6 +159,7 @@ pub fn CuckooFilter::from_bytes(Bytes) -> Self
 pub fn[K : Hash] CuckooFilter::insert(Self, K) -> Bool
 pub fn[K : Hash] CuckooFilter::insert_all(Self, ArrayView[K]) -> Bool
 pub fn CuckooFilter::is_empty(Self) -> Bool
+pub fn CuckooFilter::is_subset_of(Self, Self) -> Bool
 pub fn CuckooFilter::load_factor(Self) -> Double
 pub fn CuckooFilter::memory_bytes(Self) -> Int64
 pub fn CuckooFilter::merge(Self, Self) -> Bool

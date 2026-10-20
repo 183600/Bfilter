@@ -175,6 +175,15 @@ match left.union(right) {
 changing it when the entries do not fit. `ConcurrentCuckooFilter::merge` holds
 the lock once while performing the same operation.
 
+`is_subset_of` compares fingerprints across each key's two candidate buckets
+and respects duplicate multiplicities, so a `true` result means every key
+reported by the first filter is also reported by the second:
+
+```moonbit
+assert_true(left.is_subset_of(combined))
+assert_true(right.is_subset_of(combined))
+```
+
 ## Concurrent Bloom Filter
 
 `ConcurrentBloomFilter` wraps a `BloomFilter` and serializes every operation

@@ -93,3 +93,41 @@ test "cuckoo filter union keeps duplicate fingerprints" {
   assert_true(combined.remove("shared"))
   assert_false(combined.contains("shared"))
 }
+
+///|
+test "cuckoo filter subset checks fingerprints across candidate buckets" {
+  let left = @src.CuckooFilter::with_size(64, 4)
+  let right = @src.CuckooFilter::with_size(64, 4)
+  let shared = ["shared-1", "shared-2", "shared-3"]
+  assert_true(left.insert_all(shared))
+  assert_true(left.insert("left-only"))
+  assert_true(right.insert_all(shared))
+  assert_true(right.insert("right-only"))
+  let combined = match left.union(right) {
+    Some(filter) => filter
+    None => abort("union unexpectedly ran out of space")
+  }
+  assert_true(left.is_subset_of(combined))
+  assert_true(right.is_subset_of(combined))
+  let empty = @src.CuckooFilter::with_size(64, 4)
+  assert_true(empty.is_subset_of(left))
+  assert_false(left.is_subset_of(empty))
+}
+
+///|
+test "cuckoo filter subset compares duplicate multiplicities" {
+  let left = @src.CuckooFilter::with_size(64, 4)
+  let right = @src.CuckooFilter::with_size(64, 4)
+  assert_true(left.insert("shared"))
+  assert_true(left.insert("shared"))
+  assert_true(right.insert("shared"))
+  assert_false(left.is_subset_of(right))
+  assert_true(right.is_subset_of(left))
+}
+
+///|
+test "panic cuckoo filter subset rejects incompatible layouts" {
+  let left = @src.CuckooFilter::with_size(8, 4)
+  let right = @src.CuckooFilter::with_size(16, 4)
+  left.is_subset_of(right) |> ignore
+}

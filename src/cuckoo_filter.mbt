@@ -116,6 +116,37 @@ fn CuckooFilter::bucket_contains(
 }
 
 ///|
+fn CuckooFilter::bucket_fingerprint_count(
+  self : CuckooFilter,
+  bucket : Int32,
+  fingerprint : Byte,
+) -> Int32 {
+  let base = bucket * self.bucket_size
+  let mut count = 0
+  for slot = 0; slot < self.bucket_size; slot = slot + 1 {
+    if self.buckets[base + slot] == fingerprint {
+      count = count + 1
+    }
+  }
+  count
+}
+
+///|
+fn CuckooFilter::pair_fingerprint_count(
+  self : CuckooFilter,
+  bucket : Int32,
+  fingerprint : Byte,
+) -> Int32 {
+  let alternate = self.alternate_index(bucket, fingerprint)
+  let count = self.bucket_fingerprint_count(bucket, fingerprint)
+  if alternate == bucket {
+    count
+  } else {
+    count + self.bucket_fingerprint_count(alternate, fingerprint)
+  }
+}
+
+///|
 fn CuckooFilter::bucket_remove(
   self : CuckooFilter,
   bucket : Int32,
@@ -285,6 +316,35 @@ pub fn CuckooFilter::merge(self : CuckooFilter, other : CuckooFilter) -> Bool {
     }
     None => false
   }
+}
+
+///|
+/// Whether every fingerprint in `self` is also present in `other`.
+///
+/// Both filters must use the same bucket count and bucket size. Fingerprints
+/// are compared across each key's two candidate buckets and multiplicities are
+/// preserved, so a `true` result means every key reported by `self` is also
+/// reported by `other`. The check does not require the same physical slot.
+pub fn CuckooFilter::is_subset_of(
+  self : CuckooFilter,
+  other : CuckooFilter,
+) -> Bool {
+  guard self.bucket_count == other.bucket_count &&
+    self.bucket_size == other.bucket_size else {
+    abort("cuckoo filters must have the same bucket count and size")
+  }
+  for bucket = 0; bucket < self.bucket_count; bucket = bucket + 1 {
+    let base = bucket * self.bucket_size
+    for slot = 0; slot < self.bucket_size; slot = slot + 1 {
+      let fingerprint = self.buckets[base + slot]
+      if fingerprint != b'\x00' &&
+        self.pair_fingerprint_count(bucket, fingerprint) >
+        other.pair_fingerprint_count(bucket, fingerprint) {
+        return false
+      }
+    }
+  }
+  true
 }
 
 ///|
