@@ -196,6 +196,31 @@ pub fn CuckooFilter::to_bytes(Self) -> Bytes
 pub fn CuckooFilter::union(Self, Self) -> Self?
 pub fn CuckooFilter::with_size(Int32, Int32) -> Self
 
+pub struct ScalableBloomFilter {
+  // private fields
+}
+pub fn ScalableBloomFilter::bit_count(Self) -> Int32
+pub fn ScalableBloomFilter::capacity(Self) -> Int32
+pub fn ScalableBloomFilter::clear(Self) -> Unit
+pub fn[K : Hash] ScalableBloomFilter::contains(Self, K) -> Bool
+pub fn[K : Hash] ScalableBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
+pub fn[K : Hash] ScalableBloomFilter::contains_any(Self, ArrayView[K]) -> Bool
+pub fn ScalableBloomFilter::copy(Self) -> Self
+pub fn ScalableBloomFilter::count(Self) -> Int32
+pub fn ScalableBloomFilter::estimated_item_count(Self) -> Double
+pub fn ScalableBloomFilter::false_positive_rate(Self) -> Double
+pub fn ScalableBloomFilter::fill_ratio(Self) -> Double
+pub fn[K : Hash] ScalableBloomFilter::insert(Self, K) -> Unit
+pub fn[K : Hash] ScalableBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn[K : Hash] ScalableBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
+pub fn[K : Hash] ScalableBloomFilter::insert_if_absent(Self, K) -> Bool
+pub fn ScalableBloomFilter::is_empty(Self) -> Bool
+pub fn ScalableBloomFilter::memory_bytes(Self) -> Int64
+pub fn ScalableBloomFilter::new(Int32, Double) -> Self
+pub fn ScalableBloomFilter::set_bit_count(Self) -> Int32
+pub fn ScalableBloomFilter::slice_count(Self) -> Int32
+pub fn ScalableBloomFilter::target_false_positive_rate(Self) -> Double
+
 // Type aliases
 
 // Traits
