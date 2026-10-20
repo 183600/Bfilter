@@ -113,3 +113,39 @@ test "bench concurrent contains n=1000" (b : @bench.T) {
     b.keep(hits)
   })
 }
+
+///|
+test "bench bloom union n=1000" (b : @bench.T) {
+  let left = @src.BloomFilter::new(1000, 0.01)
+  let right = @src.BloomFilter::new(1000, 0.01)
+  left.insert_all(bench_keys)
+  right.insert_all(bench_keys)
+  b.bench(fn() {
+    let combined = left.union(right)
+    b.keep(combined)
+  })
+}
+
+///|
+test "bench counting union n=1000" (b : @bench.T) {
+  let left = @src.CountingBloomFilter::new(1000, 0.01)
+  let right = @src.CountingBloomFilter::new(1000, 0.01)
+  left.insert_all(bench_keys)
+  right.insert_all(bench_keys)
+  b.bench(fn() {
+    let combined = left.union(right)
+    b.keep(combined)
+  })
+}
+
+///|
+test "bench cuckoo union n=1000" (b : @bench.T) {
+  let left = @src.CuckooFilter::new(1000)
+  let right = @src.CuckooFilter::new(1000)
+  ignore(left.insert_all(bench_keys))
+  ignore(right.insert_all(bench_keys))
+  b.bench(fn() {
+    let combined = left.union(right)
+    b.keep(combined)
+  })
+}
