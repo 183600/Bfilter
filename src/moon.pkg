@@ -1,9 +1,15 @@
 import {
   "moonbitlang/core/math",
+  "moonbitlang/core/ref",
 }
 
 options(
   "is-main": false,
+  "native-stub": [ "mutex_stub.c" ],
+  targets: {
+    "mutex_native.mbt": [ "native", "llvm" ],
+    "mutex_single_threaded.mbt": [ "js", "wasm", "wasm-gc" ],
+  },
   readme: "README.md",
   description: "A high-performance Bloom filter implementation with variants and concurrency support",
   version: "0.1.0",

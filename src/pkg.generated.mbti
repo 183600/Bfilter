@@ -22,6 +22,22 @@ pub fn BloomFilter::is_empty(Self) -> Bool
 pub fn BloomFilter::new(Int32, Double) -> Self
 pub fn BloomFilter::with_size(Int32, Int32) -> Self
 
+pub struct ConcurrentBloomFilter {
+  // private fields
+}
+pub fn ConcurrentBloomFilter::bit_count(Self) -> Int32
+pub fn ConcurrentBloomFilter::clear(Self) -> Unit
+pub fn[K : Hash] ConcurrentBloomFilter::contains(Self, K) -> Bool
+pub fn[K : Hash] ConcurrentBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentBloomFilter::count(Self) -> Int32
+pub fn ConcurrentBloomFilter::false_positive_rate(Self) -> Double
+pub fn ConcurrentBloomFilter::hash_count(Self) -> Int32
+pub fn[K : Hash] ConcurrentBloomFilter::insert(Self, K) -> Unit
+pub fn[K : Hash] ConcurrentBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn ConcurrentBloomFilter::is_empty(Self) -> Bool
+pub fn ConcurrentBloomFilter::new(Int32, Double) -> Self
+pub fn ConcurrentBloomFilter::with_size(Int32, Int32) -> Self
+
 pub struct CountingBloomFilter {
   // private fields
 }
