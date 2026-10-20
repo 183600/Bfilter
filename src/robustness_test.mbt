@@ -226,11 +226,18 @@ test "panic serialization rejects bloom insertion counts without set bits" {
 }
 
 ///|
-test "panic serialization rejects counting insertion counts without counters" {
-  let bytes = @src.CountingBloomFilter::with_size(16, 1)
-    .to_bytes()
-    .to_fixedarray()
-  bytes.unsafe_write_uint32_le(16, 1U)
-  @src.CountingBloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
-  |> ignore
+test "counting serialization preserves saturating counters after removals" {
+  let filter = @src.CountingBloomFilter::with_size(16, 1)
+  for i = 0; i < 65536; i = i + 1 {
+    filter.insert(7)
+  }
+  assert_eq(filter.count_of(7), 65535)
+  for i = 0; i < 65535; i = i + 1 {
+    assert_true(filter.remove(7))
+  }
+  assert_eq(filter.count(), 1)
+  assert_false(filter.contains(7))
+  let restored = @src.CountingBloomFilter::from_bytes(filter.to_bytes())
+  assert_eq(restored.count(), 1)
+  assert_false(restored.contains(7))
 }

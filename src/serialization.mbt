@@ -157,9 +157,6 @@ pub fn CountingBloomFilter::from_bytes(data : Bytes) -> CountingBloomFilter {
       counter_mass = counter_mass + ((word >> (lane * 16)) & 0xFFFFUL)
     }
   }
-  guard inserted == 0 || counter_mass > 0UL else {
-    abort("counting insertion count requires positive counters")
-  }
   guard counter_mass <= hash_count.to_uint64() * inserted.to_uint64() else {
     abort("counting insertion count is too small for positive counters")
   }
