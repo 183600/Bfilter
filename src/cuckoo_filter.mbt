@@ -322,8 +322,7 @@ fn CuckooFilter::insert_fingerprints_from(
     let base = bucket * other.bucket_size
     for slot = 0; slot < other.bucket_size; slot = slot + 1 {
       let fingerprint = other.buckets[base + slot]
-      if fingerprint != b'\x00' &&
-        !self.insert_fingerprint(bucket, fingerprint) {
+      if fingerprint != b'\x00' && !self.insert_fingerprint(bucket, fingerprint) {
         return false
       }
     }
