@@ -75,6 +75,7 @@ fn CountingBloomFilter::set_counter(
 ) -> Unit {
   let word = position / 4
   let shift = position % 4 * 16
+  let value = if value > 0xFFFFUL { 0xFFFFUL } else { value }
   let old = (self.counters[word] >> shift) & 0xFFFFUL
   let cleared = self.counters[word] ^ (old << shift)
   self.counters[word] = cleared | (value << shift)

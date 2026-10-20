@@ -35,3 +35,12 @@ test "counting bloom filter refuses to underflow duplicate hash positions" {
   assert_eq(filter.counter_at(duplicate), 1UL)
   assert_eq(filter.count(), 1)
 }
+
+///|
+test "counting bloom filter clamps counters to their packed field" {
+  let filter = CountingBloomFilter::with_size(16, 1)
+  filter.set_counter(1, 123UL)
+  filter.set_counter(0, 65536UL)
+  assert_eq(filter.counter_at(0), 65535UL)
+  assert_eq(filter.counter_at(1), 123UL)
+}
