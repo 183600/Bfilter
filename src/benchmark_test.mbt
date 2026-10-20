@@ -236,3 +236,33 @@ test "bench cuckoo count_of n=1000" (b : @bench.T) {
     b.keep(total)
   })
 }
+
+///|
+test "bench bloom serialization n=1000" (b : @bench.T) {
+  let filter = @src.BloomFilter::new(1000, 0.01)
+  filter.insert_all(bench_keys)
+  b.bench(fn() {
+    let restored = @src.BloomFilter::from_bytes(filter.to_bytes())
+    b.keep(restored)
+  })
+}
+
+///|
+test "bench counting serialization n=1000" (b : @bench.T) {
+  let filter = @src.CountingBloomFilter::new(1000, 0.01)
+  filter.insert_all(bench_keys)
+  b.bench(fn() {
+    let restored = @src.CountingBloomFilter::from_bytes(filter.to_bytes())
+    b.keep(restored)
+  })
+}
+
+///|
+test "bench cuckoo serialization n=1000" (b : @bench.T) {
+  let filter = @src.CuckooFilter::new(1000)
+  ignore(filter.insert_all(bench_keys))
+  b.bench(fn() {
+    let restored = @src.CuckooFilter::from_bytes(filter.to_bytes())
+    b.keep(restored)
+  })
+}
