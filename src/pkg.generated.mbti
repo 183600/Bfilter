@@ -131,6 +131,33 @@ pub fn ConcurrentCuckooFilter::to_bytes(Self) -> Bytes
 pub fn ConcurrentCuckooFilter::union(Self, CuckooFilter) -> CuckooFilter?
 pub fn ConcurrentCuckooFilter::with_size(Int32, Int32) -> Self
 
+pub struct ConcurrentScalableBloomFilter {
+  // private fields
+}
+pub fn ConcurrentScalableBloomFilter::bit_count(Self) -> Int32
+pub fn ConcurrentScalableBloomFilter::capacity(Self) -> Int32
+pub fn ConcurrentScalableBloomFilter::clear(Self) -> Unit
+pub fn[K : Hash] ConcurrentScalableBloomFilter::contains(Self, K) -> Bool
+pub fn[K : Hash] ConcurrentScalableBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
+pub fn[K : Hash] ConcurrentScalableBloomFilter::contains_any(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentScalableBloomFilter::count(Self) -> Int32
+pub fn ConcurrentScalableBloomFilter::estimated_item_count(Self) -> Double
+pub fn ConcurrentScalableBloomFilter::false_positive_rate(Self) -> Double
+pub fn ConcurrentScalableBloomFilter::fill_ratio(Self) -> Double
+pub fn ConcurrentScalableBloomFilter::from_bytes(Bytes) -> Self
+pub fn[K : Hash] ConcurrentScalableBloomFilter::insert(Self, K) -> Unit
+pub fn[K : Hash] ConcurrentScalableBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn[K : Hash] ConcurrentScalableBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
+pub fn[K : Hash] ConcurrentScalableBloomFilter::insert_if_absent(Self, K) -> Bool
+pub fn ConcurrentScalableBloomFilter::is_empty(Self) -> Bool
+pub fn ConcurrentScalableBloomFilter::memory_bytes(Self) -> Int64
+pub fn ConcurrentScalableBloomFilter::new(Int32, Double) -> Self
+pub fn ConcurrentScalableBloomFilter::set_bit_count(Self) -> Int32
+pub fn ConcurrentScalableBloomFilter::slice_count(Self) -> Int32
+pub fn ConcurrentScalableBloomFilter::snapshot(Self) -> ScalableBloomFilter
+pub fn ConcurrentScalableBloomFilter::target_false_positive_rate(Self) -> Double
+pub fn ConcurrentScalableBloomFilter::to_bytes(Self) -> Bytes
+
 pub struct CountingBloomFilter {
   // private fields
 }
