@@ -40,6 +40,23 @@ pub fn[K : Hash] CountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
 pub fn CountingBloomFilter::slot_count(Self) -> Int32
 pub fn CountingBloomFilter::with_size(Int32, Int32) -> Self
 
+pub struct CuckooFilter {
+  // private fields
+}
+pub fn CuckooFilter::bucket_count(Self) -> Int32
+pub fn CuckooFilter::bucket_size(Self) -> Int32
+pub fn CuckooFilter::clear(Self) -> Unit
+pub fn[K : Hash] CuckooFilter::contains(Self, K) -> Bool
+pub fn[K : Hash] CuckooFilter::contains_all(Self, ArrayView[K]) -> Bool
+pub fn CuckooFilter::count(Self) -> Int32
+pub fn[K : Hash] CuckooFilter::insert(Self, K) -> Bool
+pub fn[K : Hash] CuckooFilter::insert_all(Self, ArrayView[K]) -> Bool
+pub fn CuckooFilter::is_empty(Self) -> Bool
+pub fn CuckooFilter::new(Int32) -> Self
+pub fn[K : Hash] CuckooFilter::remove(Self, K) -> Bool
+pub fn[K : Hash] CuckooFilter::remove_all(Self, ArrayView[K]) -> Bool
+pub fn CuckooFilter::with_size(Int32, Int32) -> Self
+
 // Type aliases
 
 // Traits
