@@ -92,3 +92,33 @@ test "panic cuckoo filter intersection rejects incompatible layouts" {
   let right = @src.CuckooFilter::with_size(16, 4)
   left.intersection(right) |> ignore
 }
+
+///|
+test "cuckoo intersection works with a single candidate bucket" {
+  let left = @src.CuckooFilter::with_size(1, 2)
+  let right = @src.CuckooFilter::with_size(1, 2)
+  assert_true(left.insert("shared"))
+  assert_true(left.insert("left-only"))
+  assert_true(right.insert("shared"))
+  let common = left.intersection(right)
+  assert_true(common.contains("shared"))
+  assert_true(common.count() <= left.count())
+  assert_true(common.count() <= right.count())
+}
+
+///|
+test "cuckoo intersection result round-trips through serialization" {
+  let left = @src.CuckooFilter::with_size(128, 4)
+  let right = @src.CuckooFilter::with_size(128, 4)
+  let shared : Array[Int32] = []
+  for i = 0; i < 40; i = i + 1 {
+    shared.push(i)
+  }
+  assert_true(left.insert_all(shared))
+  assert_true(right.insert_all(shared))
+  let common = left.intersection(right)
+  let restored = @src.CuckooFilter::from_bytes(common.to_bytes())
+  assert_eq(restored.count(), common.count())
+  assert_true(restored.is_subset_of(common))
+  assert_true(common.is_subset_of(restored))
+}
