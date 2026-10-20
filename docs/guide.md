@@ -114,6 +114,16 @@ runtime's C stub. On JavaScript, WebAssembly, and WebAssembly GC targets the
 mutex is a no-op because a module executes on a single thread. Batch operations
 hold the lock once for the whole batch.
 
+`ConcurrentCountingBloomFilter` provides the same protection around a
+`CountingBloomFilter`, including atomic `remove` and `remove_all` operations:
+
+```moonbit
+let filter = @src.ConcurrentCountingBloomFilter::new(1000, 0.01)
+filter.insert("shared")
+assert_true(filter.remove("shared"))
+assert_false(filter.contains("shared"))
+```
+
 ## Configuration and Errors
 
 Constructors panic on invalid arguments:

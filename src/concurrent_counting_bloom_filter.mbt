@@ -1,0 +1,152 @@
+///|
+/// A thread-safe counting Bloom filter.
+///
+/// Every operation acquires the same mutex, so inserts, removals, queries, and
+/// resets observe a consistent filter on native targets. On the JavaScript and
+/// WebAssembly backends the mutex is a zero-cost no-op because those runtimes
+/// execute a module on a single thread.
+pub struct ConcurrentCountingBloomFilter {
+  priv state : @ref.Ref[CountingBloomFilter]
+  priv mutex : Mutex
+}
+
+///|
+/// Create a thread-safe counting Bloom filter sized for `expected_items` and
+/// the requested false-positive rate.
+pub fn ConcurrentCountingBloomFilter::new(
+  expected_items : Int32,
+  false_positive_rate : Double,
+) -> ConcurrentCountingBloomFilter {
+  {
+    state: @ref.Ref(
+      CountingBloomFilter::new(expected_items, false_positive_rate),
+    ),
+    mutex: mutex_new(),
+  }
+}
+
+///|
+/// Create a thread-safe counting Bloom filter with an explicit slot and hash
+/// count.
+pub fn ConcurrentCountingBloomFilter::with_size(
+  slot_count : Int32,
+  hash_count : Int32,
+) -> ConcurrentCountingBloomFilter {
+  {
+    state: @ref.Ref(CountingBloomFilter::with_size(slot_count, hash_count)),
+    mutex: mutex_new(),
+  }
+}
+
+///|
+fn[R] ConcurrentCountingBloomFilter::with_lock(
+  self : ConcurrentCountingBloomFilter,
+  f : (CountingBloomFilter) -> R,
+) -> R {
+  mutex_acquire(self.mutex)
+  defer mutex_release(self.mutex)
+  f(self.state.val)
+}
+
+///|
+/// Insert a key. The operation is atomic with respect to the other methods.
+pub fn[K : Hash] ConcurrentCountingBloomFilter::insert(
+  self : ConcurrentCountingBloomFilter,
+  key : K,
+) -> Unit {
+  self.with_lock(filter => filter.insert(key))
+}
+
+///|
+/// Remove one insertion of a key. The operation is atomic with respect to the
+/// other methods.
+pub fn[K : Hash] ConcurrentCountingBloomFilter::remove(
+  self : ConcurrentCountingBloomFilter,
+  key : K,
+) -> Bool {
+  self.with_lock(filter => filter.remove(key))
+}
+
+///|
+/// Test whether a key may be present.
+pub fn[K : Hash] ConcurrentCountingBloomFilter::contains(
+  self : ConcurrentCountingBloomFilter,
+  key : K,
+) -> Bool {
+  self.with_lock(filter => filter.contains(key))
+}
+
+///|
+/// Insert every key in `keys` while holding the lock once.
+pub fn[K : Hash] ConcurrentCountingBloomFilter::insert_all(
+  self : ConcurrentCountingBloomFilter,
+  keys : ArrayView[K],
+) -> Unit {
+  self.with_lock(filter => filter.insert_all(keys))
+}
+
+///|
+/// Remove one insertion of every key in `keys` while holding the lock once.
+pub fn[K : Hash] ConcurrentCountingBloomFilter::remove_all(
+  self : ConcurrentCountingBloomFilter,
+  keys : ArrayView[K],
+) -> Bool {
+  self.with_lock(filter => filter.remove_all(keys))
+}
+
+///|
+/// Test every key in `keys` while holding the lock once.
+pub fn[K : Hash] ConcurrentCountingBloomFilter::contains_all(
+  self : ConcurrentCountingBloomFilter,
+  keys : ArrayView[K],
+) -> Bool {
+  self.with_lock(filter => filter.contains_all(keys))
+}
+
+///|
+/// Remove all counters and reset the insertion count.
+pub fn ConcurrentCountingBloomFilter::clear(
+  self : ConcurrentCountingBloomFilter,
+) -> Unit {
+  self.with_lock(filter => filter.clear())
+}
+
+///|
+/// Number of insertions not yet removed since creation or the last `clear`.
+pub fn ConcurrentCountingBloomFilter::count(
+  self : ConcurrentCountingBloomFilter,
+) -> Int32 {
+  self.with_lock(filter => filter.count())
+}
+
+///|
+/// Whether no insertion is currently outstanding.
+pub fn ConcurrentCountingBloomFilter::is_empty(
+  self : ConcurrentCountingBloomFilter,
+) -> Bool {
+  self.with_lock(filter => filter.is_empty())
+}
+
+///|
+/// Number of addressable counters in the underlying filter.
+pub fn ConcurrentCountingBloomFilter::slot_count(
+  self : ConcurrentCountingBloomFilter,
+) -> Int32 {
+  self.with_lock(filter => filter.slot_count())
+}
+
+///|
+/// Number of counters updated per operation.
+pub fn ConcurrentCountingBloomFilter::hash_count(
+  self : ConcurrentCountingBloomFilter,
+) -> Int32 {
+  self.with_lock(filter => filter.hash_count())
+}
+
+///|
+/// Estimated false-positive rate for the current insertion count.
+pub fn ConcurrentCountingBloomFilter::false_positive_rate(
+  self : ConcurrentCountingBloomFilter,
+) -> Double {
+  self.with_lock(filter => filter.false_positive_rate())
+}

@@ -38,6 +38,24 @@ pub fn ConcurrentBloomFilter::is_empty(Self) -> Bool
 pub fn ConcurrentBloomFilter::new(Int32, Double) -> Self
 pub fn ConcurrentBloomFilter::with_size(Int32, Int32) -> Self
 
+pub struct ConcurrentCountingBloomFilter {
+  // private fields
+}
+pub fn ConcurrentCountingBloomFilter::clear(Self) -> Unit
+pub fn[K : Hash] ConcurrentCountingBloomFilter::contains(Self, K) -> Bool
+pub fn[K : Hash] ConcurrentCountingBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentCountingBloomFilter::count(Self) -> Int32
+pub fn ConcurrentCountingBloomFilter::false_positive_rate(Self) -> Double
+pub fn ConcurrentCountingBloomFilter::hash_count(Self) -> Int32
+pub fn[K : Hash] ConcurrentCountingBloomFilter::insert(Self, K) -> Unit
+pub fn[K : Hash] ConcurrentCountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn ConcurrentCountingBloomFilter::is_empty(Self) -> Bool
+pub fn ConcurrentCountingBloomFilter::new(Int32, Double) -> Self
+pub fn[K : Hash] ConcurrentCountingBloomFilter::remove(Self, K) -> Bool
+pub fn[K : Hash] ConcurrentCountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentCountingBloomFilter::slot_count(Self) -> Int32
+pub fn ConcurrentCountingBloomFilter::with_size(Int32, Int32) -> Self
+
 pub struct CountingBloomFilter {
   // private fields
 }
