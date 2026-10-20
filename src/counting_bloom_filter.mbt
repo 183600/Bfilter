@@ -159,6 +159,30 @@ pub fn[K : Hash] CountingBloomFilter::contains(
 }
 
 ///|
+/// Estimate how many insertions of `key` the filter currently represents.
+///
+/// The result is the smallest counter selected by `key`. It can exceed the
+/// true multiplicity when other keys share those slots, and it is never lower
+/// than the number of insertions unless a counter has saturated. A key that
+/// hashes to a slot with a zero counter is reported as `0`.
+pub fn[K : Hash] CountingBloomFilter::count_of(
+  self : CountingBloomFilter,
+  key : K,
+) -> Int32 {
+  let (h1, h2) = key_hashes(key)
+  let slot_count = self.slot_count.to_uint64()
+  let mut minimum = 65535UL
+  for i = 0; i < self.hash_count; i = i + 1 {
+    let pos = bit_index(h1, h2, i, slot_count)
+    let value = self.counter_at(pos)
+    if value < minimum {
+      minimum = value
+    }
+  }
+  minimum.to_int()
+}
+
+///|
 /// Insert every key in `keys`. An empty view is a no-op.
 pub fn[K : Hash] CountingBloomFilter::insert_all(
   self : CountingBloomFilter,

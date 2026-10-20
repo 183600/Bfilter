@@ -67,6 +67,7 @@ pub fn[K : Hash] ConcurrentCountingBloomFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCountingBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
 pub fn[K : Hash] ConcurrentCountingBloomFilter::contains_any(Self, ArrayView[K]) -> Bool
 pub fn ConcurrentCountingBloomFilter::count(Self) -> Int32
+pub fn[K : Hash] ConcurrentCountingBloomFilter::count_of(Self, K) -> Int32
 pub fn ConcurrentCountingBloomFilter::estimated_item_count(Self) -> Double
 pub fn ConcurrentCountingBloomFilter::false_positive_rate(Self) -> Double
 pub fn ConcurrentCountingBloomFilter::fill_ratio(Self) -> Double
@@ -97,6 +98,7 @@ pub fn[K : Hash] ConcurrentCuckooFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCuckooFilter::contains_all(Self, ArrayView[K]) -> Bool
 pub fn[K : Hash] ConcurrentCuckooFilter::contains_any(Self, ArrayView[K]) -> Bool
 pub fn ConcurrentCuckooFilter::count(Self) -> Int32
+pub fn[K : Hash] ConcurrentCuckooFilter::count_of(Self, K) -> Int32
 pub fn ConcurrentCuckooFilter::false_positive_rate(Self) -> Double
 pub fn ConcurrentCuckooFilter::from_bytes(Bytes) -> Self
 pub fn[K : Hash] ConcurrentCuckooFilter::insert(Self, K) -> Bool
@@ -121,6 +123,7 @@ pub fn[K : Hash] CountingBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
 pub fn[K : Hash] CountingBloomFilter::contains_any(Self, ArrayView[K]) -> Bool
 pub fn CountingBloomFilter::copy(Self) -> Self
 pub fn CountingBloomFilter::count(Self) -> Int32
+pub fn[K : Hash] CountingBloomFilter::count_of(Self, K) -> Int32
 pub fn CountingBloomFilter::estimated_item_count(Self) -> Double
 pub fn CountingBloomFilter::false_positive_rate(Self) -> Double
 pub fn CountingBloomFilter::fill_ratio(Self) -> Double
@@ -154,6 +157,7 @@ pub fn[K : Hash] CuckooFilter::contains_all(Self, ArrayView[K]) -> Bool
 pub fn[K : Hash] CuckooFilter::contains_any(Self, ArrayView[K]) -> Bool
 pub fn CuckooFilter::copy(Self) -> Self
 pub fn CuckooFilter::count(Self) -> Int32
+pub fn[K : Hash] CuckooFilter::count_of(Self, K) -> Int32
 pub fn CuckooFilter::false_positive_rate(Self) -> Double
 pub fn CuckooFilter::from_bytes(Bytes) -> Self
 pub fn[K : Hash] CuckooFilter::insert(Self, K) -> Bool

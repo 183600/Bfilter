@@ -112,6 +112,20 @@ Counters saturate at 65535. Removing a key that was never inserted can return
 are known to be present. `remove_all` returns `true` only if every removal
 succeeded; it continues removing the remaining keys after a failure.
 
+`count_of(key)` estimates the current multiplicity of a key by taking the
+smallest counter it selects. Other keys that share those slots can make the
+estimate too high, but it never drops below the number of insertions unless a
+counter has saturated:
+
+```moonbit
+let filter = @src.CountingBloomFilter::new(1000, 0.01)
+filter.insert("task")
+filter.insert("task")
+assert_eq(filter.count_of("task"), 2)
+assert_true(filter.remove("task"))
+assert_eq(filter.count_of("task"), 1)
+```
+
 Counting filters with identical `slot_count()` and `hash_count()` support the
 same set algebra as Bloom filters, with counters merged per slot. `union` takes
 the larger counter and preserves the larger multiplicity of duplicate keys,
@@ -155,6 +169,10 @@ calculation. `insert` returns `false` when the filter is full and restores all
 evicted fingerprints before returning, so a failed insert cannot lose existing
 entries. `insert_all` and `remove_all` continue after a failure and report
 whether every operation succeeded.
+
+`count_of(key)` counts matching fingerprints in the key's two candidate
+buckets. Duplicate insertions are therefore observable, and the count decreases
+as copies are removed:
 
 Filters with the same bucket layout can be combined. `union` copies the
 fingerprints of both inputs and returns `None` if the combined entries do not

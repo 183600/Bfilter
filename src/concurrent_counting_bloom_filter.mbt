@@ -68,6 +68,17 @@ pub fn[K : Hash] ConcurrentCountingBloomFilter::remove(
 }
 
 ///|
+/// Estimate how many insertions of `key` the filter currently represents.
+///
+/// The lookup is atomic with respect to the other methods.
+pub fn[K : Hash] ConcurrentCountingBloomFilter::count_of(
+  self : ConcurrentCountingBloomFilter,
+  key : K,
+) -> Int32 {
+  self.with_lock(filter => filter.count_of(key))
+}
+
+///|
 /// Test whether a key may be present.
 pub fn[K : Hash] ConcurrentCountingBloomFilter::contains(
   self : ConcurrentCountingBloomFilter,

@@ -229,6 +229,18 @@ pub fn[K : Hash] CuckooFilter::contains(self : CuckooFilter, key : K) -> Bool {
 }
 
 ///|
+/// Count the fingerprints matching `key` in its two candidate buckets.
+///
+/// The result is the number of stored copies of the key's fingerprint. It can
+/// be larger than the true multiplicity when another key with the same
+/// fingerprint occupies a candidate bucket, but it is never lower than the
+/// number of successful insertions.
+pub fn[K : Hash] CuckooFilter::count_of(self : CuckooFilter, key : K) -> Int32 {
+  let (index1, fingerprint) = self.key_info(key)
+  self.pair_fingerprint_count(index1, fingerprint)
+}
+
+///|
 /// Remove one fingerprint matching `key` from either candidate bucket.
 ///
 /// Returns `false` when no matching fingerprint is present. Only remove keys

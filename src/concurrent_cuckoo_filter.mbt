@@ -53,6 +53,16 @@ pub fn[K : Hash] ConcurrentCuckooFilter::insert(
 }
 
 ///|
+/// Count the fingerprints matching a key in its candidate buckets. The lookup
+/// is atomic with respect to the other methods.
+pub fn[K : Hash] ConcurrentCuckooFilter::count_of(
+  self : ConcurrentCuckooFilter,
+  key : K,
+) -> Int32 {
+  self.with_lock(filter => filter.count_of(key))
+}
+
+///|
 /// Remove one fingerprint matching a key. The operation is atomic with respect
 /// to the other methods.
 pub fn[K : Hash] ConcurrentCuckooFilter::remove(
