@@ -60,3 +60,39 @@ test "cuckoo augmenting path still fills an empty large bucket" {
   assert_eq(filter.count(), 1)
   assert_eq(filter.buckets[0], fingerprint)
 }
+
+///|
+test "cuckoo augmenting path moves one fingerprint per full bucket" {
+  let filter = CuckooFilter::with_size(4, 2)
+  let first = test_fingerprint_with_delta(1UL, [])
+  let second = test_fingerprint_with_delta(1UL, [first])
+  let third = test_fingerprint_with_delta(3UL, [first, second])
+  let fourth = test_fingerprint_with_delta(3UL, [first, second, third])
+  let fifth = test_fingerprint_with_delta(1UL, [first, second, third, fourth])
+  let sixth = test_fingerprint_with_delta(1UL, [
+    first, second, third, fourth, fifth,
+  ])
+  let inserted = test_fingerprint_with_delta(0UL, [
+    first, second, third, fourth, fifth, sixth,
+  ])
+  filter.buckets[0] = first
+  filter.buckets[1] = second
+  filter.buckets[2] = third
+  filter.buckets[3] = fourth
+  filter.buckets[4] = fifth
+  filter.buckets[5] = sixth
+  filter.inserted = 6
+  assert_true(filter.insert_fingerprint_bfs(0, inserted))
+  assert_eq(filter.count(), 7)
+  assert_eq(filter.buckets[0], inserted)
+  assert_eq(filter.buckets[1], second)
+  assert_eq(filter.buckets[2], first)
+  assert_eq(filter.buckets[3], fourth)
+  assert_eq(filter.buckets[4], third)
+  assert_eq(filter.buckets[5], sixth)
+  assert_eq(filter.buckets[6], fifth)
+  assert_eq(filter.buckets[7], b'\x00')
+  assert_eq(filter.alternate_index(1, first), 0)
+  assert_eq(filter.alternate_index(2, third), 1)
+  assert_eq(filter.alternate_index(3, fifth), 2)
+}
