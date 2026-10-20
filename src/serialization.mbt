@@ -104,9 +104,6 @@ pub fn BloomFilter::from_bytes(data : Bytes) -> BloomFilter {
     words[i] = word
     set_bits = set_bits + word.popcnt()
   }
-  guard inserted == 0 || set_bits > 0 else {
-    abort("bloom insertion count requires set bits")
-  }
   guard set_bits.to_uint64() <= hash_count.to_uint64() * inserted.to_uint64() else {
     abort("bloom insertion count is too small for set bits")
   }

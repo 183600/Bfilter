@@ -219,10 +219,17 @@ test "panic serialization rejects counting counts too small for counters" {
 }
 
 ///|
-test "panic serialization rejects bloom insertion counts without set bits" {
-  let bytes = @src.BloomFilter::with_size(64, 1).to_bytes().to_fixedarray()
-  bytes.unsafe_write_uint32_le(16, 1U)
-  @src.BloomFilter::from_bytes(Bytes::from_array(bytes.exact_view())) |> ignore
+test "bloom serialization preserves empty intersections with nonzero counts" {
+  let left = @src.BloomFilter::with_size(8192, 4)
+  let right = @src.BloomFilter::with_size(8192, 4)
+  left.insert("left")
+  right.insert("right")
+  let common = left.intersection(right)
+  assert_eq(common.set_bit_count(), 0)
+  assert_eq(common.count(), left.count().min(right.count()))
+  let restored = @src.BloomFilter::from_bytes(common.to_bytes())
+  assert_eq(restored.set_bit_count(), 0)
+  assert_eq(restored.count(), common.count())
 }
 
 ///|
