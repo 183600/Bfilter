@@ -117,6 +117,7 @@ pub fn[K : Hash] ConcurrentCuckooFilter::insert(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCuckooFilter::insert_all(Self, ArrayView[K]) -> Bool
 pub fn[K : Hash] ConcurrentCuckooFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
 pub fn[K : Hash] ConcurrentCuckooFilter::insert_if_absent(Self, K) -> Bool
+pub fn ConcurrentCuckooFilter::intersection(Self, CuckooFilter) -> CuckooFilter
 pub fn ConcurrentCuckooFilter::is_empty(Self) -> Bool
 pub fn ConcurrentCuckooFilter::is_subset_of(Self, CuckooFilter) -> Bool
 pub fn ConcurrentCuckooFilter::load_factor(Self) -> Double
@@ -182,6 +183,7 @@ pub fn[K : Hash] CuckooFilter::insert(Self, K) -> Bool
 pub fn[K : Hash] CuckooFilter::insert_all(Self, ArrayView[K]) -> Bool
 pub fn[K : Hash] CuckooFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
 pub fn[K : Hash] CuckooFilter::insert_if_absent(Self, K) -> Bool
+pub fn CuckooFilter::intersection(Self, Self) -> Self
 pub fn CuckooFilter::is_empty(Self) -> Bool
 pub fn CuckooFilter::is_subset_of(Self, Self) -> Bool
 pub fn CuckooFilter::load_factor(Self) -> Double

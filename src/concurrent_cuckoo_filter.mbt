@@ -149,6 +149,20 @@ pub fn ConcurrentCuckooFilter::is_subset_of(
 }
 
 ///|
+/// Build a filter containing only the fingerprints present in both inputs while
+/// holding the lock once.
+///
+/// The other filter must use the same bucket layout, and the concurrent
+/// receiver is left unchanged. The result keeps the smaller per-bucket
+/// multiplicity of every fingerprint.
+pub fn ConcurrentCuckooFilter::intersection(
+  self : ConcurrentCuckooFilter,
+  other : CuckooFilter,
+) -> CuckooFilter {
+  self.with_lock(filter => filter.intersection(other))
+}
+
+///|
 /// Remove one insertion of every key in `keys` while holding the lock once.
 pub fn[K : Hash] ConcurrentCuckooFilter::remove_all(
   self : ConcurrentCuckooFilter,

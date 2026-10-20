@@ -394,6 +394,118 @@ pub fn CuckooFilter::union(
 }
 
 ///|
+/// Build the intersection of two filters with matching layouts.
+///
+/// A key's fingerprint may live in either of its two candidate buckets, and the
+/// two inputs can store the same key in different buckets. Each unordered
+/// candidate pair is processed once: if `self` holds the fingerprint in either
+/// bucket and `other` holds it in either bucket, the pair contributes the
+/// smaller of the two combined multiplicities. Surviving copies are placed in
+/// the buckets where `self` stored them, so `contains` still finds a key that
+/// both inputs report and the result can never drop a shared key. Every pair
+/// contributes at most what either input held, so the result always fits and
+/// its count never exceeds either input's count.
+fn CuckooFilter::min_bucket_fingerprints(
+  self : CuckooFilter,
+  other : CuckooFilter,
+) -> CuckooFilter {
+  let result = CuckooFilter::with_size(self.bucket_count, self.bucket_size)
+  let mut stored = 0
+  let visited : Array[(Int32, Byte)] = []
+  for bucket = 0; bucket < result.bucket_count; bucket = bucket + 1 {
+    let base = bucket * result.bucket_size
+    for slot = 0; slot < result.bucket_size; slot = slot + 1 {
+      let fingerprint = self.buckets[base + slot]
+      if fingerprint == b'\x00' ||
+        self.bucket_fingerprint_count_prefix(bucket, slot, fingerprint) > 0 {
+        continue
+      }
+      let alternate = self.alternate_index(bucket, fingerprint)
+      let canonical = bucket.min(alternate)
+      let mut seen = false
+      for pair in visited {
+        if pair.0 == canonical && pair.1 == fingerprint {
+          seen = true
+          break
+        }
+      }
+      if seen {
+        continue
+      }
+      visited.push((canonical, fingerprint))
+      let keep = self
+        .pair_fingerprint_count(canonical, fingerprint)
+        .min(other.pair_fingerprint_count(canonical, fingerprint))
+      let mut remaining = keep
+      let pair_bucket = self.alternate_index(canonical, fingerprint)
+      let candidates : Array[Int32] = if pair_bucket == canonical {
+        [canonical]
+      } else {
+        [canonical, pair_bucket]
+      }
+      for candidate in candidates {
+        if remaining == 0 {
+          break
+        }
+        let available = self.bucket_fingerprint_count(candidate, fingerprint)
+        let placed = available.min(remaining)
+        for i = 0; i < placed; i = i + 1 {
+          let empty = result.find_empty(candidate)
+          if empty < 0 {
+            break
+          }
+          result.buckets[candidate * result.bucket_size + empty] = fingerprint
+          stored = stored + 1
+        }
+        remaining = remaining - placed
+      }
+    }
+  }
+  result.inserted = stored
+  result
+}
+
+///|
+/// Count occurrences of `fingerprint` in `bucket` before `limit`.
+///
+/// Used to visit each distinct fingerprint in a bucket only once.
+fn CuckooFilter::bucket_fingerprint_count_prefix(
+  self : CuckooFilter,
+  bucket : Int32,
+  limit : Int32,
+  fingerprint : Byte,
+) -> Int32 {
+  let base = bucket * self.bucket_size
+  let mut count = 0
+  for slot = 0; slot < limit; slot = slot + 1 {
+    if self.buckets[base + slot] == fingerprint {
+      count = count + 1
+    }
+  }
+  count
+}
+
+///|
+/// Build a new filter that reports every key present in both inputs.
+///
+/// Both filters must use the same bucket count and bucket size. For each bucket
+/// the result keeps the smaller multiplicity of every fingerprint, so a key
+/// stored in both filters survives while slots occupied by only one input are
+/// dropped. The result always fits because neither bucket can hold more
+/// fingerprints than either input did. The insertion count is the number of
+/// surviving fingerprints.
+pub fn CuckooFilter::intersection(
+  self : CuckooFilter,
+  other : CuckooFilter,
+) -> CuckooFilter {
+  guard self.bucket_count == other.bucket_count &&
+    self.bucket_size == other.bucket_size else {
+    abort("cuckoo filters must have the same bucket count and size")
+  }
+  self.min_bucket_fingerprints(other)
+}
+
+///|
 /// Merge every fingerprint of `other` into `self` in place.
 ///
 /// Both filters must use the same bucket count and bucket size. Returns `true`

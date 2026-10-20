@@ -211,8 +211,26 @@ match left.union(right) {
 
 `merge` applies the union to an existing filter and returns `false` without
 changing it when the entries do not fit. `ConcurrentCuckooFilter::merge`,
-`union`, and `is_subset_of` hold the lock once while performing the same
-operations.
+`union`, `intersection`, and `is_subset_of` hold the lock once while performing
+the same operations.
+
+`intersection` returns a filter containing only the fingerprints present in both
+inputs, keeping the smaller multiplicity for each candidate pair. Because a key
+can live in either of its two candidate buckets, the operation counts each
+unordered candidate pair, so a key that both inputs report is never dropped even
+when the two filters stored it in different buckets. The result always fits and
+its `count()` never exceeds either input's count:
+
+```moonbit
+let shared_left = @src.CuckooFilter::with_size(64, 4)
+let shared_right = @src.CuckooFilter::with_size(64, 4)
+assert_true(shared_left.insert_all(["keep", "left-only"]))
+assert_true(shared_right.insert_all(["keep", "right-only"]))
+let common = shared_left.intersection(shared_right)
+assert_true(common.contains("keep"))
+assert_false(common.contains("left-only"))
+assert_false(common.contains("right-only"))
+```
 
 `is_subset_of` compares fingerprints across each key's two candidate buckets
 and respects duplicate multiplicities, so a `true` result means every key
