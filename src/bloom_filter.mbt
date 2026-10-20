@@ -146,6 +146,76 @@ pub fn[K : Hash] BloomFilter::contains_all(
 }
 
 ///|
+fn BloomFilter::ensure_compatible(
+  self : BloomFilter,
+  other : BloomFilter,
+) -> Unit {
+  guard self.bit_count == other.bit_count &&
+    self.hash_count == other.hash_count else {
+    abort("bloom filters must have the same bit and hash counts")
+  }
+}
+
+///|
+/// Build a new filter containing every key present in either filter.
+///
+/// Both filters must use the same bit and hash counts. The result uses the
+/// union of their bit arrays, so it never reports false negatives for keys that
+/// either input reported present. The insertion count is the sum of the input
+/// counts, which is a conservative upper bound because keys may overlap.
+pub fn BloomFilter::union(
+  self : BloomFilter,
+  other : BloomFilter,
+) -> BloomFilter {
+  self.ensure_compatible(other)
+  let result = BloomFilter::with_size(self.bit_count, self.hash_count)
+  for i = 0; i < result.words.length(); i = i + 1 {
+    result.words[i] = self.words[i] | other.words[i]
+  }
+  result.inserted = self.inserted + other.inserted
+  result
+}
+
+///|
+/// Build a new filter containing only the keys reported present by both
+/// filters.
+///
+/// Both filters must use the same bit and hash counts. The result uses the
+/// intersection of their bit arrays. The insertion count is the smaller of the
+/// input counts, a conservative upper bound because the intersection cannot be
+/// larger than either input.
+pub fn BloomFilter::intersection(
+  self : BloomFilter,
+  other : BloomFilter,
+) -> BloomFilter {
+  self.ensure_compatible(other)
+  let result = BloomFilter::with_size(self.bit_count, self.hash_count)
+  for i = 0; i < result.words.length(); i = i + 1 {
+    result.words[i] = self.words[i] & other.words[i]
+  }
+  result.inserted = self.inserted.min(other.inserted)
+  result
+}
+
+///|
+/// Whether every bit set in `self` is also set in `other`.
+///
+/// Both filters must use the same bit and hash counts. A `true` result means
+/// every key reported present by `self` is also reported present by `other`.
+pub fn BloomFilter::is_subset_of(
+  self : BloomFilter,
+  other : BloomFilter,
+) -> Bool {
+  self.ensure_compatible(other)
+  for i = 0; i < self.words.length(); i = i + 1 {
+    if (self.words[i] & other.words[i]) != self.words[i] {
+      return false
+    }
+  }
+  true
+}
+
+///|
 /// Clear every bit and reset the insertion counter.
 pub fn BloomFilter::clear(self : BloomFilter) -> Unit {
   for i = 0; i < self.words.length(); i = i + 1 {

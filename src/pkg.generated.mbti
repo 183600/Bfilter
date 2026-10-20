@@ -19,10 +19,13 @@ pub fn BloomFilter::fill_ratio(Self) -> Double
 pub fn BloomFilter::hash_count(Self) -> Int32
 pub fn[K : Hash] BloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] BloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn BloomFilter::intersection(Self, Self) -> Self
 pub fn BloomFilter::is_empty(Self) -> Bool
+pub fn BloomFilter::is_subset_of(Self, Self) -> Bool
 pub fn BloomFilter::memory_bytes(Self) -> Int64
 pub fn BloomFilter::new(Int32, Double) -> Self
 pub fn BloomFilter::set_bit_count(Self) -> Int32
+pub fn BloomFilter::union(Self, Self) -> Self
 pub fn BloomFilter::with_size(Int32, Int32) -> Self
 
 pub struct ConcurrentBloomFilter {

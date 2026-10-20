@@ -51,6 +51,27 @@ assert_true(filter.is_empty())
 Bloom filters do not support deletion. Inserting the same key repeatedly is
 allowed and increments `count()` each time.
 
+Filters with identical `bit_count()` and `hash_count()` can be combined.
+`union` returns a filter that reports keys from either input, `intersection`
+returns one that reports keys from both, and `is_subset_of` checks whether every
+bit of one filter is present in another:
+
+```moonbit
+let left = @src.BloomFilter::with_size(4096, 4)
+let right = @src.BloomFilter::with_size(4096, 4)
+left.insert("left")
+right.insert("right")
+let combined = left.union(right)
+assert_true(combined.contains("left"))
+assert_true(combined.contains("right"))
+assert_true(left.is_subset_of(combined))
+```
+
+The combined filter's `count()` is an upper bound: `union` adds the input
+counts and `intersection` takes the smaller one, so `false_positive_rate()`
+stays conservative when the inputs overlap. These operations panic when the
+filter configurations differ.
+
 ## Counting Bloom Filter
 
 `CountingBloomFilter` stores a 16-bit counter per slot, allowing one insertion
