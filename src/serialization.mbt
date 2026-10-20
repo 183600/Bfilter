@@ -45,6 +45,9 @@ fn serial_read_header(data : Bytes, variant : Byte) -> (Int32, Int32, Int32) {
   guard data.at(4) == variant && data.at(5) == SERIAL_VERSION else {
     abort("unsupported filter format")
   }
+  guard data.at(6) == b'\x00' && data.at(7) == b'\x00' else {
+    abort("unsupported filter format")
+  }
   let first = data.unsafe_read_uint32_le(8).reinterpret_as_int()
   let second = data.unsafe_read_uint32_le(12).reinterpret_as_int()
   let third = data.unsafe_read_uint32_le(16).reinterpret_as_int()
