@@ -3,6 +3,10 @@ import {
   "moonbitlang/core/ref",
 }
 
+import {
+  "moonbitlang/core/bench",
+} for "test"
+
 options(
   "is-main": false,
   "native-stub": [ "mutex_stub.c" ],
