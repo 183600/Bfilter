@@ -317,12 +317,12 @@ pub fn ScalableBloomFilter::from_bytes(data : Bytes) -> ScalableBloomFilter {
       }
       previous * SCALABLE_GROWTH
     }
-    let expected = BloomFilter::new(
+    let (expected_bits, expected_hashes) = bloom_layout(
       capacity,
       scalable_slice_rate(target_rate, index),
     )
-    guard slice.bit_count() == expected.bit_count() &&
-      slice.hash_count() == expected.hash_count() else {
+    guard slice.bit_count() == expected_bits &&
+      slice.hash_count() == expected_hashes else {
       abort("scalable bloom slice does not match its layout")
     }
     guard slice.count() <= capacity else {

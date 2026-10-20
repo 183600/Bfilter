@@ -38,6 +38,21 @@ fn[T : Hash] key_hashes(key : T) -> (UInt64, UInt64) {
 }
 
 ///|
+/// Compute the standard Bloom filter layout for a capacity and target rate.
+fn bloom_layout(
+  expected_items : Int32,
+  false_positive_rate : Double,
+) -> (Int32, Int32) {
+  let n = expected_items.to_double()
+  let ln2 = 0.6931471805599453
+  let bits = -(n * @math.ln(false_positive_rate)) / (ln2 * ln2)
+  guard bits <= 2147483584.0 else { abort("bloom filter size is too large") }
+  let bit_count = (bits.ceil().to_int() + 63) / 64 * 64
+  let hash_count = (bits / n * ln2).round().to_int().max(1)
+  (bit_count, hash_count)
+}
+
+///|
 /// Create a filter sized for `expected_items` with the target
 /// `false_positive_rate`.
 ///
@@ -52,12 +67,9 @@ pub fn BloomFilter::new(
   guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
     abort("false_positive_rate must be between 0 and 1")
   }
-  let n = expected_items.to_double()
-  let ln2 = 0.6931471805599453
-  let bits = -(n * @math.ln(false_positive_rate)) / (ln2 * ln2)
-  guard bits <= 2147483584.0 else { abort("bloom filter size is too large") }
-  let bit_count = (bits.ceil().to_int() + 63) / 64 * 64
-  let hash_count = (bits / n * ln2).round().to_int().max(1)
+  let (bit_count, hash_count) = bloom_layout(
+    expected_items, false_positive_rate,
+  )
   BloomFilter::with_size(bit_count, hash_count)
 }
 
