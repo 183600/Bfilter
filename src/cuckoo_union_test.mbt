@@ -75,3 +75,21 @@ test "concurrent cuckoo filter merges a snapshot" {
   assert_true(left.contains("right"))
   assert_eq(left.count(), 2)
 }
+
+///|
+test "cuckoo filter union keeps duplicate fingerprints" {
+  let left = @src.CuckooFilter::with_size(64, 4)
+  let right = @src.CuckooFilter::with_size(64, 4)
+  assert_true(left.insert("shared"))
+  assert_true(left.insert("shared"))
+  assert_true(right.insert("shared"))
+  let combined = match left.union(right) {
+    Some(filter) => filter
+    None => abort("union unexpectedly ran out of space")
+  }
+  assert_eq(combined.count(), 3)
+  assert_true(combined.remove("shared"))
+  assert_true(combined.remove("shared"))
+  assert_true(combined.remove("shared"))
+  assert_false(combined.contains("shared"))
+}

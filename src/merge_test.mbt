@@ -93,3 +93,17 @@ test "concurrent counting filter merges a snapshot" {
   assert_true(left.remove("right"))
   assert_false(left.contains("right"))
 }
+
+///|
+test "panic bloom filter merge rejects incompatible sizes" {
+  let left = @src.BloomFilter::with_size(64, 2)
+  let right = @src.BloomFilter::with_size(128, 2)
+  left.merge(right)
+}
+
+///|
+test "panic counting bloom filter merge rejects incompatible hash counts" {
+  let left = @src.CountingBloomFilter::with_size(16, 2)
+  let right = @src.CountingBloomFilter::with_size(16, 3)
+  left.merge(right)
+}
