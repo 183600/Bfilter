@@ -71,3 +71,17 @@ test "panic counting bloom filter rejects invalid false positive rate" {
 test "panic counting bloom filter rejects non-positive size" {
   @src.CountingBloomFilter::with_size(0, 1) |> ignore
 }
+
+///|
+test "counting bloom filter survives many duplicate insertions" {
+  let filter = @src.CountingBloomFilter::with_size(64, 2)
+  for i = 0; i < 20; i = i + 1 {
+    filter.insert("same")
+  }
+  assert_eq(filter.count(), 20)
+  for i = 0; i < 20; i = i + 1 {
+    assert_true(filter.remove("same"))
+  }
+  assert_true(filter.is_empty())
+  assert_false(filter.contains("same"))
+}

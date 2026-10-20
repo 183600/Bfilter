@@ -35,7 +35,7 @@ pub fn CountingBloomFilter::with_size(
   guard hash_count > 0 else { abort("hash_count must be positive") }
   let rounded = (slot_count + 15) / 16 * 16
   {
-    counters: FixedArray::make(rounded / 16, 0UL),
+    counters: FixedArray::make(rounded / 4, 0UL),
     slot_count: rounded,
     hash_count,
     inserted: 0,
@@ -47,9 +47,9 @@ fn CountingBloomFilter::counter_at(
   self : CountingBloomFilter,
   position : Int32,
 ) -> UInt64 {
-  let word = position / 16
-  let shift = position % 16 * 4
-  (self.counters[word] >> shift) & 0xFUL
+  let word = position / 4
+  let shift = position % 4 * 16
+  (self.counters[word] >> shift) & 0xFFFFUL
 }
 
 ///|
@@ -58,9 +58,9 @@ fn CountingBloomFilter::set_counter(
   position : Int32,
   value : UInt64,
 ) -> Unit {
-  let word = position / 16
-  let shift = position % 16 * 4
-  let old = (self.counters[word] >> shift) & 0xFUL
+  let word = position / 4
+  let shift = position % 4 * 16
+  let old = (self.counters[word] >> shift) & 0xFFFFUL
   let cleared = self.counters[word] ^ (old << shift)
   self.counters[word] = cleared | (value << shift)
 }
@@ -75,7 +75,7 @@ pub fn[K : Hash] CountingBloomFilter::insert(
   for i = 0; i < self.hash_count; i = i + 1 {
     let pos = bit_index(h1, h2, i, slot_count)
     let value = self.counter_at(pos)
-    if value < 15UL {
+    if value < 65535UL {
       self.set_counter(pos, value + 1UL)
     }
   }
