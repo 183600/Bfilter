@@ -1,9 +1,0 @@
-{
-  "packages": [
-    {
-      "root": "bfilter",
-      "rel": "src",
-      "artifact": "/home/qwe12345678/bfilter/target/wasm-gc/debug/test/src/src.mi"
-    }
-  ]
-}
