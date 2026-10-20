@@ -269,6 +269,25 @@ pub fn CuckooFilter::union(
 }
 
 ///|
+/// Merge every fingerprint of `other` into `self` in place.
+///
+/// Both filters must use the same bucket count and bucket size. Returns `true`
+/// when every fingerprint was added. If the combined fingerprints cannot fit,
+/// returns `false` and leaves `self` unchanged.
+pub fn CuckooFilter::merge(self : CuckooFilter, other : CuckooFilter) -> Bool {
+  match self.union(other) {
+    Some(result) => {
+      for i = 0; i < self.buckets.length(); i = i + 1 {
+        self.buckets[i] = result.buckets[i]
+      }
+      self.inserted = result.inserted
+      true
+    }
+    None => false
+  }
+}
+
+///|
 /// Test every key in `keys`, returning `false` at the first definite miss.
 pub fn[K : Hash] CuckooFilter::contains_all(
   self : CuckooFilter,

@@ -104,6 +104,7 @@ pub fn[K : Hash] ConcurrentCuckooFilter::insert_all(Self, ArrayView[K]) -> Bool
 pub fn ConcurrentCuckooFilter::is_empty(Self) -> Bool
 pub fn ConcurrentCuckooFilter::load_factor(Self) -> Double
 pub fn ConcurrentCuckooFilter::memory_bytes(Self) -> Int64
+pub fn ConcurrentCuckooFilter::merge(Self, CuckooFilter) -> Bool
 pub fn ConcurrentCuckooFilter::new(Int32) -> Self
 pub fn[K : Hash] ConcurrentCuckooFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCuckooFilter::remove_all(Self, ArrayView[K]) -> Bool
@@ -160,6 +161,7 @@ pub fn[K : Hash] CuckooFilter::insert_all(Self, ArrayView[K]) -> Bool
 pub fn CuckooFilter::is_empty(Self) -> Bool
 pub fn CuckooFilter::load_factor(Self) -> Double
 pub fn CuckooFilter::memory_bytes(Self) -> Int64
+pub fn CuckooFilter::merge(Self, Self) -> Bool
 pub fn CuckooFilter::new(Int32) -> Self
 pub fn[K : Hash] CuckooFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] CuckooFilter::remove_all(Self, ArrayView[K]) -> Bool

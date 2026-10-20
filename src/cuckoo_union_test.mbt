@@ -38,3 +38,40 @@ test "panic cuckoo filter union rejects incompatible layouts" {
   let right = @src.CuckooFilter::with_size(16, 4)
   left.union(right) |> ignore
 }
+
+///|
+test "cuckoo filter merge updates the receiver in place" {
+  let left = @src.CuckooFilter::with_size(64, 4)
+  let right = @src.CuckooFilter::with_size(64, 4)
+  assert_true(left.insert("left"))
+  assert_true(right.insert("right"))
+  assert_true(left.merge(right))
+  assert_true(left.contains("left"))
+  assert_true(left.contains("right"))
+  assert_eq(left.count(), 2)
+  assert_true(right.remove("right"))
+  assert_true(left.remove("left"))
+}
+
+///|
+test "cuckoo filter merge failure preserves the receiver" {
+  let left = @src.CuckooFilter::with_size(1, 1)
+  let right = @src.CuckooFilter::with_size(1, 1)
+  assert_true(left.insert("left"))
+  assert_true(right.insert("right"))
+  assert_false(left.merge(right))
+  assert_eq(left.count(), 1)
+  assert_true(left.contains("left"))
+}
+
+///|
+test "concurrent cuckoo filter merges a snapshot" {
+  let left = @src.ConcurrentCuckooFilter::with_size(64, 4)
+  let right = @src.CuckooFilter::with_size(64, 4)
+  assert_true(left.insert("left"))
+  assert_true(right.insert("right"))
+  assert_true(left.merge(right))
+  assert_true(left.contains("left"))
+  assert_true(left.contains("right"))
+  assert_eq(left.count(), 2)
+}

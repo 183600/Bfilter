@@ -171,6 +171,10 @@ match left.union(right) {
 }
 ```
 
+`merge` applies the union to an existing filter and returns `false` without
+changing it when the entries do not fit. `ConcurrentCuckooFilter::merge` holds
+the lock once while performing the same operation.
+
 ## Concurrent Bloom Filter
 
 `ConcurrentBloomFilter` wraps a `BloomFilter` and serializes every operation

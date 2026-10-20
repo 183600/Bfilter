@@ -81,6 +81,18 @@ pub fn[K : Hash] ConcurrentCuckooFilter::insert_all(
 }
 
 ///|
+/// Merge another filter into this one while holding the lock once.
+///
+/// Returns `false` and leaves the current state unchanged when the combined
+/// fingerprints do not fit. The other filter must use the same layout.
+pub fn ConcurrentCuckooFilter::merge(
+  self : ConcurrentCuckooFilter,
+  other : CuckooFilter,
+) -> Bool {
+  self.with_lock(filter => filter.merge(other))
+}
+
+///|
 /// Remove one insertion of every key in `keys` while holding the lock once.
 pub fn[K : Hash] ConcurrentCuckooFilter::remove_all(
   self : ConcurrentCuckooFilter,
