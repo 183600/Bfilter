@@ -131,3 +131,16 @@ test "panic cuckoo filter subset rejects incompatible layouts" {
   let right = @src.CuckooFilter::with_size(16, 4)
   left.is_subset_of(right) |> ignore
 }
+
+///|
+test "cuckoo filter union rejects a combined count above capacity" {
+  let left = @src.CuckooFilter::with_size(2, 2)
+  let right = @src.CuckooFilter::with_size(2, 2)
+  assert_true(left.insert_all(["a", "b", "c"]))
+  assert_true(right.insert_all(["d", "e"]))
+  assert_true(left.union(right) is None)
+  assert_eq(left.count(), 3)
+  assert_eq(right.count(), 2)
+  assert_true(left.contains_all(["a", "b", "c"]))
+  assert_true(right.contains_all(["d", "e"]))
+}

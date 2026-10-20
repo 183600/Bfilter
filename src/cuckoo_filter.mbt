@@ -486,6 +486,9 @@ pub fn CuckooFilter::union(
   guard self.inserted <= 2147483647 - other.inserted else {
     abort("cuckoo filter insertion count overflow")
   }
+  if self.inserted > self.capacity() - other.inserted {
+    return None
+  }
   match self.try_union_with(other) {
     Some(result) => Some(result)
     None =>
