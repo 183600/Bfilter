@@ -56,6 +56,23 @@ pub fn[K : Hash] ConcurrentCountingBloomFilter::remove_all(Self, ArrayView[K]) -
 pub fn ConcurrentCountingBloomFilter::slot_count(Self) -> Int32
 pub fn ConcurrentCountingBloomFilter::with_size(Int32, Int32) -> Self
 
+pub struct ConcurrentCuckooFilter {
+  // private fields
+}
+pub fn ConcurrentCuckooFilter::bucket_count(Self) -> Int32
+pub fn ConcurrentCuckooFilter::bucket_size(Self) -> Int32
+pub fn ConcurrentCuckooFilter::clear(Self) -> Unit
+pub fn[K : Hash] ConcurrentCuckooFilter::contains(Self, K) -> Bool
+pub fn[K : Hash] ConcurrentCuckooFilter::contains_all(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentCuckooFilter::count(Self) -> Int32
+pub fn[K : Hash] ConcurrentCuckooFilter::insert(Self, K) -> Bool
+pub fn[K : Hash] ConcurrentCuckooFilter::insert_all(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentCuckooFilter::is_empty(Self) -> Bool
+pub fn ConcurrentCuckooFilter::new(Int32) -> Self
+pub fn[K : Hash] ConcurrentCuckooFilter::remove(Self, K) -> Bool
+pub fn[K : Hash] ConcurrentCuckooFilter::remove_all(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentCuckooFilter::with_size(Int32, Int32) -> Self
+
 pub struct CountingBloomFilter {
   // private fields
 }

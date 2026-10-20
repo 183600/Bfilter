@@ -124,6 +124,17 @@ assert_true(filter.remove("shared"))
 assert_false(filter.contains("shared"))
 ```
 
+`ConcurrentCuckooFilter` wraps a `CuckooFilter` in the same way. `insert`,
+`remove`, and the batch variants keep their boolean result while acquiring the
+lock exactly once:
+
+```moonbit
+let filter = @src.ConcurrentCuckooFilter::new(1000)
+assert_true(filter.insert("session"))
+assert_true(filter.contains("session"))
+assert_true(filter.remove("session"))
+```
+
 ## Configuration and Errors
 
 Constructors panic on invalid arguments:
