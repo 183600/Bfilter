@@ -26,16 +26,12 @@ fn bit_index(h1 : UInt64, h2 : UInt64, i : Int32, bit_count : UInt64) -> Int32 {
 }
 
 ///|
-fn[T : Hash] seeded_hash(key : T, seed : Int32) -> UInt64 {
-  let hasher = Hasher(seed~)
-  hasher.combine(key)
-  hasher.finalize().reinterpret_as_uint().to_uint64()
-}
-
-///|
 fn[T : Hash] key_hashes(key : T) -> (UInt64, UInt64) {
-  let low = seeded_hash(key, 0x243F6A88)
-  let high = seeded_hash(key, 0x1B873593)
+  let hasher = Hasher(seed=0x243F6A88)
+  hasher.combine(key)
+  let low = hasher.finalize().reinterpret_as_uint().to_uint64()
+  hasher.combine_int(0x1B873593)
+  let high = hasher.finalize().reinterpret_as_uint().to_uint64()
   let h1 = mix64((high << 32) | low)
   let h2 = mix64(h1 ^ 0x9E3779B97F4A7C15UL) | 1UL
   (h1, h2)
