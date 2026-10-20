@@ -175,6 +175,18 @@ test "bench counting intersection n=1000" (b : @bench.T) {
 }
 
 ///|
+test "bench cuckoo intersection n=1000" (b : @bench.T) {
+  let left = @src.CuckooFilter::new(1000)
+  let right = @src.CuckooFilter::new(1000)
+  ignore(left.insert_all(bench_keys))
+  ignore(right.insert_all(bench_keys))
+  b.bench(fn() {
+    let common = left.intersection(right)
+    b.keep(common)
+  })
+}
+
+///|
 test "bench bloom insert_if_absent n=1000" (b : @bench.T) {
   let filter = @src.BloomFilter::new(1000, 0.01)
   filter.insert_all(bench_keys)
