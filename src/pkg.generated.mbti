@@ -1,0 +1,30 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "bfilter/src"
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct BloomFilter {
+  words : FixedArray[UInt64]
+  bit_count : Int32
+  hash_count : Int32
+  mut inserted : Int32
+}
+pub fn BloomFilter::bit_count(Self) -> Int32
+pub fn BloomFilter::clear(Self) -> Unit
+pub fn[K : Hash] BloomFilter::contains(Self, K) -> Bool
+pub fn[K : Hash] BloomFilter::contains_all(Self, ArrayView[K]) -> Bool
+pub fn BloomFilter::count(Self) -> Int32
+pub fn BloomFilter::false_positive_rate(Self) -> Double
+pub fn BloomFilter::hash_count(Self) -> Int32
+pub fn[K : Hash] BloomFilter::insert(Self, K) -> Unit
+pub fn[K : Hash] BloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn BloomFilter::is_empty(Self) -> Bool
+pub fn BloomFilter::new(Int32, Double) -> Self
+pub fn BloomFilter::with_size(Int32, Int32) -> Self
+
+// Type aliases
+
+// Traits
