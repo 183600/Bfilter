@@ -50,13 +50,16 @@ pub fn ConcurrentBloomFilter::from_bytes(Bytes) -> Self
 pub fn ConcurrentBloomFilter::hash_count(Self) -> Int32
 pub fn[K : Hash] ConcurrentBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] ConcurrentBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn ConcurrentBloomFilter::intersection(Self, BloomFilter) -> BloomFilter
 pub fn ConcurrentBloomFilter::is_empty(Self) -> Bool
+pub fn ConcurrentBloomFilter::is_subset_of(Self, BloomFilter) -> Bool
 pub fn ConcurrentBloomFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentBloomFilter::merge(Self, BloomFilter) -> Unit
 pub fn ConcurrentBloomFilter::new(Int32, Double) -> Self
 pub fn ConcurrentBloomFilter::set_bit_count(Self) -> Int32
 pub fn ConcurrentBloomFilter::snapshot(Self) -> BloomFilter
 pub fn ConcurrentBloomFilter::to_bytes(Self) -> Bytes
+pub fn ConcurrentBloomFilter::union(Self, BloomFilter) -> BloomFilter
 pub fn ConcurrentBloomFilter::with_size(Int32, Int32) -> Self
 
 pub struct ConcurrentCountingBloomFilter {
@@ -75,7 +78,9 @@ pub fn ConcurrentCountingBloomFilter::from_bytes(Bytes) -> Self
 pub fn ConcurrentCountingBloomFilter::hash_count(Self) -> Int32
 pub fn[K : Hash] ConcurrentCountingBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] ConcurrentCountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn ConcurrentCountingBloomFilter::intersection(Self, CountingBloomFilter) -> CountingBloomFilter
 pub fn ConcurrentCountingBloomFilter::is_empty(Self) -> Bool
+pub fn ConcurrentCountingBloomFilter::is_subset_of(Self, CountingBloomFilter) -> Bool
 pub fn ConcurrentCountingBloomFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentCountingBloomFilter::merge(Self, CountingBloomFilter) -> Unit
 pub fn ConcurrentCountingBloomFilter::new(Int32, Double) -> Self
@@ -85,6 +90,7 @@ pub fn[K : Hash] ConcurrentCountingBloomFilter::remove_all(Self, ArrayView[K]) -
 pub fn ConcurrentCountingBloomFilter::slot_count(Self) -> Int32
 pub fn ConcurrentCountingBloomFilter::snapshot(Self) -> CountingBloomFilter
 pub fn ConcurrentCountingBloomFilter::to_bytes(Self) -> Bytes
+pub fn ConcurrentCountingBloomFilter::union(Self, CountingBloomFilter) -> CountingBloomFilter
 pub fn ConcurrentCountingBloomFilter::with_size(Int32, Int32) -> Self
 
 pub struct ConcurrentCuckooFilter {
@@ -104,6 +110,7 @@ pub fn ConcurrentCuckooFilter::from_bytes(Bytes) -> Self
 pub fn[K : Hash] ConcurrentCuckooFilter::insert(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCuckooFilter::insert_all(Self, ArrayView[K]) -> Bool
 pub fn ConcurrentCuckooFilter::is_empty(Self) -> Bool
+pub fn ConcurrentCuckooFilter::is_subset_of(Self, CuckooFilter) -> Bool
 pub fn ConcurrentCuckooFilter::load_factor(Self) -> Double
 pub fn ConcurrentCuckooFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentCuckooFilter::merge(Self, CuckooFilter) -> Bool
@@ -112,6 +119,7 @@ pub fn[K : Hash] ConcurrentCuckooFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCuckooFilter::remove_all(Self, ArrayView[K]) -> Bool
 pub fn ConcurrentCuckooFilter::snapshot(Self) -> CuckooFilter
 pub fn ConcurrentCuckooFilter::to_bytes(Self) -> Bytes
+pub fn ConcurrentCuckooFilter::union(Self, CuckooFilter) -> CuckooFilter?
 pub fn ConcurrentCuckooFilter::with_size(Int32, Int32) -> Self
 
 pub struct CountingBloomFilter {

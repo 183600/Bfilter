@@ -103,6 +103,32 @@ pub fn ConcurrentCuckooFilter::merge(
 }
 
 ///|
+/// Build a filter containing every fingerprint of either input while holding
+/// the lock once.
+///
+/// Returns `None` when the combined fingerprints do not fit. The other filter
+/// must use the same bucket layout, and the concurrent receiver is left
+/// unchanged.
+pub fn ConcurrentCuckooFilter::union(
+  self : ConcurrentCuckooFilter,
+  other : CuckooFilter,
+) -> CuckooFilter? {
+  self.with_lock(filter => filter.union(other))
+}
+
+///|
+/// Whether every fingerprint in the current filter is also present in `other`,
+/// while holding the lock once.
+///
+/// The other filter must use the same bucket layout.
+pub fn ConcurrentCuckooFilter::is_subset_of(
+  self : ConcurrentCuckooFilter,
+  other : CuckooFilter,
+) -> Bool {
+  self.with_lock(filter => filter.is_subset_of(other))
+}
+
+///|
 /// Remove one insertion of every key in `keys` while holding the lock once.
 pub fn[K : Hash] ConcurrentCuckooFilter::remove_all(
   self : ConcurrentCuckooFilter,

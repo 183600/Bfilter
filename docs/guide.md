@@ -79,8 +79,8 @@ stays conservative when the inputs overlap. These operations panic when the
 filter configurations differ.
 
 `merge` performs the same combination as `union` in place, avoiding a new
-allocation. The concurrent wrappers expose `merge` as well and acquire the lock
-once for the whole operation:
+allocation. The concurrent wrappers expose `merge`, `union`, `intersection`,
+and `is_subset_of`, acquiring the lock once for the whole operation:
 
 ```moonbit
 let target = @src.BloomFilter::with_size(4096, 4)
@@ -147,7 +147,8 @@ As with Bloom filters, the combined `count()` is conservative: `union` adds the
 input counts and `intersection` takes the smaller one. These operations panic
 when the filter configurations differ. `merge` applies the same counter
 combination to an existing filter in place, and the concurrent wrapper exposes
-an atomic `merge` that holds its lock once.
+atomic `merge`, `union`, `intersection`, and `is_subset_of` methods that hold
+the lock once.
 
 ## Cuckoo Filter
 
@@ -190,8 +191,9 @@ match left.union(right) {
 ```
 
 `merge` applies the union to an existing filter and returns `false` without
-changing it when the entries do not fit. `ConcurrentCuckooFilter::merge` holds
-the lock once while performing the same operation.
+changing it when the entries do not fit. `ConcurrentCuckooFilter::merge`,
+`union`, and `is_subset_of` hold the lock once while performing the same
+operations.
 
 `is_subset_of` compares fingerprints across each key's two candidate buckets
 and respects duplicate multiplicities, so a `true` result means every key

@@ -109,6 +109,44 @@ pub fn ConcurrentCountingBloomFilter::merge(
 }
 
 ///|
+/// Build a counting filter containing every key present in either input while
+/// holding the lock once.
+///
+/// The other filter must use the same slot and hash counts. The result is an
+/// independent filter; the concurrent receiver is left unchanged.
+pub fn ConcurrentCountingBloomFilter::union(
+  self : ConcurrentCountingBloomFilter,
+  other : CountingBloomFilter,
+) -> CountingBloomFilter {
+  self.with_lock(filter => filter.union(other))
+}
+
+///|
+/// Build a counting filter containing only the keys reported present by both
+/// inputs while holding the lock once.
+///
+/// The other filter must use the same slot and hash counts. The result is an
+/// independent filter; the concurrent receiver is left unchanged.
+pub fn ConcurrentCountingBloomFilter::intersection(
+  self : ConcurrentCountingBloomFilter,
+  other : CountingBloomFilter,
+) -> CountingBloomFilter {
+  self.with_lock(filter => filter.intersection(other))
+}
+
+///|
+/// Whether every counter in the current filter is at most the corresponding
+/// counter in `other`, while holding the lock once.
+///
+/// The other filter must use the same slot and hash counts.
+pub fn ConcurrentCountingBloomFilter::is_subset_of(
+  self : ConcurrentCountingBloomFilter,
+  other : CountingBloomFilter,
+) -> Bool {
+  self.with_lock(filter => filter.is_subset_of(other))
+}
+
+///|
 /// Remove one insertion of every key in `keys` while holding the lock once.
 pub fn[K : Hash] ConcurrentCountingBloomFilter::remove_all(
   self : ConcurrentCountingBloomFilter,

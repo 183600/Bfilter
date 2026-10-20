@@ -95,6 +95,44 @@ pub fn ConcurrentBloomFilter::merge(
 }
 
 ///|
+/// Build a filter containing every key present in either input while holding
+/// the lock once.
+///
+/// The other filter must use the same bit and hash counts. The result is an
+/// independent filter; the concurrent receiver is left unchanged.
+pub fn ConcurrentBloomFilter::union(
+  self : ConcurrentBloomFilter,
+  other : BloomFilter,
+) -> BloomFilter {
+  self.with_lock(filter => filter.union(other))
+}
+
+///|
+/// Build a filter containing only the keys reported present by both inputs
+/// while holding the lock once.
+///
+/// The other filter must use the same bit and hash counts. The result is an
+/// independent filter; the concurrent receiver is left unchanged.
+pub fn ConcurrentBloomFilter::intersection(
+  self : ConcurrentBloomFilter,
+  other : BloomFilter,
+) -> BloomFilter {
+  self.with_lock(filter => filter.intersection(other))
+}
+
+///|
+/// Whether every bit set in the current filter is also set in `other`, while
+/// holding the lock once.
+///
+/// The other filter must use the same bit and hash counts.
+pub fn ConcurrentBloomFilter::is_subset_of(
+  self : ConcurrentBloomFilter,
+  other : BloomFilter,
+) -> Bool {
+  self.with_lock(filter => filter.is_subset_of(other))
+}
+
+///|
 /// Test every key in `keys` while holding the lock once.
 pub fn[K : Hash] ConcurrentBloomFilter::contains_all(
   self : ConcurrentBloomFilter,
