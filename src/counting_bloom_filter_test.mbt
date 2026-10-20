@@ -52,6 +52,14 @@ test "counting bloom filter rounds slot count to counter words" {
 }
 
 ///|
+test "counting bloom filter new rounds slots to counter words" {
+  let filter = @src.CountingBloomFilter::new(10, 0.1)
+  assert_eq(filter.slot_count(), 48)
+  assert_eq(filter.hash_count(), 3)
+  assert_eq(filter.memory_bytes(), 96L)
+}
+
+///|
 test "counting bloom filter false positive rate is zero when empty" {
   let filter = @src.CountingBloomFilter::new(10, 0.1)
   assert_eq(filter.false_positive_rate(), 0.0)

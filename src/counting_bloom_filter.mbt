@@ -30,7 +30,10 @@ pub fn CountingBloomFilter::new(
   let ln2 = 0.6931471805599453
   let bits = -(n * @math.ln(false_positive_rate)) / (ln2 * ln2)
   guard bits <= 2147483584.0 else { abort("bloom filter size is too large") }
-  let slot_count = (bits.ceil().to_int() + 63) / 64 * 64
+  let slot_count = (bits.ceil().to_int() + 15) / 16 * 16
+  guard slot_count <= 1073741808 else {
+    abort("counting bloom filter size is too large")
+  }
   let hash_count = (bits / n * ln2).round().to_int().max(1)
   CountingBloomFilter::with_size(slot_count, hash_count)
 }
