@@ -326,8 +326,7 @@ pub fn CuckooFilter::false_positive_rate(self : CuckooFilter) -> Double {
   if self.inserted == 0 {
     0.0
   } else {
-    let average_load = self.inserted.to_double() /
-      self.bucket_count.to_double()
+    let average_load = self.inserted.to_double() / self.bucket_count.to_double()
     1.0 - @math.pow(1.0 - 1.0 / 256.0, 2.0 * average_load)
   }
 }

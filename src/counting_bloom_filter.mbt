@@ -265,9 +265,7 @@ pub fn CountingBloomFilter::occupied_slot_count(
 
 ///|
 /// Fraction of slots with a positive counter, in `[0, 1]`.
-pub fn CountingBloomFilter::fill_ratio(
-  self : CountingBloomFilter,
-) -> Double {
+pub fn CountingBloomFilter::fill_ratio(self : CountingBloomFilter) -> Double {
   self.occupied_slot_count().to_double() / self.slot_count.to_double()
 }
 
@@ -292,9 +290,7 @@ pub fn CountingBloomFilter::estimated_item_count(
 
 ///|
 /// Number of bytes occupied by the packed counters.
-pub fn CountingBloomFilter::memory_bytes(
-  self : CountingBloomFilter,
-) -> Int64 {
+pub fn CountingBloomFilter::memory_bytes(self : CountingBloomFilter) -> Int64 {
   self.counters.length().to_int64() * 8L
 }
 

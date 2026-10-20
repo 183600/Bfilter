@@ -27,7 +27,7 @@ fn bit_index(h1 : UInt64, h2 : UInt64, i : Int32, bit_count : UInt64) -> Int32 {
 
 ///|
 fn[T : Hash] seeded_hash(key : T, seed : Int32) -> UInt64 {
-  let hasher = Hasher(seed=seed)
+  let hasher = Hasher(seed~)
   hasher.combine(key)
   hasher.finalize().reinterpret_as_uint().to_uint64()
 }
@@ -159,8 +159,7 @@ fn BloomFilter::ensure_compatible(
   self : BloomFilter,
   other : BloomFilter,
 ) -> Unit {
-  guard self.bit_count == other.bit_count &&
-    self.hash_count == other.hash_count else {
+  guard self.bit_count == other.bit_count && self.hash_count == other.hash_count else {
     abort("bloom filters must have the same bit and hash counts")
   }
 }

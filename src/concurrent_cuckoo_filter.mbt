@@ -16,10 +16,7 @@ pub struct ConcurrentCuckooFilter {
 pub fn ConcurrentCuckooFilter::new(
   expected_items : Int32,
 ) -> ConcurrentCuckooFilter {
-  {
-    state: @ref.Ref(CuckooFilter::new(expected_items)),
-    mutex: mutex_new(),
-  }
+  { state: @ref.Ref(CuckooFilter::new(expected_items)), mutex: mutex_new(), }
 }
 
 ///|
@@ -120,17 +117,13 @@ pub fn ConcurrentCuckooFilter::clear(self : ConcurrentCuckooFilter) -> Unit {
 
 ///|
 /// Number of fingerprints currently stored.
-pub fn ConcurrentCuckooFilter::count(
-  self : ConcurrentCuckooFilter,
-) -> Int32 {
+pub fn ConcurrentCuckooFilter::count(self : ConcurrentCuckooFilter) -> Int32 {
   self.with_lock(filter => filter.count())
 }
 
 ///|
 /// Whether the filter currently holds no fingerprints.
-pub fn ConcurrentCuckooFilter::is_empty(
-  self : ConcurrentCuckooFilter,
-) -> Bool {
+pub fn ConcurrentCuckooFilter::is_empty(self : ConcurrentCuckooFilter) -> Bool {
   self.with_lock(filter => filter.is_empty())
 }
 
@@ -152,9 +145,7 @@ pub fn ConcurrentCuckooFilter::bucket_size(
 
 ///|
 /// Total number of fingerprints the filter can hold.
-pub fn ConcurrentCuckooFilter::capacity(
-  self : ConcurrentCuckooFilter,
-) -> Int32 {
+pub fn ConcurrentCuckooFilter::capacity(self : ConcurrentCuckooFilter) -> Int32 {
   self.with_lock(filter => filter.capacity())
 }
 

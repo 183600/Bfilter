@@ -26,10 +26,7 @@ test "counting filter serialization round trip" {
   assert_eq(restored.slot_count(), filter.slot_count())
   assert_eq(restored.hash_count(), filter.hash_count())
   assert_eq(restored.count(), filter.count())
-  assert_eq(
-    restored.occupied_slot_count(),
-    filter.occupied_slot_count(),
-  )
+  assert_eq(restored.occupied_slot_count(), filter.occupied_slot_count())
   assert_true(restored.contains("duplicate"))
   assert_true(restored.remove("duplicate"))
   assert_true(restored.contains("duplicate"))
@@ -102,14 +99,12 @@ test "panic serialization rejects invalid bloom configuration" {
 
 ///|
 test "panic serialization rejects invalid counting configuration" {
-  let bytes = @src.CountingBloomFilter::with_size(
-    16,
-    1,
-  ).to_bytes().to_fixedarray()
+  let bytes = @src.CountingBloomFilter::with_size(16, 1)
+    .to_bytes()
+    .to_fixedarray()
   bytes.unsafe_write_uint32_le(8, 24U)
-  @src.CountingBloomFilter::from_bytes(
-    Bytes::from_array(bytes.exact_view()),
-  ) |> ignore
+  @src.CountingBloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
+  |> ignore
 }
 
 ///|

@@ -35,10 +35,7 @@ fn serial_write_header(
 }
 
 ///|
-fn serial_read_header(
-  data : Bytes,
-  variant : Byte,
-) -> (Int32, Int32, Int32) {
+fn serial_read_header(data : Bytes, variant : Byte) -> (Int32, Int32, Int32) {
   guard data.length() >= SERIAL_HEADER_BYTES else {
     abort("serialized filter is too short")
   }
@@ -69,10 +66,7 @@ fn serial_check_length(data : Bytes, expected : Int64) -> Unit {
 /// restored in another process and keep answering queries for the same keys.
 pub fn BloomFilter::to_bytes(self : BloomFilter) -> Bytes {
   let word_count = self.words.length()
-  let data = FixedArray::make(
-    SERIAL_HEADER_BYTES + word_count * 8,
-    b'\x00',
-  )
+  let data = FixedArray::make(SERIAL_HEADER_BYTES + word_count * 8, b'\x00')
   serial_write_header(
     data,
     SERIAL_BLOOM,
@@ -92,13 +86,8 @@ pub fn BloomFilter::to_bytes(self : BloomFilter) -> Bytes {
 /// Panics if the data is truncated, uses another format version, or contains an
 /// invalid configuration.
 pub fn BloomFilter::from_bytes(data : Bytes) -> BloomFilter {
-  let (bit_count, hash_count, inserted) = serial_read_header(
-    data,
-    SERIAL_BLOOM,
-  )
-  guard bit_count > 0 &&
-    bit_count <= 2147483584 &&
-    bit_count % 64 == 0 else {
+  let (bit_count, hash_count, inserted) = serial_read_header(data, SERIAL_BLOOM)
+  guard bit_count > 0 && bit_count <= 2147483584 && bit_count % 64 == 0 else {
     abort("invalid bloom bit count")
   }
   guard hash_count > 0 else { abort("invalid bloom hash count") }
@@ -112,19 +101,14 @@ pub fn BloomFilter::from_bytes(data : Bytes) -> BloomFilter {
   for i = 0; i < word_count; i = i + 1 {
     words[i] = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * 8)
   }
-  { words, bit_count, hash_count, inserted }
+  { words, bit_count, hash_count, inserted, }
 }
 
 ///|
 /// Encode the counting filter as a portable byte sequence.
-pub fn CountingBloomFilter::to_bytes(
-  self : CountingBloomFilter,
-) -> Bytes {
+pub fn CountingBloomFilter::to_bytes(self : CountingBloomFilter) -> Bytes {
   let word_count = self.counters.length()
-  let data = FixedArray::make(
-    SERIAL_HEADER_BYTES + word_count * 8,
-    b'\x00',
-  )
+  let data = FixedArray::make(SERIAL_HEADER_BYTES + word_count * 8, b'\x00')
   serial_write_header(
     data,
     SERIAL_COUNTING,
@@ -140,22 +124,16 @@ pub fn CountingBloomFilter::to_bytes(
 
 ///|
 /// Decode a counting filter produced by `CountingBloomFilter::to_bytes`.
-pub fn CountingBloomFilter::from_bytes(
-  data : Bytes,
-) -> CountingBloomFilter {
+pub fn CountingBloomFilter::from_bytes(data : Bytes) -> CountingBloomFilter {
   let (slot_count, hash_count, inserted) = serial_read_header(
     data,
     SERIAL_COUNTING,
   )
-  guard slot_count > 0 &&
-    slot_count <= 2147483584 &&
-    slot_count % 16 == 0 else {
+  guard slot_count > 0 && slot_count <= 2147483584 && slot_count % 16 == 0 else {
     abort("invalid counting filter slot count")
   }
   guard hash_count > 0 else { abort("invalid counting filter hash count") }
-  guard inserted >= 0 else {
-    abort("invalid counting filter insertion count")
-  }
+  guard inserted >= 0 else { abort("invalid counting filter insertion count") }
   let word_count = slot_count / 4
   serial_check_length(
     data,
@@ -165,7 +143,7 @@ pub fn CountingBloomFilter::from_bytes(
   for i = 0; i < word_count; i = i + 1 {
     counters[i] = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * 8)
   }
-  { counters, slot_count, hash_count, inserted }
+  { counters, slot_count, hash_count, inserted, }
 }
 
 ///|
@@ -198,8 +176,7 @@ pub fn CuckooFilter::from_bytes(data : Bytes) -> CuckooFilter {
     (bucket_count & (bucket_count - 1)) == 0 else {
     abort("invalid cuckoo bucket count")
   }
-  guard bucket_size > 0 &&
-    bucket_size <= 2147483627 / bucket_count else {
+  guard bucket_size > 0 && bucket_size <= 2147483627 / bucket_count else {
     abort("invalid cuckoo bucket size")
   }
   let capacity = bucket_count * bucket_size
@@ -214,5 +191,5 @@ pub fn CuckooFilter::from_bytes(data : Bytes) -> CuckooFilter {
   for i = 0; i < capacity; i = i + 1 {
     buckets[i] = data.at(SERIAL_HEADER_BYTES + i)
   }
-  { buckets, bucket_count, bucket_size, inserted }
+  { buckets, bucket_count, bucket_size, inserted, }
 }
