@@ -14,6 +14,9 @@ const SERIAL_COUNTING : Byte = b'\x02'
 const SERIAL_CUCKOO : Byte = b'\x03'
 
 ///|
+const SERIAL_SCALABLE : Byte = b'\x04'
+
+///|
 const SERIAL_HEADER_BYTES : Int32 = 20
 
 ///|
@@ -218,4 +221,124 @@ pub fn CuckooFilter::from_bytes(data : Bytes) -> CuckooFilter {
   }
   let seed = (bucket_count.to_uint64() << 32) | bucket_size.to_uint64() | 1UL
   { buckets, bucket_count, bucket_size, inserted, random_state: mix64(seed), }
+}
+
+///|
+/// Encode the scalable filter as a portable byte sequence.
+///
+/// The header stores the slice count, insertion count, initial capacity, and
+/// target false-positive rate. Each slice is appended as a length-prefixed
+/// Bloom filter produced by `BloomFilter::to_bytes`.
+pub fn ScalableBloomFilter::to_bytes(self : ScalableBloomFilter) -> Bytes {
+  let encoded : Array[Bytes] = []
+  let mut total = SERIAL_HEADER_BYTES + 8
+  for slice in self.slices {
+    let bytes = slice.to_bytes()
+    encoded.push(bytes)
+    total = total + 4 + bytes.length()
+  }
+  let data = FixedArray::make(total, b'\x00')
+  serial_write_header(
+    data,
+    SERIAL_SCALABLE,
+    self.slices.length(),
+    self.inserted,
+    self.initial_capacity,
+  )
+  data.unsafe_write_uint64_le(
+    SERIAL_HEADER_BYTES,
+    self.target_rate.reinterpret_as_uint64(),
+  )
+  let mut offset = SERIAL_HEADER_BYTES + 8
+  for bytes in encoded {
+    data.unsafe_write_uint32_le(offset, bytes.length().reinterpret_as_uint())
+    offset = offset + 4
+    for i = 0; i < bytes.length(); i = i + 1 {
+      data[offset + i] = bytes.at(i)
+    }
+    offset = offset + bytes.length()
+  }
+  Bytes::from_array(data.exact_view())
+}
+
+///|
+/// Decode a scalable filter produced by `ScalableBloomFilter::to_bytes`.
+///
+/// Panics if the data is truncated, uses another format, has an invalid target
+/// rate or layout, or contains slices that do not match the growth policy.
+pub fn ScalableBloomFilter::from_bytes(data : Bytes) -> ScalableBloomFilter {
+  let (slice_count, inserted, initial_capacity) = serial_read_header(
+    data,
+    SERIAL_SCALABLE,
+  )
+  guard slice_count > 0 && slice_count <= 64 else {
+    abort("invalid scalable bloom slice count")
+  }
+  guard initial_capacity > 0 else {
+    abort("invalid scalable bloom initial capacity")
+  }
+  guard inserted >= 0 else { abort("invalid scalable bloom insertion count") }
+  guard data.length() >= SERIAL_HEADER_BYTES + 8 else {
+    abort("serialized scalable bloom filter is too short")
+  }
+  let target_rate = data
+    .unsafe_read_uint64_le(SERIAL_HEADER_BYTES)
+    .reinterpret_as_double()
+  guard target_rate > 0.0 && target_rate < 1.0 else {
+    abort("invalid scalable bloom false positive rate")
+  }
+  let filter : ScalableBloomFilter = {
+    slices: [],
+    capacities: [],
+    initial_capacity,
+    target_rate,
+    inserted: 0,
+  }
+  let mut offset = SERIAL_HEADER_BYTES + 8
+  let mut total_inserted = 0L
+  for index = 0; index < slice_count; index = index + 1 {
+    guard offset <= data.length() - 4 else {
+      abort("serialized scalable bloom slice is truncated")
+    }
+    let length = data.unsafe_read_uint32_le(offset).reinterpret_as_int()
+    offset = offset + 4
+    guard length >= SERIAL_HEADER_BYTES && length <= data.length() - offset else {
+      abort("serialized scalable bloom slice has invalid length")
+    }
+    let slice = BloomFilter::from_bytes(
+      data.exact_view(start=offset, end=offset + length).to_owned(),
+    )
+    let capacity = if index == 0 {
+      initial_capacity
+    } else {
+      let previous = filter.capacities[index - 1]
+      if previous > 2147483647 / SCALABLE_GROWTH {
+        abort("scalable bloom filter is too large")
+      }
+      previous * SCALABLE_GROWTH
+    }
+    let expected = BloomFilter::new(
+      capacity,
+      scalable_slice_rate(target_rate, index),
+    )
+    guard slice.bit_count() == expected.bit_count() &&
+      slice.hash_count() == expected.hash_count() else {
+      abort("scalable bloom slice does not match its layout")
+    }
+    guard slice.count() <= capacity else {
+      abort("scalable bloom slice count exceeds its capacity")
+    }
+    total_inserted = total_inserted + slice.count().to_int64()
+    filter.slices.push(slice)
+    filter.capacities.push(capacity)
+    offset = offset + length
+  }
+  guard offset == data.length() else {
+    abort("serialized scalable bloom filter has trailing data")
+  }
+  guard total_inserted == inserted.to_int64() else {
+    abort("scalable bloom insertion count does not match its slices")
+  }
+  filter.inserted = inserted
+  filter
 }
