@@ -30,7 +30,9 @@ test "cuckoo augmenting path moves fingerprints to the empty bucket" {
   assert_eq(filter.alternate_index(1, first), 0)
   assert_eq(filter.alternate_index(2, second), 1)
   assert_eq(filter.alternate_index(3, third), 2)
+  let before = filter.to_bytes()
   assert_false(filter.insert_fingerprint_bfs(0, inserted))
+  assert_eq(filter.to_bytes(), before)
 }
 
 ///|
