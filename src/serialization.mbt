@@ -129,7 +129,7 @@ pub fn CountingBloomFilter::from_bytes(data : Bytes) -> CountingBloomFilter {
     data,
     SERIAL_COUNTING,
   )
-  guard slot_count > 0 && slot_count <= 2147483584 && slot_count % 16 == 0 else {
+  guard slot_count > 0 && slot_count <= 1073741808 && slot_count % 16 == 0 else {
     abort("invalid counting filter slot count")
   }
   guard hash_count > 0 else { abort("invalid counting filter hash count") }

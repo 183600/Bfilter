@@ -44,7 +44,7 @@ pub fn CountingBloomFilter::with_size(
   slot_count : Int32,
   hash_count : Int32,
 ) -> CountingBloomFilter {
-  guard slot_count > 0 && slot_count <= 2147483584 else {
+  guard slot_count > 0 && slot_count <= 1073741808 else {
     abort("slot_count must be positive and not too large")
   }
   guard hash_count > 0 else { abort("hash_count must be positive") }

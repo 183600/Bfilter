@@ -56,6 +56,11 @@ test "panic counting constructor rejects sizes beyond the supported limits" {
 }
 
 ///|
+test "panic counting constructor rejects sizes that cannot be serialized" {
+  @src.CountingBloomFilter::with_size(1073741809, 1) |> ignore
+}
+
+///|
 test "panic cuckoo rejects oversized expected items" {
   @src.CuckooFilter::new(536870913) |> ignore
 }
