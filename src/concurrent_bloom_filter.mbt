@@ -92,6 +92,17 @@ pub fn[K : Hash] ConcurrentBloomFilter::contains_all(
 }
 
 ///|
+/// Return a consistent copy of the underlying filter.
+///
+/// The copy is independent, so it can be queried without holding the lock
+/// while other threads continue to update the concurrent filter.
+pub fn ConcurrentBloomFilter::snapshot(
+  self : ConcurrentBloomFilter,
+) -> BloomFilter {
+  self.with_lock(filter => filter.copy())
+}
+
+///|
 /// Remove all inserted keys from the filter.
 pub fn ConcurrentBloomFilter::clear(self : ConcurrentBloomFilter) -> Unit {
   self.with_lock(filter => filter.clear())

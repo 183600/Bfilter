@@ -104,6 +104,17 @@ pub fn[K : Hash] ConcurrentCountingBloomFilter::contains_all(
 }
 
 ///|
+/// Return a consistent copy of the underlying filter.
+///
+/// The copy is independent, so it can be queried or modified without holding
+/// the lock while other threads continue to update the concurrent filter.
+pub fn ConcurrentCountingBloomFilter::snapshot(
+  self : ConcurrentCountingBloomFilter,
+) -> CountingBloomFilter {
+  self.with_lock(filter => filter.copy())
+}
+
+///|
 /// Remove all counters and reset the insertion count.
 pub fn ConcurrentCountingBloomFilter::clear(
   self : ConcurrentCountingBloomFilter,

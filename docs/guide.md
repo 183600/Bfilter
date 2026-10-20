@@ -156,6 +156,20 @@ assert_true(filter.contains("session"))
 assert_true(filter.remove("session"))
 ```
 
+Each filter type also has `copy()`, which returns an independent filter. The
+concurrent wrappers expose `snapshot()`, which copies the underlying filter
+while holding the lock. A snapshot remains unchanged if other threads keep
+updating the original:
+
+```moonbit
+let filter = @src.ConcurrentBloomFilter::new(1000, 0.01)
+filter.insert("before")
+let snapshot = filter.snapshot()
+filter.insert("after")
+assert_eq(snapshot.count(), 1)
+assert_true(snapshot.contains("before"))
+```
+
 ## Occupancy and Storage
 
 Every filter exposes read-only statistics without scanning keys:

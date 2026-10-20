@@ -216,6 +216,19 @@ pub fn BloomFilter::is_subset_of(
 }
 
 ///|
+/// Return an independent copy of the filter.
+///
+/// Later inserts or clears on either filter do not affect the other.
+pub fn BloomFilter::copy(self : BloomFilter) -> BloomFilter {
+  {
+    words: self.words.copy(),
+    bit_count: self.bit_count,
+    hash_count: self.hash_count,
+    inserted: self.inserted,
+  }
+}
+
+///|
 /// Clear every bit and reset the insertion counter.
 pub fn BloomFilter::clear(self : BloomFilter) -> Unit {
   for i = 0; i < self.words.length(); i = i + 1 {

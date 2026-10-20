@@ -13,6 +13,7 @@ pub fn BloomFilter::bit_count(Self) -> Int32
 pub fn BloomFilter::clear(Self) -> Unit
 pub fn[K : Hash] BloomFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] BloomFilter::contains_all(Self, ArrayView[K]) -> Bool
+pub fn BloomFilter::copy(Self) -> Self
 pub fn BloomFilter::count(Self) -> Int32
 pub fn BloomFilter::false_positive_rate(Self) -> Double
 pub fn BloomFilter::fill_ratio(Self) -> Double
@@ -45,6 +46,7 @@ pub fn ConcurrentBloomFilter::is_empty(Self) -> Bool
 pub fn ConcurrentBloomFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentBloomFilter::new(Int32, Double) -> Self
 pub fn ConcurrentBloomFilter::set_bit_count(Self) -> Int32
+pub fn ConcurrentBloomFilter::snapshot(Self) -> BloomFilter
 pub fn ConcurrentBloomFilter::with_size(Int32, Int32) -> Self
 
 pub struct ConcurrentCountingBloomFilter {
@@ -66,6 +68,7 @@ pub fn ConcurrentCountingBloomFilter::occupied_slot_count(Self) -> Int32
 pub fn[K : Hash] ConcurrentCountingBloomFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
 pub fn ConcurrentCountingBloomFilter::slot_count(Self) -> Int32
+pub fn ConcurrentCountingBloomFilter::snapshot(Self) -> CountingBloomFilter
 pub fn ConcurrentCountingBloomFilter::with_size(Int32, Int32) -> Self
 
 pub struct ConcurrentCuckooFilter {
@@ -85,6 +88,7 @@ pub fn ConcurrentCuckooFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentCuckooFilter::new(Int32) -> Self
 pub fn[K : Hash] ConcurrentCuckooFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCuckooFilter::remove_all(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentCuckooFilter::snapshot(Self) -> CuckooFilter
 pub fn ConcurrentCuckooFilter::with_size(Int32, Int32) -> Self
 
 pub struct CountingBloomFilter {
@@ -93,6 +97,7 @@ pub struct CountingBloomFilter {
 pub fn CountingBloomFilter::clear(Self) -> Unit
 pub fn[K : Hash] CountingBloomFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] CountingBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
+pub fn CountingBloomFilter::copy(Self) -> Self
 pub fn CountingBloomFilter::count(Self) -> Int32
 pub fn CountingBloomFilter::false_positive_rate(Self) -> Double
 pub fn CountingBloomFilter::fill_ratio(Self) -> Double
@@ -116,6 +121,7 @@ pub fn CuckooFilter::bucket_size(Self) -> Int32
 pub fn CuckooFilter::clear(Self) -> Unit
 pub fn[K : Hash] CuckooFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] CuckooFilter::contains_all(Self, ArrayView[K]) -> Bool
+pub fn CuckooFilter::copy(Self) -> Self
 pub fn CuckooFilter::count(Self) -> Int32
 pub fn[K : Hash] CuckooFilter::insert(Self, K) -> Bool
 pub fn[K : Hash] CuckooFilter::insert_all(Self, ArrayView[K]) -> Bool

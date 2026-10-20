@@ -102,6 +102,17 @@ pub fn[K : Hash] ConcurrentCuckooFilter::contains_all(
 }
 
 ///|
+/// Return a consistent copy of the underlying filter.
+///
+/// The copy is independent, so it can be queried or modified without holding
+/// the lock while other threads continue to update the concurrent filter.
+pub fn ConcurrentCuckooFilter::snapshot(
+  self : ConcurrentCuckooFilter,
+) -> CuckooFilter {
+  self.with_lock(filter => filter.copy())
+}
+
+///|
 /// Remove all fingerprints and reset the insertion count.
 pub fn ConcurrentCuckooFilter::clear(self : ConcurrentCuckooFilter) -> Unit {
   self.with_lock(filter => filter.clear())

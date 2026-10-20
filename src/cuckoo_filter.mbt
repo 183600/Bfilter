@@ -259,6 +259,19 @@ pub fn[K : Hash] CuckooFilter::remove_all(
 }
 
 ///|
+/// Return an independent copy of the filter.
+///
+/// Later inserts or removals on either filter do not affect the other.
+pub fn CuckooFilter::copy(self : CuckooFilter) -> CuckooFilter {
+  {
+    buckets: self.buckets.copy(),
+    bucket_count: self.bucket_count,
+    bucket_size: self.bucket_size,
+    inserted: self.inserted,
+  }
+}
+
+///|
 /// Remove all fingerprints and reset the insertion counter.
 pub fn CuckooFilter::clear(self : CuckooFilter) -> Unit {
   for i = 0; i < self.buckets.length(); i = i + 1 {

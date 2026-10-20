@@ -199,6 +199,21 @@ pub fn[K : Hash] CountingBloomFilter::contains_all(
 }
 
 ///|
+/// Return an independent copy of the filter.
+///
+/// Later inserts or removals on either filter do not affect the other.
+pub fn CountingBloomFilter::copy(
+  self : CountingBloomFilter,
+) -> CountingBloomFilter {
+  {
+    counters: self.counters.copy(),
+    slot_count: self.slot_count,
+    hash_count: self.hash_count,
+    inserted: self.inserted,
+  }
+}
+
+///|
 /// Reset every counter and the insertion counter.
 pub fn CountingBloomFilter::clear(self : CountingBloomFilter) -> Unit {
   for i = 0; i < self.counters.length(); i = i + 1 {
