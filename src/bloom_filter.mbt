@@ -1,9 +1,9 @@
 ///|
 pub struct BloomFilter {
-  words : FixedArray[UInt64]
-  bit_count : Int32
-  hash_count : Int32
-  mut inserted : Int32
+  priv words : FixedArray[UInt64]
+  priv bit_count : Int32
+  priv hash_count : Int32
+  priv mut inserted : Int32
 }
 
 ///|

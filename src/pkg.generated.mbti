@@ -7,10 +7,7 @@ package "bfilter/src"
 
 // Types and methods
 pub struct BloomFilter {
-  words : FixedArray[UInt64]
-  bit_count : Int32
-  hash_count : Int32
-  mut inserted : Int32
+  // private fields
 }
 pub fn BloomFilter::bit_count(Self) -> Int32
 pub fn BloomFilter::clear(Self) -> Unit
