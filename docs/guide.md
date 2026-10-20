@@ -186,7 +186,10 @@ assert_false(filter.contains("session-1"))
 count is rounded up to a power of two, which is required for alternate-index
 calculation. `insert` returns `false` when the filter is full and restores all
 evicted fingerprints before returning, so a failed insert cannot lose existing
-entries. `insert_all` and `remove_all` continue after a failure and report
+entries. Before reporting a filter as full, insertion also searches for an
+augmenting path that moves existing fingerprints to their alternate buckets;
+this succeeds whenever a valid placement is reachable within the bounded
+search. `insert_all` and `remove_all` continue after a failure and report
 whether every operation succeeded.
 
 `count_of(key)` counts matching fingerprints in the key's two candidate
