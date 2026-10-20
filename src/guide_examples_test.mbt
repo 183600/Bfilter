@@ -298,3 +298,18 @@ test "guide concurrent wrappers expose merge and copy helpers" {
   assert_true(cuckoo.contains("right"))
   assert_true(cuckoo.intersection(cuckoo_right).contains("right"))
 }
+
+///|
+test "guide scalable bloom filter growth" {
+  let filter = @src.ScalableBloomFilter::new(100, 0.01)
+  for i = 0; i < 1000; i = i + 1 {
+    filter.insert(i)
+  }
+  assert_true(filter.slice_count() > 1)
+  assert_true(filter.contains(42))
+  assert_eq(filter.count(), 1000)
+  assert_true(filter.target_false_positive_rate() == 0.01)
+  assert_true(filter.false_positive_rate() < 0.01)
+  assert_true(filter.capacity() > 100L)
+  assert_true(filter.memory_bytes() > 0L)
+}
