@@ -33,7 +33,7 @@ fn fingerprint_hash(fingerprint : Byte) -> UInt64 {
 /// per bucket. Panics if `expected_items` is not positive or too large.
 pub fn CuckooFilter::new(expected_items : Int32) -> CuckooFilter {
   guard expected_items > 0 else { abort("expected_items must be positive") }
-  guard expected_items <= 1073741823 else {
+  guard expected_items <= 536870912 else {
     abort("expected_items is too large")
   }
   let bucket_size = 4
