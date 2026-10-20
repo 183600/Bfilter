@@ -71,6 +71,11 @@ test "panic cuckoo rejects oversized bucket sizes" {
 }
 
 ///|
+test "panic cuckoo rejects sizes that cannot be serialized" {
+  @src.CuckooFilter::with_size(1, 2147483628) |> ignore
+}
+
+///|
 test "panic serialization rejects an unsupported version" {
   let bytes = @src.BloomFilter::with_size(64, 1).to_bytes().to_fixedarray()
   bytes[5] = b'\x02'
@@ -98,6 +103,22 @@ test "panic serialization rejects an invalid counting hash count" {
 test "panic serialization rejects cuckoo counts above capacity" {
   let bytes = @src.CuckooFilter::with_size(4, 1).to_bytes().to_fixedarray()
   bytes.unsafe_write_uint32_le(16, 5U)
+  @src.CuckooFilter::from_bytes(Bytes::from_array(bytes.exact_view())) |> ignore
+}
+
+///|
+test "panic serialization rejects cuckoo counts above stored fingerprints" {
+  let bytes = @src.CuckooFilter::with_size(4, 1).to_bytes().to_fixedarray()
+  bytes.unsafe_write_uint32_le(16, 1U)
+  @src.CuckooFilter::from_bytes(Bytes::from_array(bytes.exact_view())) |> ignore
+}
+
+///|
+test "panic serialization rejects cuckoo counts below stored fingerprints" {
+  let filter = @src.CuckooFilter::with_size(4, 1)
+  assert_true(filter.insert("stored"))
+  let bytes = filter.to_bytes().to_fixedarray()
+  bytes.unsafe_write_uint32_le(16, 0U)
   @src.CuckooFilter::from_bytes(Bytes::from_array(bytes.exact_view())) |> ignore
 }
 

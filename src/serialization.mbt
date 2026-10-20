@@ -188,8 +188,16 @@ pub fn CuckooFilter::from_bytes(data : Bytes) -> CuckooFilter {
     SERIAL_HEADER_BYTES.to_int64() + capacity.to_int64(),
   )
   let buckets = FixedArray::make(capacity, b'\x00')
+  let mut stored = 0
   for i = 0; i < capacity; i = i + 1 {
-    buckets[i] = data.at(SERIAL_HEADER_BYTES + i)
+    let fingerprint = data.at(SERIAL_HEADER_BYTES + i)
+    buckets[i] = fingerprint
+    if fingerprint != b'\x00' {
+      stored = stored + 1
+    }
+  }
+  guard stored == inserted else {
+    abort("cuckoo insertion count does not match stored fingerprints")
   }
   { buckets, bucket_count, bucket_size, inserted, }
 }

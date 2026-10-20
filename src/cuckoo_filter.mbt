@@ -55,7 +55,7 @@ pub fn CuckooFilter::with_size(
   }
   guard bucket_size > 0 else { abort("bucket_size must be positive") }
   let bucket_count = next_power_of_two(bucket_count)
-  guard bucket_size <= 2147483647 / bucket_count else {
+  guard bucket_size <= 2147483627 / bucket_count else {
     abort("cuckoo filter size is too large")
   }
   let slot_count = bucket_count * bucket_size
