@@ -266,3 +266,39 @@ test "bench cuckoo serialization n=1000" (b : @bench.T) {
     b.keep(restored)
   })
 }
+
+///|
+test "bench scalable bloom insert n=1000" (b : @bench.T) {
+  let filter = @src.ScalableBloomFilter::new(100, 0.01)
+  let mut index = 0
+  b.bench(fn() {
+    filter.insert(bench_keys[index])
+    index = (index + 1) % bench_keys.length()
+    b.keep(filter)
+  })
+}
+
+///|
+test "bench scalable bloom contains n=1000" (b : @bench.T) {
+  let filter = @src.ScalableBloomFilter::new(100, 0.01)
+  filter.insert_all(bench_keys)
+  let mut index = 0
+  let mut hits = 0
+  b.bench(fn() {
+    if filter.contains(bench_keys[index]) {
+      hits = hits + 1
+    }
+    index = (index + 1) % bench_keys.length()
+    b.keep(hits)
+  })
+}
+
+///|
+test "bench scalable bloom serialization n=1000" (b : @bench.T) {
+  let filter = @src.ScalableBloomFilter::new(100, 0.01)
+  filter.insert_all(bench_keys)
+  b.bench(fn() {
+    let restored = @src.ScalableBloomFilter::from_bytes(filter.to_bytes())
+    b.keep(restored)
+  })
+}

@@ -130,3 +130,20 @@ test "panic scalable bloom filter rejects invalid false positive rate" {
   @src.ScalableBloomFilter::new(10, 0.0) |> ignore
   @src.ScalableBloomFilter::new(10, 1.0) |> ignore
 }
+
+///|
+test "scalable bloom filter keeps the combined rate near its target" {
+  let filter = @src.ScalableBloomFilter::new(100, 0.01)
+  for i = 0; i < 1000; i = i + 1 {
+    filter.insert(i)
+  }
+  assert_true(filter.slice_count() > 1)
+  assert_true(filter.false_positive_rate() < 0.02)
+  let mut false_positives = 0
+  for i = 1000; i < 3000; i = i + 1 {
+    if filter.contains(i) {
+      false_positives = false_positives + 1
+    }
+  }
+  assert_true(false_positives.to_double() / 2000.0 < 0.05)
+}
