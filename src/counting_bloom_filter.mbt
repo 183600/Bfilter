@@ -1,4 +1,10 @@
 ///|
+/// A Bloom filter variant that stores a counter per slot, enabling deletion.
+///
+/// Counters are packed four per `UInt64` as 16-bit values, so each slot costs
+/// two bytes. A counter saturates at 65535 instead of wrapping; removing a key
+/// that was never inserted can still corrupt the filter when it produces a
+/// false positive, which is inherent to counting Bloom filters.
 pub struct CountingBloomFilter {
   priv counters : FixedArray[UInt64]
   priv slot_count : Int32
@@ -7,6 +13,11 @@ pub struct CountingBloomFilter {
 }
 
 ///|
+/// Create a counting filter sized for `expected_items` and the target
+/// `false_positive_rate`.
+///
+/// Panics if `expected_items` is not positive, the rate is not in `(0, 1)`, or
+/// the requested filter would exceed the supported size.
 pub fn CountingBloomFilter::new(
   expected_items : Int32,
   false_positive_rate : Double,
@@ -25,6 +36,10 @@ pub fn CountingBloomFilter::new(
 }
 
 ///|
+/// Create a counting filter with an explicit slot and hash count.
+///
+/// `slot_count` is rounded up to a multiple of 16 so counters pack evenly into
+/// `UInt64` words.
 pub fn CountingBloomFilter::with_size(
   slot_count : Int32,
   hash_count : Int32,
@@ -66,6 +81,10 @@ fn CountingBloomFilter::set_counter(
 }
 
 ///|
+/// Insert `key` by incrementing every selected counter.
+///
+/// Counters at 65535 stay saturated. The insertion counter is incremented for
+/// every call, including duplicate keys.
 pub fn[K : Hash] CountingBloomFilter::insert(
   self : CountingBloomFilter,
   key : K,
@@ -83,6 +102,11 @@ pub fn[K : Hash] CountingBloomFilter::insert(
 }
 
 ///|
+/// Remove one insertion of `key` by decrementing every selected counter.
+///
+/// Returns `true` when all counters were positive and were decremented. A key
+/// that was never inserted may still return `true` on a false positive and
+/// remove another key's contribution; only remove keys known to be present.
 pub fn[K : Hash] CountingBloomFilter::remove(
   self : CountingBloomFilter,
   key : K,
@@ -106,6 +130,7 @@ pub fn[K : Hash] CountingBloomFilter::remove(
 }
 
 ///|
+/// Test whether every counter selected by `key` is positive.
 pub fn[K : Hash] CountingBloomFilter::contains(
   self : CountingBloomFilter,
   key : K,
@@ -122,6 +147,7 @@ pub fn[K : Hash] CountingBloomFilter::contains(
 }
 
 ///|
+/// Insert every key in `keys`. An empty view is a no-op.
 pub fn[K : Hash] CountingBloomFilter::insert_all(
   self : CountingBloomFilter,
   keys : ArrayView[K],
@@ -132,6 +158,10 @@ pub fn[K : Hash] CountingBloomFilter::insert_all(
 }
 
 ///|
+/// Remove one insertion of every key in `keys`.
+///
+/// Continues after a key cannot be removed and returns `true` only when every
+/// removal succeeded. An empty view returns `true`.
 pub fn[K : Hash] CountingBloomFilter::remove_all(
   self : CountingBloomFilter,
   keys : ArrayView[K],
@@ -146,6 +176,7 @@ pub fn[K : Hash] CountingBloomFilter::remove_all(
 }
 
 ///|
+/// Test every key in `keys`, returning `false` at the first definite miss.
 pub fn[K : Hash] CountingBloomFilter::contains_all(
   self : CountingBloomFilter,
   keys : ArrayView[K],
@@ -159,6 +190,7 @@ pub fn[K : Hash] CountingBloomFilter::contains_all(
 }
 
 ///|
+/// Reset every counter and the insertion counter.
 pub fn CountingBloomFilter::clear(self : CountingBloomFilter) -> Unit {
   for i = 0; i < self.counters.length(); i = i + 1 {
     self.counters[i] = 0UL
@@ -167,26 +199,34 @@ pub fn CountingBloomFilter::clear(self : CountingBloomFilter) -> Unit {
 }
 
 ///|
+/// Number of insertions not yet removed since creation or the last `clear`.
 pub fn CountingBloomFilter::count(self : CountingBloomFilter) -> Int32 {
   self.inserted
 }
 
 ///|
+/// Whether no insertion is currently outstanding.
 pub fn CountingBloomFilter::is_empty(self : CountingBloomFilter) -> Bool {
   self.inserted == 0
 }
 
 ///|
+/// Number of addressable counters, always a multiple of 16.
 pub fn CountingBloomFilter::slot_count(self : CountingBloomFilter) -> Int32 {
   self.slot_count
 }
 
 ///|
+/// Number of counters updated per operation.
 pub fn CountingBloomFilter::hash_count(self : CountingBloomFilter) -> Int32 {
   self.hash_count
 }
 
 ///|
+/// Estimated false-positive rate for the current insertion count.
+///
+/// Uses the same formula as `BloomFilter::false_positive_rate`, with the slot
+/// count in place of the bit count.
 pub fn CountingBloomFilter::false_positive_rate(
   self : CountingBloomFilter,
 ) -> Double {

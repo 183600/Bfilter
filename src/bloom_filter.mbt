@@ -1,4 +1,10 @@
 ///|
+/// A compact probabilistic set backed by a bit-packed array.
+///
+/// A Bloom filter can report false positives but never false negatives while
+/// keys are only inserted. All bit positions are derived from a 64-bit hash
+/// and double hashing; storage uses `UInt64` words so a filter with `m` bits
+/// occupies approximately `m / 8` bytes.
 pub struct BloomFilter {
   priv words : FixedArray[UInt64]
   priv bit_count : Int32
@@ -27,6 +33,12 @@ fn[T : Hash] key_hashes(key : T) -> (UInt64, UInt64) {
 }
 
 ///|
+/// Create a filter sized for `expected_items` with the target
+/// `false_positive_rate`.
+///
+/// The bit count and hash count are derived from the standard Bloom filter
+/// formulas. Panics if `expected_items` is not positive, the rate is not in
+/// `(0, 1)`, or the requested filter would exceed the supported size.
 pub fn BloomFilter::new(
   expected_items : Int32,
   false_positive_rate : Double,
@@ -45,6 +57,11 @@ pub fn BloomFilter::new(
 }
 
 ///|
+/// Create a filter with an explicit bit count and number of hash functions.
+///
+/// `bit_count` is rounded up to a whole 64-bit word. This constructor is
+/// useful when reproducing a pre-computed configuration or when tuning the
+/// trade-off between memory and false-positive rate directly.
 pub fn BloomFilter::with_size(
   bit_count : Int32,
   hash_count : Int32,
@@ -63,6 +80,10 @@ pub fn BloomFilter::with_size(
 }
 
 ///|
+/// Insert `key` by setting every bit selected by the hash functions.
+///
+/// Inserting the same key more than once is allowed. The insertion counter is
+/// incremented on every call, including duplicates.
 pub fn[K : Hash] BloomFilter::insert(self : BloomFilter, key : K) -> Unit {
   let (h1, h2) = key_hashes(key)
   let bit_count = self.bit_count.to_uint64()
@@ -76,6 +97,10 @@ pub fn[K : Hash] BloomFilter::insert(self : BloomFilter, key : K) -> Unit {
 }
 
 ///|
+/// Test whether `key` may have been inserted.
+///
+/// `false` means the key is definitely absent. `true` means it is either
+/// present or a false positive.
 pub fn[K : Hash] BloomFilter::contains(self : BloomFilter, key : K) -> Bool {
   let (h1, h2) = key_hashes(key)
   let bit_count = self.bit_count.to_uint64()
@@ -93,6 +118,9 @@ pub fn[K : Hash] BloomFilter::contains(self : BloomFilter, key : K) -> Bool {
 }
 
 ///|
+/// Insert every key in `keys`.
+///
+/// An empty view is a no-op.
 pub fn[K : Hash] BloomFilter::insert_all(
   self : BloomFilter,
   keys : ArrayView[K],
@@ -103,6 +131,8 @@ pub fn[K : Hash] BloomFilter::insert_all(
 }
 
 ///|
+/// Test every key in `keys`, returning `false` as soon as one is definitely
+/// absent. An empty view returns `true`.
 pub fn[K : Hash] BloomFilter::contains_all(
   self : BloomFilter,
   keys : ArrayView[K],
@@ -116,6 +146,7 @@ pub fn[K : Hash] BloomFilter::contains_all(
 }
 
 ///|
+/// Clear every bit and reset the insertion counter.
 pub fn BloomFilter::clear(self : BloomFilter) -> Unit {
   for i = 0; i < self.words.length(); i = i + 1 {
     self.words[i] = 0UL
@@ -124,26 +155,35 @@ pub fn BloomFilter::clear(self : BloomFilter) -> Unit {
 }
 
 ///|
+/// Number of insertions since creation or the last `clear`.
 pub fn BloomFilter::count(self : BloomFilter) -> Int32 {
   self.inserted
 }
 
 ///|
+/// Whether no insertion has happened since creation or the last `clear`.
 pub fn BloomFilter::is_empty(self : BloomFilter) -> Bool {
   self.inserted == 0
 }
 
 ///|
+/// Number of addressable bits, always a multiple of 64.
 pub fn BloomFilter::bit_count(self : BloomFilter) -> Int32 {
   self.bit_count
 }
 
 ///|
+/// Number of bit positions set or tested per operation.
 pub fn BloomFilter::hash_count(self : BloomFilter) -> Int32 {
   self.hash_count
 }
 
 ///|
+/// Estimated false-positive rate for the current insertion count.
+///
+/// The estimate uses `(1 - exp(-k * n / m))^k`, where `n` is the insertion
+/// count, `k` the hash count, and `m` the bit count. It returns `0` for an
+/// empty filter.
 pub fn BloomFilter::false_positive_rate(self : BloomFilter) -> Double {
   if self.inserted == 0 {
     0.0

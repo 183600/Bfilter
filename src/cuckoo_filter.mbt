@@ -1,4 +1,10 @@
 ///|
+/// A cuckoo filter with two candidate buckets per key and 8-bit fingerprints.
+///
+/// Each key is stored as a one-byte fingerprint derived from its hash, so the
+/// filter uses roughly one byte per slot instead of the packed bits used by a
+/// Bloom filter. Deletion is supported, and a failed insertion rolls back every
+/// eviction so existing entries are preserved.
 pub struct CuckooFilter {
   priv buckets : FixedArray[Byte]
   priv bucket_count : Int32
@@ -21,6 +27,10 @@ fn fingerprint_hash(fingerprint : Byte) -> UInt64 {
 }
 
 ///|
+/// Create a filter sized to hold at least `expected_items` entries.
+///
+/// The bucket count is rounded up to a power of two, and four slots are used
+/// per bucket. Panics if `expected_items` is not positive or too large.
 pub fn CuckooFilter::new(expected_items : Int32) -> CuckooFilter {
   guard expected_items > 0 else { abort("expected_items must be positive") }
   guard expected_items <= 1073741823 else {
@@ -32,6 +42,10 @@ pub fn CuckooFilter::new(expected_items : Int32) -> CuckooFilter {
 }
 
 ///|
+/// Create a filter with an explicit bucket count and bucket size.
+///
+/// `bucket_count` is rounded up to a power of two so alternate bucket indices
+/// can be computed with masking. Panics for non-positive or oversized values.
 pub fn CuckooFilter::with_size(
   bucket_count : Int32,
   bucket_size : Int32,
@@ -118,6 +132,11 @@ fn CuckooFilter::bucket_remove(
 }
 
 ///|
+/// Insert `key`, returning `false` if the filter is full.
+///
+/// When both candidate buckets are full, the filter performs up to 128
+/// evictions. A failed attempt restores all displaced fingerprints before
+/// returning, so a failed insert never loses existing entries.
 pub fn[K : Hash] CuckooFilter::insert(self : CuckooFilter, key : K) -> Bool {
   let (index1, fingerprint) = self.key_info(key)
   let index2 = self.alternate_index(index1, fingerprint)
@@ -159,6 +178,9 @@ pub fn[K : Hash] CuckooFilter::insert(self : CuckooFilter, key : K) -> Bool {
 }
 
 ///|
+/// Test whether the fingerprint of `key` is present in either candidate
+/// bucket. Results may contain false positives but never false negatives for
+/// successfully inserted keys.
 pub fn[K : Hash] CuckooFilter::contains(self : CuckooFilter, key : K) -> Bool {
   let (index1, fingerprint) = self.key_info(key)
   let index2 = self.alternate_index(index1, fingerprint)
@@ -167,6 +189,11 @@ pub fn[K : Hash] CuckooFilter::contains(self : CuckooFilter, key : K) -> Bool {
 }
 
 ///|
+/// Remove one fingerprint matching `key` from either candidate bucket.
+///
+/// Returns `false` when no matching fingerprint is present. Only remove keys
+/// known to be inserted; removing a false positive can delete another key's
+/// entry.
 pub fn[K : Hash] CuckooFilter::remove(self : CuckooFilter, key : K) -> Bool {
   let (index1, fingerprint) = self.key_info(key)
   let index2 = self.alternate_index(index1, fingerprint)
@@ -182,6 +209,10 @@ pub fn[K : Hash] CuckooFilter::remove(self : CuckooFilter, key : K) -> Bool {
 }
 
 ///|
+/// Insert every key in `keys`.
+///
+/// Continues after an insertion fails and returns `true` only when every key
+/// was inserted. An empty view returns `true`.
 pub fn[K : Hash] CuckooFilter::insert_all(
   self : CuckooFilter,
   keys : ArrayView[K],
@@ -196,6 +227,7 @@ pub fn[K : Hash] CuckooFilter::insert_all(
 }
 
 ///|
+/// Test every key in `keys`, returning `false` at the first definite miss.
 pub fn[K : Hash] CuckooFilter::contains_all(
   self : CuckooFilter,
   keys : ArrayView[K],
@@ -209,6 +241,10 @@ pub fn[K : Hash] CuckooFilter::contains_all(
 }
 
 ///|
+/// Remove one insertion of every key in `keys`.
+///
+/// Continues after a removal fails and returns `true` only when all removals
+/// succeeded. An empty view returns `true`.
 pub fn[K : Hash] CuckooFilter::remove_all(
   self : CuckooFilter,
   keys : ArrayView[K],
@@ -223,6 +259,7 @@ pub fn[K : Hash] CuckooFilter::remove_all(
 }
 
 ///|
+/// Remove all fingerprints and reset the insertion counter.
 pub fn CuckooFilter::clear(self : CuckooFilter) -> Unit {
   for i = 0; i < self.buckets.length(); i = i + 1 {
     self.buckets[i] = b'\x00'
@@ -231,21 +268,25 @@ pub fn CuckooFilter::clear(self : CuckooFilter) -> Unit {
 }
 
 ///|
+/// Number of successfully inserted fingerprints not yet removed.
 pub fn CuckooFilter::count(self : CuckooFilter) -> Int32 {
   self.inserted
 }
 
 ///|
+/// Whether the filter currently holds no fingerprints.
 pub fn CuckooFilter::is_empty(self : CuckooFilter) -> Bool {
   self.inserted == 0
 }
 
 ///|
+/// Number of buckets after rounding up to a power of two.
 pub fn CuckooFilter::bucket_count(self : CuckooFilter) -> Int32 {
   self.bucket_count
 }
 
 ///|
+/// Number of fingerprints each bucket can hold.
 pub fn CuckooFilter::bucket_size(self : CuckooFilter) -> Int32 {
   self.bucket_size
 }
