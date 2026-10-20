@@ -644,6 +644,8 @@ pub fn CuckooFilter::clear(self : CuckooFilter) -> Unit {
     self.buckets[i] = b'\x00'
   }
   self.inserted = 0
+  let seed = (self.bucket_count.to_uint64() << 32) | self.bucket_size.to_uint64() | 1UL
+  self.random_state = mix64(seed)
 }
 
 ///|

@@ -65,6 +65,28 @@ test "cuckoo filter failed insert preserves existing entries" {
 }
 
 ///|
+test "cuckoo filter clear restores fresh insertion state" {
+  let cleared = @src.CuckooFilter::with_size(4, 2)
+  for i = 0; i < 8; i = i + 1 {
+    assert_true(cleared.insert(11_000_000 + i))
+  }
+  for i = 0; i < 10; i = i + 1 {
+    assert_false(cleared.insert(11_900_000 + i))
+  }
+  cleared.clear()
+  let fresh = @src.CuckooFilter::with_size(4, 2)
+  let keys = [
+    11_000_042, 11_000_027, 11_000_056, 11_000_017, 11_000_054, 11_000_055,
+    11_000_036,
+  ]
+  for key in keys {
+    assert_true(cleared.insert(key))
+    assert_true(fresh.insert(key))
+  }
+  assert_eq(cleared.to_bytes(), fresh.to_bytes())
+}
+
+///|
 test "cuckoo filter remove missing key returns false" {
   let filter = @src.CuckooFilter::new(10)
   assert_false(filter.remove("missing"))
