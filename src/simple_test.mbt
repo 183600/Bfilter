@@ -19,5 +19,5 @@ test "array_test" {
 test "bool_test" {
   let b = true
   assert_true(b)
-  assert_false(not(b))
+  assert_false(!b)
 }
