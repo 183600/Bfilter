@@ -173,3 +173,54 @@ test "bench counting intersection n=1000" (b : @bench.T) {
     b.keep(common)
   })
 }
+
+///|
+test "bench bloom insert_if_absent n=1000" (b : @bench.T) {
+  let filter = @src.BloomFilter::new(1000, 0.01)
+  filter.insert_all(bench_keys)
+  let mut index = 0
+  let mut added = 0
+  b.bench(fn() {
+    if filter.insert_if_absent(bench_keys[index]) {
+      added = added + 1
+    }
+    index = (index + 1) % bench_keys.length()
+    b.keep(added)
+  })
+}
+
+///|
+test "bench bloom insert_all_if_absent n=1000" (b : @bench.T) {
+  let filter = @src.BloomFilter::new(1000, 0.01)
+  b.bench(fn() {
+    filter.clear()
+    let added = filter.insert_all_if_absent(bench_keys)
+    b.keep(added)
+  })
+}
+
+///|
+test "bench counting count_of n=1000" (b : @bench.T) {
+  let filter = @src.CountingBloomFilter::new(1000, 0.01)
+  filter.insert_all(bench_keys)
+  let mut index = 0
+  let mut total = 0
+  b.bench(fn() {
+    total = total + filter.count_of(bench_keys[index])
+    index = (index + 1) % bench_keys.length()
+    b.keep(total)
+  })
+}
+
+///|
+test "bench cuckoo count_of n=1000" (b : @bench.T) {
+  let filter = @src.CuckooFilter::new(1000)
+  ignore(filter.insert_all(bench_keys))
+  let mut index = 0
+  let mut total = 0
+  b.bench(fn() {
+    total = total + filter.count_of(bench_keys[index])
+    index = (index + 1) % bench_keys.length()
+    b.keep(total)
+  })
+}

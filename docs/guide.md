@@ -350,7 +350,8 @@ moon test
 ```
 
 Benchmarks live in `src/benchmark_test.mbt` and cover insertion, queries, batch
-insertion, deletion round trips, set operations, and the concurrent wrapper:
+insertion, conditional insertion, multiplicity queries, deletion round trips,
+set operations, and the concurrent wrapper:
 
 ```bash
 moon bench --release
