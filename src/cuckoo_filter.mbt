@@ -483,9 +483,6 @@ pub fn CuckooFilter::union(
     self.bucket_size == other.bucket_size else {
     abort("cuckoo filters must have the same bucket count and size")
   }
-  guard self.inserted <= 2147483647 - other.inserted else {
-    abort("cuckoo filter insertion count overflow")
-  }
   if self.inserted > self.capacity() - other.inserted {
     return None
   }
