@@ -98,3 +98,40 @@ test "cuckoo augmenting path moves one fingerprint per full bucket" {
   assert_eq(filter.alternate_index(2, third), 1)
   assert_eq(filter.alternate_index(3, fifth), 2)
 }
+
+///|
+fn test_fingerprint_with_mask(
+  delta : UInt64,
+  mask : UInt64,
+  excluded : Array[Byte],
+) -> Byte {
+  for i = 1; i < 256; i = i + 1 {
+    let fingerprint = i.to_uint64().to_byte()
+    if (fingerprint_hash(fingerprint) & mask) == delta &&
+      !excluded.contains(fingerprint) {
+      return fingerprint
+    }
+  }
+  abort("no fingerprint with the requested alternate mask")
+}
+
+///|
+test "cuckoo augmenting path works for large layouts" {
+  let filter = CuckooFilter::with_size(131072, 1)
+  let mask = (filter.bucket_count - 1).to_uint64()
+  let first = test_fingerprint_with_mask(30888UL, mask, [])
+  let second = test_fingerprint_with_mask(549UL, mask, [first])
+  let inserted = b'\x01'
+  assert_eq(filter.alternate_index(0, first), 30888)
+  let third_bucket = 30888 ^ (fingerprint_hash(second) & mask).to_int()
+  assert_eq(filter.alternate_index(30888, second), third_bucket)
+  assert_true(third_bucket != 0 && third_bucket != 30888)
+  filter.buckets[0] = first
+  filter.buckets[30888] = second
+  filter.inserted = 2
+  assert_true(filter.insert_fingerprint_bfs(0, inserted))
+  assert_eq(filter.count(), 3)
+  assert_eq(filter.buckets[0], inserted)
+  assert_eq(filter.buckets[30888], first)
+  assert_eq(filter.buckets[third_bucket], second)
+}

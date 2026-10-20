@@ -184,15 +184,84 @@ fn CuckooFilter::bucket_remove(
 }
 
 ///|
+/// Sparse variant of the augmenting-path search for filters whose dense
+/// bookkeeping would be too large. The map stores the parent bucket and slot of
+/// each visited bucket, and the search still stops after a bounded number of
+/// buckets.
+fn CuckooFilter::insert_fingerprint_bfs_sparse(
+  self : CuckooFilter,
+  start : Int32,
+  fingerprint : Byte,
+) -> Bool {
+  let empty_start = self.find_empty(start)
+  if empty_start >= 0 {
+    self.buckets[start * self.bucket_size + empty_start] = fingerprint
+    self.inserted += 1
+    return true
+  }
+  let parent : @hashmap.HashMap[Int32, Int64] = @hashmap.HashMap([])
+  let queue : Array[Int32] = [start]
+  parent.set(start, -1L)
+  let mut head = 0
+  let mut explored = 1
+  while head < queue.length() {
+    let bucket = queue[head]
+    head = head + 1
+    let base = bucket * self.bucket_size
+    for slot = 0; slot < self.bucket_size; slot = slot + 1 {
+      let occupant = self.buckets[base + slot]
+      if occupant == b'\x00' {
+        continue
+      }
+      let alternate = self.alternate_index(bucket, occupant)
+      if alternate == bucket || parent.contains(alternate) {
+        continue
+      }
+      let encoded = bucket.to_int64() * 4294967296L + slot.to_int64()
+      let empty = self.find_empty(alternate)
+      if empty >= 0 {
+        parent.set(alternate, encoded)
+        let mut child = alternate
+        let mut empty_slot = empty
+        while child != start {
+          let previous = match parent.get(child) {
+            Some(value) => value
+            None => abort("missing cuckoo augmenting path parent")
+          }
+          let previous_bucket = (previous / 4294967296L).to_int()
+          let previous_slot = (previous % 4294967296L).to_int()
+          let moved = self.buckets[previous_bucket * self.bucket_size +
+            previous_slot]
+          self.buckets[child * self.bucket_size + empty_slot] = moved
+          self.buckets[previous_bucket * self.bucket_size + previous_slot] = b'\x00'
+          empty_slot = previous_slot
+          child = previous_bucket
+        }
+        self.buckets[start * self.bucket_size + empty_slot] = fingerprint
+        self.inserted += 1
+        return true
+      }
+      parent.set(alternate, encoded)
+      queue.push(alternate)
+      explored = explored + 1
+    }
+    if explored > CUCKOO_BFS_BUCKET_LIMIT {
+      return false
+    }
+  }
+  false
+}
+
+///|
 /// Try to make room for `fingerprint` by moving occupants along an augmenting
 /// path from `start` to a bucket with an empty slot.
 ///
 /// Each moved fingerprint stays inside its own candidate pair because it only
 /// moves to the alternate bucket of its current bucket. A breadth-first search
 /// finds such a path within a bounded number of buckets, which avoids reporting
-/// the filter as full while a valid placement is still reachable. Larger
-/// filters keep the bounded random-eviction path to avoid allocating
-/// bookkeeping proportional to the whole filter.
+/// the filter as full while a valid placement is still reachable. Small filters
+/// use dense bookkeeping; larger filters use a sparse map so the search remains
+/// bounded without allocating memory proportional to the whole filter.
 fn CuckooFilter::insert_fingerprint_bfs(
   self : CuckooFilter,
   start : Int32,
@@ -205,7 +274,7 @@ fn CuckooFilter::insert_fingerprint_bfs(
     return true
   }
   if self.bucket_count > CUCKOO_BFS_BUCKET_LIMIT {
-    return false
+    return self.insert_fingerprint_bfs_sparse(start, fingerprint)
   }
   let visited = FixedArray::make(self.bucket_count, false)
   let parent = FixedArray::make(self.bucket_count, -1)
