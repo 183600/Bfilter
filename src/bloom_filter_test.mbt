@@ -71,3 +71,26 @@ test "panic bloom filter rejects invalid false positive rate" {
 test "panic bloom filter rejects non-positive size" {
   @src.BloomFilter::with_size(0, 1) |> ignore
 }
+
+///|
+test "bloom filter empty filter misses and empty batches are neutral" {
+  let filter = @src.BloomFilter::new(10, 0.01)
+  assert_false(filter.contains("missing"))
+  let empty : Array[String] = []
+  filter.insert_all(empty)
+  assert_eq(filter.count(), 0)
+  assert_true(filter.contains_all(empty))
+}
+
+///|
+test "bloom filter false positive rate stays in range as it fills" {
+  let filter = @src.BloomFilter::new(100, 0.01)
+  let mut previous = 0.0
+  for i = 0; i < 100; i = i + 1 {
+    filter.insert("value-" + i.to_string())
+    let rate = filter.false_positive_rate()
+    assert_true(rate >= 0.0 && rate <= 1.0)
+    assert_true(rate >= previous)
+    previous = rate
+  }
+}
