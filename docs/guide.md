@@ -51,8 +51,7 @@ filter.clear()
 assert_true(filter.is_empty())
 ```
 
-All three filter types and their concurrent wrappers expose the same batch
-helpers.
+All filter types and their concurrent wrappers expose the same batch helpers.
 
 Bloom filters do not support deletion. Inserting the same key repeatedly is
 allowed and increments `count()` each time. `insert_if_absent(key)` inserts
@@ -103,6 +102,32 @@ target.merge(combined)
 assert_true(target.contains("left"))
 assert_true(target.contains("target"))
 ```
+
+## Scalable Bloom Filter
+
+`ScalableBloomFilter` starts with one Bloom filter slice sized for an initial
+capacity. When the newest slice reaches its planned capacity, the filter adds a
+new slice with twice the capacity and half the false-positive budget. Existing
+keys stay in the slice where they were inserted, and queries check every slice.
+
+```moonbit
+let filter = @src.ScalableBloomFilter::new(100, 0.01)
+for i = 0; i < 1000; i = i + 1 {
+  filter.insert(i)
+}
+assert_true(filter.slice_count() > 1)
+assert_true(filter.contains(42))
+assert_eq(filter.count(), 1000)
+assert_true(filter.target_false_positive_rate() == 0.01)
+assert_true(filter.false_positive_rate() < 0.01)
+```
+
+`insert_if_absent` checks all slices before inserting into the newest one.
+`capacity()` reports the sum of the current slice capacities, while
+`bit_count()`, `set_bit_count()`, `fill_ratio()`, and `memory_bytes()` aggregate
+the slices. `copy` is independent, and `clear` returns the filter to a single
+empty slice with the original initial capacity. `ConcurrentScalableBloomFilter`
+provides the same operations with one mutex and a `snapshot()` method.
 
 ## Counting Bloom Filter
 
@@ -310,7 +335,7 @@ Every filter exposes read-only statistics without scanning keys:
 - `CuckooFilter::load_factor()` divides the stored fingerprint count by the
   total number of slots, which is reported by `capacity()`.
 - `estimated_item_count()` derives the number of distinct keys from occupancy
-  for the two Bloom variants. It returns infinity when every slot is occupied.
+  for the Bloom variants; the scalable variant sums its slice estimates. It returns infinity when every slot is occupied.
 - `CuckooFilter::false_positive_rate()` estimates the current rate from the
   average bucket occupancy and the eight-bit fingerprint size.
 - `memory_bytes()` reports the size of the backing array.
@@ -339,9 +364,9 @@ let restored = @src.BloomFilter::from_bytes(data)
 assert_true(restored.contains("saved"))
 ```
 
-The same methods exist on `CountingBloomFilter` and `CuckooFilter`. The
-concurrent wrappers also expose `to_bytes()` and `from_bytes()`, copying the
-underlying filter while holding the lock. Hashing uses fixed seeds, so standard
+The same methods exist on `CountingBloomFilter`, `CuckooFilter`, and
+`ScalableBloomFilter`. The concurrent wrappers also expose `to_bytes()` and
+`from_bytes()`, copying the underlying filter while holding the lock. Hashing uses fixed seeds, so standard
 `Hash` implementations produce the same positions in a new process.
 `from_bytes` panics on truncated data, a different filter type, an unsupported
 version, or an invalid configuration.
