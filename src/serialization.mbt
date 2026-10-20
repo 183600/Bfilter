@@ -104,6 +104,9 @@ pub fn BloomFilter::from_bytes(data : Bytes) -> BloomFilter {
     words[i] = word
     set_bits = set_bits + word.popcnt()
   }
+  guard inserted == 0 || set_bits > 0 else {
+    abort("bloom insertion count requires set bits")
+  }
   guard set_bits.to_uint64() <= hash_count.to_uint64() * inserted.to_uint64() else {
     abort("bloom insertion count is too small for set bits")
   }
@@ -153,6 +156,9 @@ pub fn CountingBloomFilter::from_bytes(data : Bytes) -> CountingBloomFilter {
     for lane = 0; lane < 4; lane = lane + 1 {
       counter_mass = counter_mass + ((word >> (lane * 16)) & 0xFFFFUL)
     }
+  }
+  guard inserted == 0 || counter_mass > 0UL else {
+    abort("counting insertion count requires positive counters")
   }
   guard counter_mass <= hash_count.to_uint64() * inserted.to_uint64() else {
     abort("counting insertion count is too small for positive counters")

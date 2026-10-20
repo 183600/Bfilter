@@ -217,3 +217,20 @@ test "panic serialization rejects counting counts too small for counters" {
   @src.CountingBloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
   |> ignore
 }
+
+///|
+test "panic serialization rejects bloom insertion counts without set bits" {
+  let bytes = @src.BloomFilter::with_size(64, 1).to_bytes().to_fixedarray()
+  bytes.unsafe_write_uint32_le(16, 1U)
+  @src.BloomFilter::from_bytes(Bytes::from_array(bytes.exact_view())) |> ignore
+}
+
+///|
+test "panic serialization rejects counting insertion counts without counters" {
+  let bytes = @src.CountingBloomFilter::with_size(16, 1)
+    .to_bytes()
+    .to_fixedarray()
+  bytes.unsafe_write_uint32_le(16, 1U)
+  @src.CountingBloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
+  |> ignore
+}
