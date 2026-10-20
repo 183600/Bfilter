@@ -241,6 +241,22 @@ pub fn[K : Hash] CuckooFilter::contains_all(
 }
 
 ///|
+/// Test whether at least one key in `keys` may be present.
+///
+/// Returns `false` for an empty view.
+pub fn[K : Hash] CuckooFilter::contains_any(
+  self : CuckooFilter,
+  keys : ArrayView[K],
+) -> Bool {
+  for key in keys {
+    if self.contains(key) {
+      return true
+    }
+  }
+  false
+}
+
+///|
 /// Remove one insertion of every key in `keys`.
 ///
 /// Continues after a removal fails and returns `true` only when all removals

@@ -99,6 +99,16 @@ pub fn[K : Hash] ConcurrentCuckooFilter::contains_all(
 }
 
 ///|
+/// Test whether at least one key in `keys` may be present while holding the
+/// lock once.
+pub fn[K : Hash] ConcurrentCuckooFilter::contains_any(
+  self : ConcurrentCuckooFilter,
+  keys : ArrayView[K],
+) -> Bool {
+  self.with_lock(filter => filter.contains_any(keys))
+}
+
+///|
 /// Return a consistent copy of the underlying filter.
 ///
 /// The copy is independent, so it can be queried or modified without holding

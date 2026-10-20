@@ -199,6 +199,22 @@ pub fn[K : Hash] CountingBloomFilter::contains_all(
 }
 
 ///|
+/// Test whether at least one key in `keys` may be present.
+///
+/// Returns `false` for an empty view.
+pub fn[K : Hash] CountingBloomFilter::contains_any(
+  self : CountingBloomFilter,
+  keys : ArrayView[K],
+) -> Bool {
+  for key in keys {
+    if self.contains(key) {
+      return true
+    }
+  }
+  false
+}
+
+///|
 /// Return an independent copy of the filter.
 ///
 /// Later inserts or removals on either filter do not affect the other.

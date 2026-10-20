@@ -38,15 +38,21 @@ Storage is bit-packed: the filter uses approximately `bit_count / 8` bytes.
 `bit_count()` reports the rounded-up number of addressable bits, and
 `false_positive_rate()` estimates the current rate from the insertion count.
 
-Batch helpers insert or test multiple keys:
+Batch helpers insert or test multiple keys. `contains_all` requires every key,
+while `contains_any` stops at the first possible match and returns `false` for
+an empty batch:
 
 ```moonbit
 let keys = ["red", "green", "blue"]
 filter.insert_all(keys)
 assert_true(filter.contains_all(keys))
+assert_true(filter.contains_any(["missing", "red"]))
 filter.clear()
 assert_true(filter.is_empty())
 ```
+
+All three filter types and their concurrent wrappers expose the same batch
+helpers.
 
 Bloom filters do not support deletion. Inserting the same key repeatedly is
 allowed and increments `count()` each time.

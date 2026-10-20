@@ -237,6 +237,22 @@ pub fn BloomFilter::copy(self : BloomFilter) -> BloomFilter {
 }
 
 ///|
+/// Test whether at least one key in `keys` may be present.
+///
+/// Returns `false` for an empty view.
+pub fn[K : Hash] BloomFilter::contains_any(
+  self : BloomFilter,
+  keys : ArrayView[K],
+) -> Bool {
+  for key in keys {
+    if self.contains(key) {
+      return true
+    }
+  }
+  false
+}
+
+///|
 /// Clear every bit and reset the insertion counter.
 pub fn BloomFilter::clear(self : BloomFilter) -> Unit {
   for i = 0; i < self.words.length(); i = i + 1 {
