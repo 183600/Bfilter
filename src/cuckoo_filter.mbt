@@ -314,13 +314,61 @@ pub fn[K : Hash] CuckooFilter::insert_all_if_absent(
 }
 
 ///|
+fn CuckooFilter::insert_fingerprints_from(
+  self : CuckooFilter,
+  other : CuckooFilter,
+) -> Bool {
+  for bucket = 0; bucket < other.bucket_count; bucket = bucket + 1 {
+    let base = bucket * other.bucket_size
+    for slot = 0; slot < other.bucket_size; slot = slot + 1 {
+      let fingerprint = other.buckets[base + slot]
+      if fingerprint != b'\x00' &&
+        !self.insert_fingerprint(bucket, fingerprint) {
+        return false
+      }
+    }
+  }
+  true
+}
+
+///|
+fn CuckooFilter::try_union_with(
+  self : CuckooFilter,
+  other : CuckooFilter,
+) -> CuckooFilter? {
+  let result = self.copy()
+  if result.insert_fingerprints_from(other) {
+    Some(result)
+  } else {
+    None
+  }
+}
+
+///|
+fn CuckooFilter::rebuild_union(
+  first : CuckooFilter,
+  second : CuckooFilter,
+) -> CuckooFilter? {
+  let result = CuckooFilter::with_size(first.bucket_count, first.bucket_size)
+  if !result.insert_fingerprints_from(first) {
+    return None
+  }
+  if !result.insert_fingerprints_from(second) {
+    return None
+  }
+  Some(result)
+}
+
+///|
 /// Build a new filter that reports every key present in either input.
 ///
 /// Both filters must use the same bucket count and bucket size. Fingerprints
 /// are copied into their original buckets, which preserves each key's two
-/// candidate buckets, and evictions keep that invariant. Returns `None` when
-/// the combined fingerprints do not fit in the available slots; the inputs are
-/// left unchanged in that case.
+/// candidate buckets, and evictions keep that invariant. The combination is
+/// retried with the inputs reversed and from an empty filter so a result is
+/// not rejected merely because one input's existing placement blocks the
+/// other. Returns `None` when the combined fingerprints do not fit in the
+/// available slots; the inputs are left unchanged in that case.
 pub fn CuckooFilter::union(
   self : CuckooFilter,
   other : CuckooFilter,
@@ -332,18 +380,18 @@ pub fn CuckooFilter::union(
   guard self.inserted <= 2147483647 - other.inserted else {
     abort("cuckoo filter insertion count overflow")
   }
-  let result = self.copy()
-  for bucket = 0; bucket < other.bucket_count; bucket = bucket + 1 {
-    let base = bucket * other.bucket_size
-    for slot = 0; slot < other.bucket_size; slot = slot + 1 {
-      let fingerprint = other.buckets[base + slot]
-      if fingerprint != b'\x00' &&
-        !result.insert_fingerprint(bucket, fingerprint) {
-        return None
+  match self.try_union_with(other) {
+    Some(result) => Some(result)
+    None =>
+      match other.try_union_with(self) {
+        Some(result) => Some(result)
+        None =>
+          match CuckooFilter::rebuild_union(self, other) {
+            Some(result) => Some(result)
+            None => CuckooFilter::rebuild_union(other, self)
+          }
       }
-    }
   }
-  Some(result)
 }
 
 ///|
