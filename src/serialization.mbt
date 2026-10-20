@@ -98,16 +98,15 @@ pub fn BloomFilter::from_bytes(data : Bytes) -> BloomFilter {
     SERIAL_HEADER_BYTES.to_int64() + word_count.to_int64() * 8L,
   )
   let words = FixedArray::make(word_count, 0UL)
-  let mut has_set_bits = false
+  let mut set_bits = 0
   for i = 0; i < word_count; i = i + 1 {
     let word = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * 8)
     words[i] = word
-    if word != 0UL {
-      has_set_bits = true
-    }
+    set_bits = set_bits + word.popcnt()
   }
-  guard inserted != 0 || !has_set_bits else {
-    abort("bloom insertion count does not match set bits")
+  guard set_bits.to_uint64() <=
+    hash_count.to_uint64() * inserted.to_uint64() else {
+    abort("bloom insertion count is too small for set bits")
   }
   { words, bit_count, hash_count, inserted, }
 }
@@ -148,16 +147,17 @@ pub fn CountingBloomFilter::from_bytes(data : Bytes) -> CountingBloomFilter {
     SERIAL_HEADER_BYTES.to_int64() + word_count.to_int64() * 8L,
   )
   let counters = FixedArray::make(word_count, 0UL)
-  let mut has_positive_counters = false
+  let mut counter_mass = 0UL
   for i = 0; i < word_count; i = i + 1 {
     let word = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * 8)
     counters[i] = word
-    if word != 0UL {
-      has_positive_counters = true
+    for lane = 0; lane < 4; lane = lane + 1 {
+      counter_mass = counter_mass + ((word >> (lane * 16)) & 0xFFFFUL)
     }
   }
-  guard inserted != 0 || !has_positive_counters else {
-    abort("counting insertion count does not match positive counters")
+  guard counter_mass <=
+    hash_count.to_uint64() * inserted.to_uint64() else {
+    abort("counting insertion count is too small for positive counters")
   }
   { counters, slot_count, hash_count, inserted, }
 }

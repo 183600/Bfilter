@@ -190,3 +190,30 @@ test "panic serialization rejects counting counts below occupied slots" {
   @src.CountingBloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
   |> ignore
 }
+
+///|
+test "panic serialization rejects bloom counts too small for set bits" {
+  let filter = @src.BloomFilter::with_size(256, 1)
+  let mut key = 0
+  while filter.set_bit_count() < 2 {
+    filter.insert(key)
+    key = key + 1
+  }
+  let bytes = filter.to_bytes().to_fixedarray()
+  bytes.unsafe_write_uint32_le(16, 1U)
+  @src.BloomFilter::from_bytes(Bytes::from_array(bytes.exact_view())) |> ignore
+}
+
+///|
+test "panic serialization rejects counting counts too small for counters" {
+  let filter = @src.CountingBloomFilter::with_size(64, 1)
+  let mut key = 0
+  while filter.occupied_slot_count() < 2 {
+    filter.insert(key)
+    key = key + 1
+  }
+  let bytes = filter.to_bytes().to_fixedarray()
+  bytes.unsafe_write_uint32_le(16, 1U)
+  @src.CountingBloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
+  |> ignore
+}
