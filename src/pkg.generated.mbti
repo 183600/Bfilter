@@ -124,7 +124,9 @@ pub fn CountingBloomFilter::from_bytes(Bytes) -> Self
 pub fn CountingBloomFilter::hash_count(Self) -> Int32
 pub fn[K : Hash] CountingBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] CountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn CountingBloomFilter::intersection(Self, Self) -> Self
 pub fn CountingBloomFilter::is_empty(Self) -> Bool
+pub fn CountingBloomFilter::is_subset_of(Self, Self) -> Bool
 pub fn CountingBloomFilter::memory_bytes(Self) -> Int64
 pub fn CountingBloomFilter::new(Int32, Double) -> Self
 pub fn CountingBloomFilter::occupied_slot_count(Self) -> Int32
@@ -132,6 +134,7 @@ pub fn[K : Hash] CountingBloomFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] CountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
 pub fn CountingBloomFilter::slot_count(Self) -> Int32
 pub fn CountingBloomFilter::to_bytes(Self) -> Bytes
+pub fn CountingBloomFilter::union(Self, Self) -> Self
 pub fn CountingBloomFilter::with_size(Int32, Int32) -> Self
 
 pub struct CuckooFilter {

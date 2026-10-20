@@ -100,6 +100,27 @@ Counters saturate at 65535. Removing a key that was never inserted can return
 are known to be present. `remove_all` returns `true` only if every removal
 succeeded; it continues removing the remaining keys after a failure.
 
+Counting filters with identical `slot_count()` and `hash_count()` support the
+same set algebra as Bloom filters, with counters merged per slot. `union` takes
+the larger counter and preserves the larger multiplicity of duplicate keys,
+`intersection` takes the smaller counter, and `is_subset_of` checks every
+counter:
+
+```moonbit
+let left = @src.CountingBloomFilter::with_size(4096, 4)
+let right = @src.CountingBloomFilter::with_size(4096, 4)
+left.insert("left")
+right.insert("right")
+let combined = left.union(right)
+assert_true(combined.contains("left"))
+assert_true(combined.contains("right"))
+assert_true(left.is_subset_of(combined))
+```
+
+As with Bloom filters, the combined `count()` is conservative: `union` adds the
+input counts and `intersection` takes the smaller one. These operations panic
+when the filter configurations differ.
+
 ## Cuckoo Filter
 
 `CuckooFilter` stores one-byte fingerprints in two candidate buckets per key.

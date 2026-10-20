@@ -185,6 +185,104 @@ pub fn[K : Hash] CountingBloomFilter::remove_all(
 }
 
 ///|
+fn CountingBloomFilter::ensure_compatible(
+  self : CountingBloomFilter,
+  other : CountingBloomFilter,
+) -> Unit {
+  guard self.slot_count == other.slot_count &&
+    self.hash_count == other.hash_count else {
+    abort("counting bloom filters must have the same slot and hash counts")
+  }
+}
+
+///|
+/// Build a new filter that reports every key present in either input.
+///
+/// Both filters must use the same slot and hash counts. Each counter is the
+/// larger of the two input counters, so all keys from both filters remain
+/// present and a key inserted multiple times keeps the larger multiplicity.
+/// The insertion count is the sum of the input counts, a conservative upper
+/// bound because keys may overlap.
+pub fn CountingBloomFilter::union(
+  self : CountingBloomFilter,
+  other : CountingBloomFilter,
+) -> CountingBloomFilter {
+  self.ensure_compatible(other)
+  guard self.inserted <= 2147483647 - other.inserted else {
+    abort("counting bloom filter insertion count overflow")
+  }
+  let result = CountingBloomFilter::with_size(self.slot_count, self.hash_count)
+  for i = 0; i < result.counters.length(); i = i + 1 {
+    let left = self.counters[i]
+    let right = other.counters[i]
+    let mut merged = 0UL
+    for lane = 0; lane < 4; lane = lane + 1 {
+      let shift = lane * 16
+      let a = (left >> shift) & 0xFFFFUL
+      let b = (right >> shift) & 0xFFFFUL
+      merged = merged | ((if a > b { a } else { b }) << shift)
+    }
+    result.counters[i] = merged
+  }
+  result.inserted = self.inserted + other.inserted
+  result
+}
+
+///|
+/// Build a new filter that reports every key present in both inputs.
+///
+/// Both filters must use the same slot and hash counts. Each counter is the
+/// smaller of the two input counters, so keys present in both remain present
+/// while slots occupied by only one input are cleared. The insertion count is
+/// the smaller of the input counts, a conservative upper bound.
+pub fn CountingBloomFilter::intersection(
+  self : CountingBloomFilter,
+  other : CountingBloomFilter,
+) -> CountingBloomFilter {
+  self.ensure_compatible(other)
+  let result = CountingBloomFilter::with_size(self.slot_count, self.hash_count)
+  for i = 0; i < result.counters.length(); i = i + 1 {
+    let left = self.counters[i]
+    let right = other.counters[i]
+    let mut merged = 0UL
+    for lane = 0; lane < 4; lane = lane + 1 {
+      let shift = lane * 16
+      let a = (left >> shift) & 0xFFFFUL
+      let b = (right >> shift) & 0xFFFFUL
+      merged = merged | ((if a < b { a } else { b }) << shift)
+    }
+    result.counters[i] = merged
+  }
+  result.inserted = self.inserted.min(other.inserted)
+  result
+}
+
+///|
+/// Whether every counter in `self` is less than or equal to the corresponding
+/// counter in `other`.
+///
+/// Both filters must use the same slot and hash counts. A `true` result means
+/// every key and insertion multiplicity reported by `self` is also represented
+/// by `other`, including keys that share slots through hash collisions.
+pub fn CountingBloomFilter::is_subset_of(
+  self : CountingBloomFilter,
+  other : CountingBloomFilter,
+) -> Bool {
+  self.ensure_compatible(other)
+  for i = 0; i < self.counters.length(); i = i + 1 {
+    let left = self.counters[i]
+    let right = other.counters[i]
+    for lane = 0; lane < 4; lane = lane + 1 {
+      let shift = lane * 16
+      if ((left >> shift) & 0xFFFFUL) > ((right >> shift) & 0xFFFFUL) {
+        return false
+      }
+    }
+  }
+  true
+}
+
+///|
 /// Test every key in `keys`, returning `false` at the first definite miss.
 pub fn[K : Hash] CountingBloomFilter::contains_all(
   self : CountingBloomFilter,
