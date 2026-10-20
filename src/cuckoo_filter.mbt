@@ -82,7 +82,7 @@ fn[T : Hash] CuckooFilter::key_info(
   self : CuckooFilter,
   key : T,
 ) -> (Int32, Byte) {
-  let hash = mix64(Hash::hash(key).reinterpret_as_uint().to_uint64())
+  let (hash, _) = key_hashes(key)
   let mask = (self.bucket_count - 1).to_uint64()
   let index = (hash & mask).to_int()
   let fingerprint = ((hash >> 32) % 255UL + 1UL).to_byte()

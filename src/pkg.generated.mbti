@@ -17,6 +17,7 @@ pub fn BloomFilter::copy(Self) -> Self
 pub fn BloomFilter::count(Self) -> Int32
 pub fn BloomFilter::false_positive_rate(Self) -> Double
 pub fn BloomFilter::fill_ratio(Self) -> Double
+pub fn BloomFilter::from_bytes(Bytes) -> Self
 pub fn BloomFilter::hash_count(Self) -> Int32
 pub fn[K : Hash] BloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] BloomFilter::insert_all(Self, ArrayView[K]) -> Unit
@@ -26,6 +27,7 @@ pub fn BloomFilter::is_subset_of(Self, Self) -> Bool
 pub fn BloomFilter::memory_bytes(Self) -> Int64
 pub fn BloomFilter::new(Int32, Double) -> Self
 pub fn BloomFilter::set_bit_count(Self) -> Int32
+pub fn BloomFilter::to_bytes(Self) -> Bytes
 pub fn BloomFilter::union(Self, Self) -> Self
 pub fn BloomFilter::with_size(Int32, Int32) -> Self
 
@@ -101,6 +103,7 @@ pub fn CountingBloomFilter::copy(Self) -> Self
 pub fn CountingBloomFilter::count(Self) -> Int32
 pub fn CountingBloomFilter::false_positive_rate(Self) -> Double
 pub fn CountingBloomFilter::fill_ratio(Self) -> Double
+pub fn CountingBloomFilter::from_bytes(Bytes) -> Self
 pub fn CountingBloomFilter::hash_count(Self) -> Int32
 pub fn[K : Hash] CountingBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] CountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
@@ -111,6 +114,7 @@ pub fn CountingBloomFilter::occupied_slot_count(Self) -> Int32
 pub fn[K : Hash] CountingBloomFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] CountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
 pub fn CountingBloomFilter::slot_count(Self) -> Int32
+pub fn CountingBloomFilter::to_bytes(Self) -> Bytes
 pub fn CountingBloomFilter::with_size(Int32, Int32) -> Self
 
 pub struct CuckooFilter {
@@ -123,6 +127,7 @@ pub fn[K : Hash] CuckooFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] CuckooFilter::contains_all(Self, ArrayView[K]) -> Bool
 pub fn CuckooFilter::copy(Self) -> Self
 pub fn CuckooFilter::count(Self) -> Int32
+pub fn CuckooFilter::from_bytes(Bytes) -> Self
 pub fn[K : Hash] CuckooFilter::insert(Self, K) -> Bool
 pub fn[K : Hash] CuckooFilter::insert_all(Self, ArrayView[K]) -> Bool
 pub fn CuckooFilter::is_empty(Self) -> Bool
@@ -131,6 +136,7 @@ pub fn CuckooFilter::memory_bytes(Self) -> Int64
 pub fn CuckooFilter::new(Int32) -> Self
 pub fn[K : Hash] CuckooFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] CuckooFilter::remove_all(Self, ArrayView[K]) -> Bool
+pub fn CuckooFilter::to_bytes(Self) -> Bytes
 pub fn CuckooFilter::with_size(Int32, Int32) -> Self
 
 // Type aliases

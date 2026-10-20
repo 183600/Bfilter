@@ -192,6 +192,25 @@ let ratio = filter.fill_ratio()
 assert_true(ratio > 0.0 && ratio <= 1.0)
 ```
 
+## Serialization
+
+Every filter can be encoded to `Bytes` with `to_bytes()` and restored with
+`from_bytes()`. The format stores the configuration, insertion count, and
+backing array, and is versioned with a type tag:
+
+```moonbit
+let filter = @src.BloomFilter::new(1000, 0.01)
+filter.insert("saved")
+let data = filter.to_bytes()
+let restored = @src.BloomFilter::from_bytes(data)
+assert_true(restored.contains("saved"))
+```
+
+The same methods exist on `CountingBloomFilter` and `CuckooFilter`. Hashing uses
+fixed seeds, so standard `Hash` implementations produce the same positions in a
+new process. `from_bytes` panics on truncated data, a different filter type, an
+unsupported version, or an invalid configuration.
+
 ## Configuration and Errors
 
 Constructors panic on invalid arguments:
