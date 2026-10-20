@@ -98,8 +98,16 @@ pub fn BloomFilter::from_bytes(data : Bytes) -> BloomFilter {
     SERIAL_HEADER_BYTES.to_int64() + word_count.to_int64() * 8L,
   )
   let words = FixedArray::make(word_count, 0UL)
+  let mut has_set_bits = false
   for i = 0; i < word_count; i = i + 1 {
-    words[i] = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * 8)
+    let word = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * 8)
+    words[i] = word
+    if word != 0UL {
+      has_set_bits = true
+    }
+  }
+  guard inserted != 0 || !has_set_bits else {
+    abort("bloom insertion count does not match set bits")
   }
   { words, bit_count, hash_count, inserted, }
 }

@@ -171,3 +171,12 @@ test "panic counting bloom filter rejects insertion count overflow" {
   )
   filter.insert("value")
 }
+
+///|
+test "panic serialization rejects bloom counts below set bits" {
+  let filter = @src.BloomFilter::with_size(64, 1)
+  filter.insert("stored")
+  let bytes = filter.to_bytes().to_fixedarray()
+  bytes.unsafe_write_uint32_le(16, 0U)
+  @src.BloomFilter::from_bytes(Bytes::from_array(bytes.exact_view())) |> ignore
+}
