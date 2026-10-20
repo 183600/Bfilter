@@ -14,6 +14,9 @@ pub struct CuckooFilter {
 }
 
 ///|
+const CUCKOO_BFS_BUCKET_LIMIT : Int32 = 65536
+
+///|
 fn next_power_of_two(n : Int32) -> Int32 {
   let mut result = 1
   while result < n {
@@ -186,8 +189,10 @@ fn CuckooFilter::bucket_remove(
 ///
 /// Each moved fingerprint stays inside its own candidate pair because it only
 /// moves to the alternate bucket of its current bucket. A breadth-first search
-/// finds such a path whenever one exists, which avoids reporting the filter as
-/// full while a valid placement is still reachable.
+/// finds such a path within a bounded number of buckets, which avoids reporting
+/// the filter as full while a valid placement is still reachable. Larger
+/// filters keep the bounded random-eviction path to avoid allocating
+/// bookkeeping proportional to the whole filter.
 fn CuckooFilter::insert_fingerprint_bfs(
   self : CuckooFilter,
   start : Int32,
@@ -198,6 +203,9 @@ fn CuckooFilter::insert_fingerprint_bfs(
     self.buckets[start * self.bucket_size + empty_start] = fingerprint
     self.inserted += 1
     return true
+  }
+  if self.bucket_count > CUCKOO_BFS_BUCKET_LIMIT {
+    return false
   }
   let visited = FixedArray::make(self.bucket_count, false)
   let parent = FixedArray::make(self.bucket_count, -1)

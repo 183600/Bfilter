@@ -51,3 +51,12 @@ test "cuckoo insertion falls back to an augmenting path" {
   assert_eq(filter.buckets[2], second)
   assert_eq(filter.buckets[3], third)
 }
+
+///|
+test "cuckoo augmenting path still fills an empty large bucket" {
+  let filter = CuckooFilter::with_size(131072, 1)
+  let fingerprint = test_fingerprint_with_delta(0UL, [])
+  assert_true(filter.insert_fingerprint_bfs(0, fingerprint))
+  assert_eq(filter.count(), 1)
+  assert_eq(filter.buckets[0], fingerprint)
+}
