@@ -22,6 +22,24 @@ pub fn BloomFilter::is_empty(Self) -> Bool
 pub fn BloomFilter::new(Int32, Double) -> Self
 pub fn BloomFilter::with_size(Int32, Int32) -> Self
 
+pub struct CountingBloomFilter {
+  // private fields
+}
+pub fn CountingBloomFilter::clear(Self) -> Unit
+pub fn[K : Hash] CountingBloomFilter::contains(Self, K) -> Bool
+pub fn[K : Hash] CountingBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
+pub fn CountingBloomFilter::count(Self) -> Int32
+pub fn CountingBloomFilter::false_positive_rate(Self) -> Double
+pub fn CountingBloomFilter::hash_count(Self) -> Int32
+pub fn[K : Hash] CountingBloomFilter::insert(Self, K) -> Unit
+pub fn[K : Hash] CountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn CountingBloomFilter::is_empty(Self) -> Bool
+pub fn CountingBloomFilter::new(Int32, Double) -> Self
+pub fn[K : Hash] CountingBloomFilter::remove(Self, K) -> Bool
+pub fn[K : Hash] CountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
+pub fn CountingBloomFilter::slot_count(Self) -> Int32
+pub fn CountingBloomFilter::with_size(Int32, Int32) -> Self
+
 // Type aliases
 
 // Traits
