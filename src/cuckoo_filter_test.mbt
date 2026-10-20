@@ -87,3 +87,19 @@ test "panic cuckoo filter rejects non-positive bucket count" {
 test "panic cuckoo filter rejects non-positive bucket size" {
   @src.CuckooFilter::with_size(4, 0) |> ignore
 }
+
+///|
+test "cuckoo filter repeated failed inserts never lose entries" {
+  let filter = @src.CuckooFilter::with_size(2, 1)
+  let keys = ["a", "b", "c", "d", "e", "f", "g", "h"]
+  let inserted : Array[String] = []
+  for key in keys {
+    if filter.insert(key) {
+      inserted.push(key)
+    }
+  }
+  assert_eq(filter.count(), inserted.length())
+  for key in inserted {
+    assert_true(filter.contains(key))
+  }
+}
