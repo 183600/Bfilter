@@ -94,6 +94,9 @@ pub fn BloomFilter::with_size(
 /// Inserting the same key more than once is allowed. The insertion counter is
 /// incremented on every call, including duplicates.
 pub fn[K : Hash] BloomFilter::insert(self : BloomFilter, key : K) -> Unit {
+  guard self.inserted < 2147483647 else {
+    abort("bloom filter insertion count overflow")
+  }
   let (h1, h2) = key_hashes(key)
   let bit_count = self.bit_count.to_uint64()
   for i = 0; i < self.hash_count; i = i + 1 {

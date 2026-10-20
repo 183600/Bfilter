@@ -149,3 +149,25 @@ test "concurrent filters serialize and restore while locked" {
   assert_true(restored_cuckoo.contains("cuckoo"))
   assert_true(restored_cuckoo.remove("cuckoo"))
 }
+
+///|
+test "panic bloom filter rejects insertion count overflow" {
+  let bytes = @src.BloomFilter::with_size(64, 1).to_bytes().to_fixedarray()
+  bytes.unsafe_write_uint32_le(16, 2147483647U)
+  let filter = @src.BloomFilter::from_bytes(
+    Bytes::from_array(bytes.exact_view()),
+  )
+  filter.insert("value")
+}
+
+///|
+test "panic counting bloom filter rejects insertion count overflow" {
+  let bytes = @src.CountingBloomFilter::with_size(16, 1)
+    .to_bytes()
+    .to_fixedarray()
+  bytes.unsafe_write_uint32_le(16, 2147483647U)
+  let filter = @src.CountingBloomFilter::from_bytes(
+    Bytes::from_array(bytes.exact_view()),
+  )
+  filter.insert("value")
+}

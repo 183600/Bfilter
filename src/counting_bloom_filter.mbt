@@ -90,6 +90,9 @@ pub fn[K : Hash] CountingBloomFilter::insert(
   self : CountingBloomFilter,
   key : K,
 ) -> Unit {
+  guard self.inserted < 2147483647 else {
+    abort("counting bloom filter insertion count overflow")
+  }
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
   for i = 0; i < self.hash_count; i = i + 1 {
