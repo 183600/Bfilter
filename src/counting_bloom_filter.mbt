@@ -226,6 +226,24 @@ pub fn[K : Hash] CountingBloomFilter::insert_all(
 }
 
 ///|
+/// Insert every key that is definitely absent and return how many were added.
+///
+/// Duplicate keys within `keys` and keys already represented by positive
+/// counters are skipped. An empty view returns `0`.
+pub fn[K : Hash] CountingBloomFilter::insert_all_if_absent(
+  self : CountingBloomFilter,
+  keys : ArrayView[K],
+) -> Int32 {
+  let mut added = 0
+  for key in keys {
+    if self.insert_if_absent(key) {
+      added = added + 1
+    }
+  }
+  added
+}
+
+///|
 /// Remove one insertion of every key in `keys`.
 ///
 /// Continues after a key cannot be removed and returns `true` only when every

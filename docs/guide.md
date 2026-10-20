@@ -68,7 +68,8 @@ assert_eq(filter.count(), 1)
 
 False positives can suppress an insertion that would otherwise be harmless.
 The counting and cuckoo variants provide the same method, and the concurrent
-wrappers make the check and insertion atomic.
+wrappers make the check and insertion atomic. `insert_all_if_absent(keys)`
+applies the check to a batch and returns the number of keys actually added.
 
 Filters with identical `bit_count()` and `hash_count()` can be combined.
 `union` returns a filter that reports keys from either input, `intersection`

@@ -93,6 +93,16 @@ pub fn[K : Hash] ConcurrentBloomFilter::insert_all(
 }
 
 ///|
+/// Insert every key that is definitely absent while holding the lock once and
+/// return how many were added.
+pub fn[K : Hash] ConcurrentBloomFilter::insert_all_if_absent(
+  self : ConcurrentBloomFilter,
+  keys : ArrayView[K],
+) -> Int32 {
+  self.with_lock(filter => filter.insert_all_if_absent(keys))
+}
+
+///|
 /// Merge another filter into this one while holding the lock once.
 ///
 /// The other filter must use the same bit and hash counts. Its bits are

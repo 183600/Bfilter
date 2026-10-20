@@ -23,6 +23,7 @@ pub fn BloomFilter::from_bytes(Bytes) -> Self
 pub fn BloomFilter::hash_count(Self) -> Int32
 pub fn[K : Hash] BloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] BloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn[K : Hash] BloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
 pub fn[K : Hash] BloomFilter::insert_if_absent(Self, K) -> Bool
 pub fn BloomFilter::intersection(Self, Self) -> Self
 pub fn BloomFilter::is_empty(Self) -> Bool
@@ -51,6 +52,7 @@ pub fn ConcurrentBloomFilter::from_bytes(Bytes) -> Self
 pub fn ConcurrentBloomFilter::hash_count(Self) -> Int32
 pub fn[K : Hash] ConcurrentBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] ConcurrentBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn[K : Hash] ConcurrentBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
 pub fn[K : Hash] ConcurrentBloomFilter::insert_if_absent(Self, K) -> Bool
 pub fn ConcurrentBloomFilter::intersection(Self, BloomFilter) -> BloomFilter
 pub fn ConcurrentBloomFilter::is_empty(Self) -> Bool
@@ -80,6 +82,7 @@ pub fn ConcurrentCountingBloomFilter::from_bytes(Bytes) -> Self
 pub fn ConcurrentCountingBloomFilter::hash_count(Self) -> Int32
 pub fn[K : Hash] ConcurrentCountingBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] ConcurrentCountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn[K : Hash] ConcurrentCountingBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
 pub fn[K : Hash] ConcurrentCountingBloomFilter::insert_if_absent(Self, K) -> Bool
 pub fn ConcurrentCountingBloomFilter::intersection(Self, CountingBloomFilter) -> CountingBloomFilter
 pub fn ConcurrentCountingBloomFilter::is_empty(Self) -> Bool
@@ -112,6 +115,7 @@ pub fn ConcurrentCuckooFilter::false_positive_rate(Self) -> Double
 pub fn ConcurrentCuckooFilter::from_bytes(Bytes) -> Self
 pub fn[K : Hash] ConcurrentCuckooFilter::insert(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCuckooFilter::insert_all(Self, ArrayView[K]) -> Bool
+pub fn[K : Hash] ConcurrentCuckooFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
 pub fn[K : Hash] ConcurrentCuckooFilter::insert_if_absent(Self, K) -> Bool
 pub fn ConcurrentCuckooFilter::is_empty(Self) -> Bool
 pub fn ConcurrentCuckooFilter::is_subset_of(Self, CuckooFilter) -> Bool
@@ -143,6 +147,7 @@ pub fn CountingBloomFilter::from_bytes(Bytes) -> Self
 pub fn CountingBloomFilter::hash_count(Self) -> Int32
 pub fn[K : Hash] CountingBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] CountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn[K : Hash] CountingBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
 pub fn[K : Hash] CountingBloomFilter::insert_if_absent(Self, K) -> Bool
 pub fn CountingBloomFilter::intersection(Self, Self) -> Self
 pub fn CountingBloomFilter::is_empty(Self) -> Bool
@@ -175,6 +180,7 @@ pub fn CuckooFilter::false_positive_rate(Self) -> Double
 pub fn CuckooFilter::from_bytes(Bytes) -> Self
 pub fn[K : Hash] CuckooFilter::insert(Self, K) -> Bool
 pub fn[K : Hash] CuckooFilter::insert_all(Self, ArrayView[K]) -> Bool
+pub fn[K : Hash] CuckooFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
 pub fn[K : Hash] CuckooFilter::insert_if_absent(Self, K) -> Bool
 pub fn CuckooFilter::is_empty(Self) -> Bool
 pub fn CuckooFilter::is_subset_of(Self, Self) -> Bool

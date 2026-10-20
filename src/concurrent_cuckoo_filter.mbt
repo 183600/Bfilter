@@ -101,6 +101,16 @@ pub fn[K : Hash] ConcurrentCuckooFilter::insert_all(
 }
 
 ///|
+/// Insert every key whose fingerprint is not already present while holding the
+/// lock once and return how many were added.
+pub fn[K : Hash] ConcurrentCuckooFilter::insert_all_if_absent(
+  self : ConcurrentCuckooFilter,
+  keys : ArrayView[K],
+) -> Int32 {
+  self.with_lock(filter => filter.insert_all_if_absent(keys))
+}
+
+///|
 /// Merge another filter into this one while holding the lock once.
 ///
 /// Returns `false` and leaves the current state unchanged when the combined

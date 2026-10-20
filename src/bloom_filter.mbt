@@ -174,6 +174,24 @@ pub fn[K : Hash] BloomFilter::insert_all(
 }
 
 ///|
+/// Insert every key that is definitely absent and return how many were added.
+///
+/// Duplicate keys within `keys` and keys already represented by every selected
+/// bit are skipped. An empty view returns `0`.
+pub fn[K : Hash] BloomFilter::insert_all_if_absent(
+  self : BloomFilter,
+  keys : ArrayView[K],
+) -> Int32 {
+  let mut added = 0
+  for key in keys {
+    if self.insert_if_absent(key) {
+      added = added + 1
+    }
+  }
+  added
+}
+
+///|
 /// Test every key in `keys`, returning `false` as soon as one is definitely
 /// absent. An empty view returns `true`.
 pub fn[K : Hash] BloomFilter::contains_all(

@@ -295,6 +295,25 @@ pub fn[K : Hash] CuckooFilter::insert_all(
 }
 
 ///|
+/// Insert every key whose fingerprint is not already present and return how
+/// many were added.
+///
+/// Keys that are already represented or that cannot fit are skipped. An empty
+/// view returns `0`.
+pub fn[K : Hash] CuckooFilter::insert_all_if_absent(
+  self : CuckooFilter,
+  keys : ArrayView[K],
+) -> Int32 {
+  let mut added = 0
+  for key in keys {
+    if self.insert_if_absent(key) {
+      added = added + 1
+    }
+  }
+  added
+}
+
+///|
 /// Build a new filter that reports every key present in either input.
 ///
 /// Both filters must use the same bucket count and bucket size. Fingerprints
