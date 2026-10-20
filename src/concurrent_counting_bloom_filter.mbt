@@ -86,6 +86,18 @@ pub fn[K : Hash] ConcurrentCountingBloomFilter::insert_all(
 }
 
 ///|
+/// Merge another filter into this one while holding the lock once.
+///
+/// The other filter must use the same slot and hash counts. Counters are
+/// combined with the larger value and insertion counts are added.
+pub fn ConcurrentCountingBloomFilter::merge(
+  self : ConcurrentCountingBloomFilter,
+  other : CountingBloomFilter,
+) -> Unit {
+  self.with_lock(filter => filter.merge(other))
+}
+
+///|
 /// Remove one insertion of every key in `keys` while holding the lock once.
 pub fn[K : Hash] ConcurrentCountingBloomFilter::remove_all(
   self : ConcurrentCountingBloomFilter,

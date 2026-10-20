@@ -165,6 +165,23 @@ fn BloomFilter::ensure_compatible(
 }
 
 ///|
+/// Merge every bit of `other` into `self` in place.
+///
+/// Both filters must use the same bit and hash counts. After merging, `self`
+/// reports every key reported by either input. The insertion counter becomes
+/// the sum of the input counts, a conservative upper bound when keys overlap.
+pub fn BloomFilter::merge(self : BloomFilter, other : BloomFilter) -> Unit {
+  self.ensure_compatible(other)
+  guard self.inserted <= 2147483647 - other.inserted else {
+    abort("bloom filter insertion count overflow")
+  }
+  for i = 0; i < self.words.length(); i = i + 1 {
+    self.words[i] = self.words[i] | other.words[i]
+  }
+  self.inserted += other.inserted
+}
+
+///|
 /// Build a new filter containing every key present in either filter.
 ///
 /// Both filters must use the same bit and hash counts. The result uses the
@@ -175,15 +192,8 @@ pub fn BloomFilter::union(
   self : BloomFilter,
   other : BloomFilter,
 ) -> BloomFilter {
-  self.ensure_compatible(other)
-  guard self.inserted <= 2147483647 - other.inserted else {
-    abort("bloom filter insertion count overflow")
-  }
-  let result = BloomFilter::with_size(self.bit_count, self.hash_count)
-  for i = 0; i < result.words.length(); i = i + 1 {
-    result.words[i] = self.words[i] | other.words[i]
-  }
-  result.inserted = self.inserted + other.inserted
+  let result = self.copy()
+  result.merge(other)
   result
 }
 

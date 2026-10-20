@@ -27,6 +27,7 @@ pub fn BloomFilter::intersection(Self, Self) -> Self
 pub fn BloomFilter::is_empty(Self) -> Bool
 pub fn BloomFilter::is_subset_of(Self, Self) -> Bool
 pub fn BloomFilter::memory_bytes(Self) -> Int64
+pub fn BloomFilter::merge(Self, Self) -> Unit
 pub fn BloomFilter::new(Int32, Double) -> Self
 pub fn BloomFilter::set_bit_count(Self) -> Int32
 pub fn BloomFilter::to_bytes(Self) -> Bytes
@@ -51,6 +52,7 @@ pub fn[K : Hash] ConcurrentBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] ConcurrentBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
 pub fn ConcurrentBloomFilter::is_empty(Self) -> Bool
 pub fn ConcurrentBloomFilter::memory_bytes(Self) -> Int64
+pub fn ConcurrentBloomFilter::merge(Self, BloomFilter) -> Unit
 pub fn ConcurrentBloomFilter::new(Int32, Double) -> Self
 pub fn ConcurrentBloomFilter::set_bit_count(Self) -> Int32
 pub fn ConcurrentBloomFilter::snapshot(Self) -> BloomFilter
@@ -74,6 +76,7 @@ pub fn[K : Hash] ConcurrentCountingBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] ConcurrentCountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
 pub fn ConcurrentCountingBloomFilter::is_empty(Self) -> Bool
 pub fn ConcurrentCountingBloomFilter::memory_bytes(Self) -> Int64
+pub fn ConcurrentCountingBloomFilter::merge(Self, CountingBloomFilter) -> Unit
 pub fn ConcurrentCountingBloomFilter::new(Int32, Double) -> Self
 pub fn ConcurrentCountingBloomFilter::occupied_slot_count(Self) -> Int32
 pub fn[K : Hash] ConcurrentCountingBloomFilter::remove(Self, K) -> Bool
@@ -128,6 +131,7 @@ pub fn CountingBloomFilter::intersection(Self, Self) -> Self
 pub fn CountingBloomFilter::is_empty(Self) -> Bool
 pub fn CountingBloomFilter::is_subset_of(Self, Self) -> Bool
 pub fn CountingBloomFilter::memory_bytes(Self) -> Int64
+pub fn CountingBloomFilter::merge(Self, Self) -> Unit
 pub fn CountingBloomFilter::new(Int32, Double) -> Self
 pub fn CountingBloomFilter::occupied_slot_count(Self) -> Int32
 pub fn[K : Hash] CountingBloomFilter::remove(Self, K) -> Bool

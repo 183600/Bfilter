@@ -196,6 +196,37 @@ fn CountingBloomFilter::ensure_compatible(
 }
 
 ///|
+/// Merge every counter of `other` into `self` in place.
+///
+/// Both filters must use the same slot and hash counts. Each counter becomes
+/// the larger of the two values, so all keys from both filters remain present
+/// and a key inserted multiple times keeps the larger multiplicity. The
+/// insertion counter becomes the sum of the input counts, a conservative upper
+/// bound because keys overlap.
+pub fn CountingBloomFilter::merge(
+  self : CountingBloomFilter,
+  other : CountingBloomFilter,
+) -> Unit {
+  self.ensure_compatible(other)
+  guard self.inserted <= 2147483647 - other.inserted else {
+    abort("counting bloom filter insertion count overflow")
+  }
+  for i = 0; i < self.counters.length(); i = i + 1 {
+    let left = self.counters[i]
+    let right = other.counters[i]
+    let mut merged = 0UL
+    for lane = 0; lane < 4; lane = lane + 1 {
+      let shift = lane * 16
+      let a = (left >> shift) & 0xFFFFUL
+      let b = (right >> shift) & 0xFFFFUL
+      merged = merged | ((if a > b { a } else { b }) << shift)
+    }
+    self.counters[i] = merged
+  }
+  self.inserted += other.inserted
+}
+
+///|
 /// Build a new filter that reports every key present in either input.
 ///
 /// Both filters must use the same slot and hash counts. Each counter is the
@@ -207,24 +238,8 @@ pub fn CountingBloomFilter::union(
   self : CountingBloomFilter,
   other : CountingBloomFilter,
 ) -> CountingBloomFilter {
-  self.ensure_compatible(other)
-  guard self.inserted <= 2147483647 - other.inserted else {
-    abort("counting bloom filter insertion count overflow")
-  }
-  let result = CountingBloomFilter::with_size(self.slot_count, self.hash_count)
-  for i = 0; i < result.counters.length(); i = i + 1 {
-    let left = self.counters[i]
-    let right = other.counters[i]
-    let mut merged = 0UL
-    for lane = 0; lane < 4; lane = lane + 1 {
-      let shift = lane * 16
-      let a = (left >> shift) & 0xFFFFUL
-      let b = (right >> shift) & 0xFFFFUL
-      merged = merged | ((if a > b { a } else { b }) << shift)
-    }
-    result.counters[i] = merged
-  }
-  result.inserted = self.inserted + other.inserted
+  let result = self.copy()
+  result.merge(other)
   result
 }
 

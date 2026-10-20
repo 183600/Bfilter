@@ -78,6 +78,18 @@ counts and `intersection` takes the smaller one, so `false_positive_rate()`
 stays conservative when the inputs overlap. These operations panic when the
 filter configurations differ.
 
+`merge` performs the same combination as `union` in place, avoiding a new
+allocation. The concurrent wrappers expose `merge` as well and acquire the lock
+once for the whole operation:
+
+```moonbit
+let target = @src.BloomFilter::with_size(4096, 4)
+target.insert("target")
+target.merge(combined)
+assert_true(target.contains("left"))
+assert_true(target.contains("target"))
+```
+
 ## Counting Bloom Filter
 
 `CountingBloomFilter` stores a 16-bit counter per slot, allowing one insertion
@@ -119,7 +131,9 @@ assert_true(left.is_subset_of(combined))
 
 As with Bloom filters, the combined `count()` is conservative: `union` adds the
 input counts and `intersection` takes the smaller one. These operations panic
-when the filter configurations differ.
+when the filter configurations differ. `merge` applies the same counter
+combination to an existing filter in place, and the concurrent wrapper exposes
+an atomic `merge` that holds its lock once.
 
 ## Cuckoo Filter
 

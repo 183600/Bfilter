@@ -83,6 +83,18 @@ pub fn[K : Hash] ConcurrentBloomFilter::insert_all(
 }
 
 ///|
+/// Merge another filter into this one while holding the lock once.
+///
+/// The other filter must use the same bit and hash counts. Its bits are
+/// combined with the current state and its insertion count is added.
+pub fn ConcurrentBloomFilter::merge(
+  self : ConcurrentBloomFilter,
+  other : BloomFilter,
+) -> Unit {
+  self.with_lock(filter => filter.merge(other))
+}
+
+///|
 /// Test every key in `keys` while holding the lock once.
 pub fn[K : Hash] ConcurrentBloomFilter::contains_all(
   self : ConcurrentBloomFilter,
