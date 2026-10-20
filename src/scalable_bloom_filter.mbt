@@ -248,10 +248,10 @@ pub fn ScalableBloomFilter::slice_count(self : ScalableBloomFilter) -> Int32 {
 
 ///|
 /// Sum of the planned capacities of the current slices.
-pub fn ScalableBloomFilter::capacity(self : ScalableBloomFilter) -> Int32 {
-  let mut total = 0
+pub fn ScalableBloomFilter::capacity(self : ScalableBloomFilter) -> Int64 {
+  let mut total = 0L
   for capacity in self.capacities {
-    total = total + capacity
+    total = total + capacity.to_int64()
   }
   total
 }

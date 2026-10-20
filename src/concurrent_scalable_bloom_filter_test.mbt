@@ -70,14 +70,14 @@ test "concurrent scalable bloom filter reports statistics" {
   assert_eq(filter.fill_ratio(), 0.0)
   assert_eq(filter.estimated_item_count(), 0.0)
   assert_eq(filter.false_positive_rate(), 0.0)
-  assert_eq(filter.capacity(), 8)
+  assert_eq(filter.capacity(), 8L)
   assert_true(filter.bit_count() > 0)
   assert_true(filter.memory_bytes() > 0L)
   for i = 0; i < 20; i = i + 1 {
     filter.insert("value-" + i.to_string())
   }
   assert_true(filter.slice_count() > 1)
-  assert_true(filter.capacity() > 8)
+  assert_true(filter.capacity() > 8L)
   assert_true(filter.set_bit_count() > 0)
   assert_true(filter.fill_ratio() > 0.0 && filter.fill_ratio() <= 1.0)
   assert_true(filter.estimated_item_count() > 0.0)

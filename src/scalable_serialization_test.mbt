@@ -28,7 +28,7 @@ test "scalable bloom filter serialization round trips empty filters" {
   let restored = @src.ScalableBloomFilter::from_bytes(filter.to_bytes())
   assert_true(restored.is_empty())
   assert_eq(restored.slice_count(), 1)
-  assert_eq(restored.capacity(), 16)
+  assert_eq(restored.capacity(), 16L)
   assert_eq(restored.count(), 0)
   assert_eq(restored.bit_count(), filter.bit_count())
 }

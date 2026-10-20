@@ -145,7 +145,7 @@ pub fn ConcurrentScalableBloomFilter::slice_count(
 /// Sum of the planned capacities of the current slices.
 pub fn ConcurrentScalableBloomFilter::capacity(
   self : ConcurrentScalableBloomFilter,
-) -> Int32 {
+) -> Int64 {
   self.with_lock(filter => filter.capacity())
 }
 

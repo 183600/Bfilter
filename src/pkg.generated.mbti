@@ -135,7 +135,7 @@ pub struct ConcurrentScalableBloomFilter {
   // private fields
 }
 pub fn ConcurrentScalableBloomFilter::bit_count(Self) -> Int32
-pub fn ConcurrentScalableBloomFilter::capacity(Self) -> Int32
+pub fn ConcurrentScalableBloomFilter::capacity(Self) -> Int64
 pub fn ConcurrentScalableBloomFilter::clear(Self) -> Unit
 pub fn[K : Hash] ConcurrentScalableBloomFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentScalableBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
@@ -227,7 +227,7 @@ pub struct ScalableBloomFilter {
   // private fields
 }
 pub fn ScalableBloomFilter::bit_count(Self) -> Int32
-pub fn ScalableBloomFilter::capacity(Self) -> Int32
+pub fn ScalableBloomFilter::capacity(Self) -> Int64
 pub fn ScalableBloomFilter::clear(Self) -> Unit
 pub fn[K : Hash] ScalableBloomFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] ScalableBloomFilter::contains_all(Self, ArrayView[K]) -> Bool

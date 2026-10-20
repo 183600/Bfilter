@@ -3,13 +3,13 @@ test "scalable bloom filter grows and keeps every inserted key" {
   let filter = @src.ScalableBloomFilter::new(4, 0.01)
   assert_true(filter.is_empty())
   assert_eq(filter.slice_count(), 1)
-  assert_eq(filter.capacity(), 4)
+  assert_eq(filter.capacity(), 4L)
   for i = 0; i < 20; i = i + 1 {
     filter.insert("key-" + i.to_string())
   }
   assert_eq(filter.count(), 20)
   assert_eq(filter.slice_count(), 3)
-  assert_eq(filter.capacity(), 28)
+  assert_eq(filter.capacity(), 28L)
   for i = 0; i < 20; i = i + 1 {
     assert_true(filter.contains("key-" + i.to_string()))
   }
@@ -75,7 +75,7 @@ test "scalable bloom filter clear restarts from one slice" {
   assert_true(filter.is_empty())
   assert_eq(filter.count(), 0)
   assert_eq(filter.slice_count(), 1)
-  assert_eq(filter.capacity(), 3)
+  assert_eq(filter.capacity(), 3L)
   assert_false(filter.contains(0))
   assert_true(filter.insert_if_absent(0))
 }
