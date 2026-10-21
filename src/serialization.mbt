@@ -17,6 +17,9 @@ const SERIAL_CUCKOO : Byte = b'\x03'
 const SERIAL_SCALABLE : Byte = b'\x04'
 
 ///|
+const SERIAL_COMPACT_COUNTING : Byte = b'\x05'
+
+///|
 const SERIAL_HEADER_BYTES : Int32 = 20
 
 ///|
@@ -338,4 +341,68 @@ pub fn ScalableBloomFilter::from_bytes(data : Bytes) -> ScalableBloomFilter {
   }
   filter.inserted = inserted
   filter
+}
+
+///|
+/// Encode the compact counting filter as a portable byte sequence.
+pub fn CompactCountingBloomFilter::to_bytes(
+  self : CompactCountingBloomFilter,
+) -> Bytes {
+  let word_count = self.counters.length()
+  let data = FixedArray::make(SERIAL_HEADER_BYTES + word_count * 8, b'\x00')
+  serial_write_header(
+    data,
+    SERIAL_COMPACT_COUNTING,
+    self.slot_count,
+    self.hash_count,
+    self.inserted,
+  )
+  for i = 0; i < word_count; i = i + 1 {
+    data.unsafe_write_uint64_le(SERIAL_HEADER_BYTES + i * 8, self.counters[i])
+  }
+  Bytes::from_array(data.exact_view())
+}
+
+///|
+/// Decode a compact counting filter produced by
+/// `CompactCountingBloomFilter::to_bytes`.
+///
+/// Panics if the data is truncated, uses another format version, or contains an
+/// invalid configuration.
+pub fn CompactCountingBloomFilter::from_bytes(
+  data : Bytes,
+) -> CompactCountingBloomFilter {
+  let (slot_count, hash_count, inserted) = serial_read_header(
+    data,
+    SERIAL_COMPACT_COUNTING,
+  )
+  guard slot_count > 0 && slot_count <= 1073741808 && slot_count % 16 == 0 else {
+    abort("invalid compact counting filter slot count")
+  }
+  guard hash_count > 0 else {
+    abort("invalid compact counting filter hash count")
+  }
+  guard inserted >= 0 else {
+    abort("invalid compact counting filter insertion count")
+  }
+  let word_count = slot_count / COMPACT_SLOTS_PER_WORD
+  serial_check_length(
+    data,
+    SERIAL_HEADER_BYTES.to_int64() + word_count.to_int64() * 8L,
+  )
+  let counters = FixedArray::make(word_count, 0UL)
+  let mut counter_mass = 0UL
+  for i = 0; i < word_count; i = i + 1 {
+    let word = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * 8)
+    counters[i] = word
+    for lane = 0; lane < COMPACT_SLOTS_PER_WORD; lane = lane + 1 {
+      counter_mass = counter_mass + ((word >> (lane * 4)) & COMPACT_COUNTER_MAX)
+    }
+  }
+  guard counter_mass <= hash_count.to_uint64() * inserted.to_uint64() else {
+    abort(
+      "compact counting insertion count is too small for positive counters",
+    )
+  }
+  { counters, slot_count, hash_count, inserted, }
 }

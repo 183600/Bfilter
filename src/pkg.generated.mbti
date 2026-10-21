@@ -36,6 +36,40 @@ pub fn BloomFilter::to_bytes(Self) -> Bytes
 pub fn BloomFilter::union(Self, Self) -> Self
 pub fn BloomFilter::with_size(Int32, Int32) -> Self
 
+pub struct CompactCountingBloomFilter {
+  // private fields
+}
+pub fn CompactCountingBloomFilter::clear(Self) -> Unit
+pub fn[K : Hash] CompactCountingBloomFilter::contains(Self, K) -> Bool
+pub fn[K : Hash] CompactCountingBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
+pub fn[K : Hash] CompactCountingBloomFilter::contains_any(Self, ArrayView[K]) -> Bool
+pub fn CompactCountingBloomFilter::copy(Self) -> Self
+pub fn CompactCountingBloomFilter::count(Self) -> Int32
+pub fn[K : Hash] CompactCountingBloomFilter::count_of(Self, K) -> Int32
+pub fn CompactCountingBloomFilter::counter_max() -> Int32
+pub fn CompactCountingBloomFilter::estimated_item_count(Self) -> Double
+pub fn CompactCountingBloomFilter::false_positive_rate(Self) -> Double
+pub fn CompactCountingBloomFilter::fill_ratio(Self) -> Double
+pub fn CompactCountingBloomFilter::from_bytes(Bytes) -> Self
+pub fn CompactCountingBloomFilter::hash_count(Self) -> Int32
+pub fn[K : Hash] CompactCountingBloomFilter::insert(Self, K) -> Unit
+pub fn[K : Hash] CompactCountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn[K : Hash] CompactCountingBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
+pub fn[K : Hash] CompactCountingBloomFilter::insert_if_absent(Self, K) -> Bool
+pub fn CompactCountingBloomFilter::intersection(Self, Self) -> Self
+pub fn CompactCountingBloomFilter::is_empty(Self) -> Bool
+pub fn CompactCountingBloomFilter::is_subset_of(Self, Self) -> Bool
+pub fn CompactCountingBloomFilter::memory_bytes(Self) -> Int64
+pub fn CompactCountingBloomFilter::merge(Self, Self) -> Unit
+pub fn CompactCountingBloomFilter::new(Int32, Double) -> Self
+pub fn CompactCountingBloomFilter::occupied_slot_count(Self) -> Int32
+pub fn[K : Hash] CompactCountingBloomFilter::remove(Self, K) -> Bool
+pub fn[K : Hash] CompactCountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
+pub fn CompactCountingBloomFilter::slot_count(Self) -> Int32
+pub fn CompactCountingBloomFilter::to_bytes(Self) -> Bytes
+pub fn CompactCountingBloomFilter::union(Self, Self) -> Self
+pub fn CompactCountingBloomFilter::with_size(Int32, Int32) -> Self
+
 pub struct ConcurrentBloomFilter {
   // private fields
 }
@@ -65,6 +99,39 @@ pub fn ConcurrentBloomFilter::snapshot(Self) -> BloomFilter
 pub fn ConcurrentBloomFilter::to_bytes(Self) -> Bytes
 pub fn ConcurrentBloomFilter::union(Self, BloomFilter) -> BloomFilter
 pub fn ConcurrentBloomFilter::with_size(Int32, Int32) -> Self
+
+pub struct ConcurrentCompactCountingBloomFilter {
+  // private fields
+}
+pub fn ConcurrentCompactCountingBloomFilter::clear(Self) -> Unit
+pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::contains(Self, K) -> Bool
+pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
+pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::contains_any(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentCompactCountingBloomFilter::count(Self) -> Int32
+pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::count_of(Self, K) -> Int32
+pub fn ConcurrentCompactCountingBloomFilter::estimated_item_count(Self) -> Double
+pub fn ConcurrentCompactCountingBloomFilter::false_positive_rate(Self) -> Double
+pub fn ConcurrentCompactCountingBloomFilter::fill_ratio(Self) -> Double
+pub fn ConcurrentCompactCountingBloomFilter::from_bytes(Bytes) -> Self
+pub fn ConcurrentCompactCountingBloomFilter::hash_count(Self) -> Int32
+pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::insert(Self, K) -> Unit
+pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
+pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::insert_if_absent(Self, K) -> Bool
+pub fn ConcurrentCompactCountingBloomFilter::intersection(Self, CompactCountingBloomFilter) -> CompactCountingBloomFilter
+pub fn ConcurrentCompactCountingBloomFilter::is_empty(Self) -> Bool
+pub fn ConcurrentCompactCountingBloomFilter::is_subset_of(Self, CompactCountingBloomFilter) -> Bool
+pub fn ConcurrentCompactCountingBloomFilter::memory_bytes(Self) -> Int64
+pub fn ConcurrentCompactCountingBloomFilter::merge(Self, CompactCountingBloomFilter) -> Unit
+pub fn ConcurrentCompactCountingBloomFilter::new(Int32, Double) -> Self
+pub fn ConcurrentCompactCountingBloomFilter::occupied_slot_count(Self) -> Int32
+pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::remove(Self, K) -> Bool
+pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentCompactCountingBloomFilter::slot_count(Self) -> Int32
+pub fn ConcurrentCompactCountingBloomFilter::snapshot(Self) -> CompactCountingBloomFilter
+pub fn ConcurrentCompactCountingBloomFilter::to_bytes(Self) -> Bytes
+pub fn ConcurrentCompactCountingBloomFilter::union(Self, CompactCountingBloomFilter) -> CompactCountingBloomFilter
+pub fn ConcurrentCompactCountingBloomFilter::with_size(Int32, Int32) -> Self
 
 pub struct ConcurrentCountingBloomFilter {
   // private fields
