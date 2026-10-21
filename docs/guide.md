@@ -112,6 +112,32 @@ fingerprint that appears in the matching candidate pair of the other filter. A
 different keys. Every base filter type and its concurrent wrapper exposes the
 method, and it panics when the layouts differ.
 
+## Blocked Bloom Filter
+
+`BlockedBloomFilter` keeps every probe for a key inside one 512-bit block, so a
+query touches at most one cache line instead of scattering accesses across the
+whole bit array. It exposes the same construction, batch, set-algebra, and
+serialization API as `BloomFilter`, and `ConcurrentBlockedBloomFilter` adds the
+same mutex protection as the other concurrent wrappers.
+
+```moonbit
+let filter = @src.BlockedBloomFilter::new(10_000, 0.001)
+filter.insert_all(["alpha", "beta"])
+assert_true(filter.contains("alpha"))
+assert_true(filter.contains_all(["alpha", "beta"]))
+assert_eq(filter.bit_count() % 512, 0)
+assert_eq(filter.block_count(), filter.bit_count() / 512)
+```
+
+`with_size(bit_count, hash_count)` rounds the bit count up to whole blocks, so
+`bit_count()` is always a multiple of 512. Block selection is derived from the
+key hash and the remaining probes use double hashing within that block. Blocks
+fill unevenly, which can raise the observed false-positive rate slightly above
+a classic Bloom filter with the same total bit count, but the standard
+`fill_ratio()`, `estimated_item_count()`, and `false_positive_rate()` estimates
+remain available. Filters can be combined when their rounded bit counts and
+hash counts match, exactly like `BloomFilter`.
+
 ## Scalable Bloom Filter
 
 `ScalableBloomFilter` starts with one Bloom filter slice sized for an initial

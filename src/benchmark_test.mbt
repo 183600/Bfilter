@@ -430,3 +430,54 @@ test "bench cuckoo is_disjoint_from n=1000" (b : @bench.T) {
   })
 }
 
+///|
+test "bench blocked bloom insert n=1000" (b : @bench.T) {
+  let filter = @src.BlockedBloomFilter::new(1000, 0.01)
+  let mut index = 0
+  b.bench(fn() {
+    filter.insert(bench_keys[index])
+    index = (index + 1) % bench_keys.length()
+    b.keep(filter)
+  })
+}
+
+///|
+test "bench blocked bloom contains n=1000" (b : @bench.T) {
+  let filter = @src.BlockedBloomFilter::new(1000, 0.01)
+  filter.insert_all(bench_keys)
+  let mut index = 0
+  let mut hits = 0
+  b.bench(fn() {
+    if filter.contains(bench_keys[index]) {
+      hits = hits + 1
+    }
+    index = (index + 1) % bench_keys.length()
+    b.keep(hits)
+  })
+}
+
+///|
+test "bench blocked bloom serialization n=1000" (b : @bench.T) {
+  let filter = @src.BlockedBloomFilter::new(1000, 0.01)
+  filter.insert_all(bench_keys)
+  b.bench(fn() {
+    let restored = @src.BlockedBloomFilter::from_bytes(filter.to_bytes())
+    b.keep(restored)
+  })
+}
+
+///|
+test "bench concurrent blocked bloom contains n=1000" (b : @bench.T) {
+  let filter = @src.ConcurrentBlockedBloomFilter::new(1000, 0.01)
+  filter.insert_all(bench_keys)
+  let mut index = 0
+  let mut hits = 0
+  b.bench(fn() {
+    if filter.contains(bench_keys[index]) {
+      hits = hits + 1
+    }
+    index = (index + 1) % bench_keys.length()
+    b.keep(hits)
+  })
+}
+

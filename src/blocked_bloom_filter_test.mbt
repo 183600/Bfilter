@@ -117,3 +117,13 @@ test "panic blocked bloom filter rejects invalid sizes" {
   @src.BlockedBloomFilter::with_size(0, 1) |> ignore
   @src.BlockedBloomFilter::with_size(512, 0) |> ignore
 }
+
+///|
+test "guide blocked bloom example" {
+  let filter = @src.BlockedBloomFilter::new(10_000, 0.001)
+  filter.insert_all(["alpha", "beta"])
+  assert_true(filter.contains("alpha"))
+  assert_true(filter.contains_all(["alpha", "beta"]))
+  assert_eq(filter.bit_count() % 512, 0)
+  assert_eq(filter.block_count(), filter.bit_count() / 512)
+}
