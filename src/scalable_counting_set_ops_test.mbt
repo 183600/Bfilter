@@ -202,3 +202,46 @@ test "scalable counting union keeps every tracked key removable" {
   assert_eq(restored.count(), combined.count())
   assert_eq(restored.tracked_key_count(), 0)
 }
+
+///|
+test "scalable counting chained merges keep every key removable" {
+  for round = 1; round <= 3; round = round + 1 {
+    let key_count = 40
+    let mut combined = @src.ScalableCountingBloomFilter::new(4, 0.01)
+    let seen : Array[Bool] = Array::make(key_count, false)
+    let mut seed = round * 2027 + 5
+    for part = 0; part < 5; part = part + 1 {
+      let partner = @src.ScalableCountingBloomFilter::new(4, 0.01)
+      for step = 0; step < 120; step = step + 1 {
+        seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+        let key = seed % key_count
+        partner.insert(key)
+        seen[key] = true
+      }
+      if part % 2 == 0 {
+        combined.merge(partner)
+      } else {
+        let union = combined.union(partner)
+        combined.clear()
+        combined.merge(union)
+      }
+      combined = @src.ScalableCountingBloomFilter::from_bytes(
+        combined.to_bytes(),
+      )
+      for key = 0; key < key_count; key = key + 1 {
+        if seen[key] {
+          assert_true(combined.contains(key))
+        }
+      }
+    }
+    for key = 0; key < key_count; key = key + 1 {
+      let occurrences = combined.count_of(key)
+      for i = 0; i < occurrences; i = i + 1 {
+        assert_true(combined.remove(key))
+      }
+      assert_eq(combined.count_of(key), 0)
+    }
+    assert_eq(combined.count(), 0)
+    assert_eq(combined.tracked_key_count(), 0)
+  }
+}

@@ -482,9 +482,10 @@ fn ScalableCountingBloomFilter::ensure_same_policy(
 /// tracked multiplicities of both inputs instead of taking the larger aggregate
 /// counter, which keeps every key removable after the merge. Keys present in
 /// both filters in the same slice keep the larger multiplicity; keys in
-/// different slices keep both contributions. The insertion counter is
-/// recomputed from the merged tracked multiplicities so it stays consistent
-/// with the rebuilt counters and serialization.
+/// different slices keep both contributions in the slice recorded for the
+/// merged key, so later removals never have to search other slices. The
+/// insertion counter is recomputed from the merged tracked multiplicities so it
+/// stays consistent with the rebuilt counters and serialization.
 pub fn ScalableCountingBloomFilter::merge(
   self : ScalableCountingBloomFilter,
   other : ScalableCountingBloomFilter,
@@ -554,8 +555,8 @@ pub fn ScalableCountingBloomFilter::merge(
           guard self_occurrences <= 2147483647 - other_occurrences else {
             abort("scalable counting bloom filter occurrence count overflow")
           }
-          slices[other_slice].raise_positions(id.0, id.1, other_occurrences)
-          slice_inserted[other_slice] = slice_inserted[other_slice] +
+          slices[self_slice].raise_positions(id.0, id.1, other_occurrences)
+          slice_inserted[self_slice] = slice_inserted[self_slice] +
             other_occurrences
           merged.set(id, (self_slice, self_occurrences + other_occurrences))
         }
