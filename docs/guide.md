@@ -228,6 +228,13 @@ multiplicity, even when the inputs stored them in different slices.
 `ConcurrentScalableCountingBloomFilter` adds one-mutex atomic operations,
 including `intersection`, and a `snapshot()` method.
 
+The backing counters still saturate at 65,535. After a key has been inserted
+more times than its counters can distinguish, enough removals can drain those
+counters while tracked occurrences remain. `count_of` continues to report the
+exact tracked multiplicity and serialization preserves it, but `contains` may
+already be `false` and `remove` returns `false` for the remaining occurrences.
+Use `count_of` when tracking exact multiplicity past saturation.
+
 ## Counting Bloom Filter
 
 `CountingBloomFilter` stores a 16-bit counter per slot, allowing one insertion
