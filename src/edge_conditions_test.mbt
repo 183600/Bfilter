@@ -125,3 +125,26 @@ test "concurrent compact counting filter supports conditionals and bulk removal"
   assert_true(filter.contains("b"))
   assert_true(filter.occupied_slot_count() > 0)
 }
+
+///|
+test "full bloom filters report infinite estimated item counts" {
+  let filter = @src.BloomFilter::with_size(64, 1)
+  for i = 0; i < 1024; i = i + 1 {
+    filter.insert(i)
+  }
+  assert_eq(filter.set_bit_count(), filter.bit_count())
+  assert_true(filter.estimated_item_count() > 1.0e300)
+}
+
+///|
+test "counting filters handle hash counts wider than their counters" {
+  let filter = @src.CountingBloomFilter::with_size(16, 1048576)
+  filter.insert("wide")
+  assert_eq(filter.count_of("wide"), 65535)
+  assert_eq(filter.count(), 1)
+  let restored = @src.CountingBloomFilter::from_bytes(filter.to_bytes())
+  assert_eq(restored.count_of("wide"), 65535)
+  assert_true(restored.remove("wide"))
+  assert_eq(restored.count(), 0)
+  assert_false(restored.contains("wide"))
+}
