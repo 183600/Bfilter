@@ -313,3 +313,49 @@ test "guide scalable bloom filter growth" {
   assert_true(filter.capacity() > 100L)
   assert_true(filter.memory_bytes() > 0L)
 }
+
+///|
+test "guide scalable bloom filter set operations" {
+  let left = @src.ScalableBloomFilter::new(100, 0.01)
+  let right = @src.ScalableBloomFilter::new(100, 0.01)
+  for i = 0; i < 250; i = i + 1 {
+    left.insert(i)
+    right.insert(i + 1000)
+  }
+  let combined = left.union(right)
+  assert_true(combined.contains(42))
+  assert_true(combined.contains(1042))
+  assert_true(left.is_subset_of(combined))
+  assert_eq(combined.count(), left.count() + right.count())
+  let restored = @src.ScalableBloomFilter::from_bytes(combined.to_bytes())
+  assert_true(restored.contains(42))
+  assert_true(restored.contains(1042))
+}
+
+///|
+test "guide compact counting filter memory and saturation" {
+  let compact = @src.CompactCountingBloomFilter::new(1000, 0.01)
+  let regular = @src.CountingBloomFilter::new(1000, 0.01)
+  assert_eq(regular.memory_bytes(), compact.memory_bytes() * 4L)
+  for i = 0; i < 20; i = i + 1 {
+    compact.insert("task")
+  }
+  assert_eq(
+    compact.count_of("task"),
+    @src.CompactCountingBloomFilter::counter_max(),
+  )
+  assert_true(compact.remove("task"))
+  assert_eq(compact.count_of("task"), 14)
+}
+
+///|
+test "guide definite disjointness" {
+  let left = @src.BloomFilter::with_size(1 << 20, 2)
+  let right = @src.BloomFilter::with_size(1 << 20, 2)
+  assert_true(left.is_disjoint_from(right))
+  left.insert("shared")
+  assert_true(left.is_disjoint_from(right))
+  right.insert("shared")
+  assert_false(left.is_disjoint_from(right))
+}
+

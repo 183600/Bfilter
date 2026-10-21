@@ -103,6 +103,15 @@ assert_true(target.contains("left"))
 assert_true(target.contains("target"))
 ```
 
+`is_disjoint_from(other)` answers the opposite question: it returns `true` only
+when the filters are definitely disjoint, meaning no key can be reported present
+by both. For Bloom filters that requires no shared set bit, for counting
+variants no slot with a positive counter in both, and for cuckoo filters no
+fingerprint that appears in the matching candidate pair of the other filter. A
+`false` result is inconclusive because shared bits or fingerprints may come from
+different keys. Every base filter type and its concurrent wrapper exposes the
+method, and it panics when the layouts differ.
+
 ## Scalable Bloom Filter
 
 `ScalableBloomFilter` starts with one Bloom filter slice sized for an initial
@@ -128,6 +137,31 @@ assert_true(filter.false_positive_rate() < 0.01)
 the slices. `copy` is independent, and `clear` returns the filter to a single
 empty slice with the original initial capacity. `ConcurrentScalableBloomFilter`
 provides the same operations with one mutex and a `snapshot()` method.
+
+Scalable filters can also be combined when they share the same initial capacity
+and target false-positive rate. Slices are matched by index, so `merge` ORs the
+bits of corresponding slices and appends slices that only the other filter
+holds. `union` returns a new combined filter, and `is_subset_of` compares each
+slice against the slice with the same index:
+
+```moonbit
+let left = @src.ScalableBloomFilter::new(100, 0.01)
+let right = @src.ScalableBloomFilter::new(100, 0.01)
+for i = 0; i < 250; i = i + 1 {
+  left.insert(i)
+  right.insert(i + 1000)
+}
+let combined = left.union(right)
+assert_true(combined.contains(42))
+assert_true(combined.contains(1042))
+assert_true(left.is_subset_of(combined))
+```
+
+Merging adds the insertion counts, and a slice whose combined count exceeds its
+planned capacity simply triggers growth before the next insertion, so a merged
+filter keeps accepting keys. The merged state also survives a `to_bytes` /
+`from_bytes` round trip. `ConcurrentScalableBloomFilter` exposes atomic `merge`,
+`union`, `is_subset_of`, and `is_disjoint_from` methods.
 
 ## Counting Bloom Filter
 
@@ -192,6 +226,39 @@ when the filter configurations differ. `merge` applies the same counter
 combination to an existing filter in place, and the concurrent wrapper exposes
 atomic `merge`, `union`, `intersection`, and `is_subset_of` methods that hold
 the lock once.
+
+## Compact Counting Bloom Filter
+
+`CompactCountingBloomFilter` is a memory-optimized counting variant. It packs
+each counter into a 4-bit nibble instead of a 16-bit value, so an equivalent
+filter uses four times less memory than `CountingBloomFilter`:
+
+```moonbit
+let compact = @src.CompactCountingBloomFilter::new(1000, 0.01)
+let regular = @src.CountingBloomFilter::new(1000, 0.01)
+assert_eq(regular.memory_bytes(), compact.memory_bytes() * 4L)
+```
+
+The API mirrors `CountingBloomFilter`: `insert`, `contains`, `remove`,
+`count_of`, the batch helpers, and the set algebra all behave the same way. The
+trade-off is the counter width: counters saturate at `counter_max()`, which is
+15, so the filter cannot represent more than 15 insertions of the same key. It
+still never reports a false negative for a successfully inserted key, and
+`remove` still decrements one insertion at a time:
+
+```moonbit
+let filter = @src.CompactCountingBloomFilter::new(1000, 0.01)
+for i = 0; i < 20; i = i + 1 {
+  filter.insert("task")
+}
+assert_eq(filter.count_of("task"), @src.CompactCountingBloomFilter::counter_max())
+assert_true(filter.remove("task"))
+assert_eq(filter.count_of("task"), 14)
+```
+
+`ConcurrentCompactCountingBloomFilter` wraps the type with the same mutex-based
+protection as the other concurrent filters, including atomic `remove`,
+`merge`, `union`, `intersection`, and `is_subset_of`.
 
 ## Cuckoo Filter
 
@@ -332,6 +399,8 @@ Every filter exposes read-only statistics without scanning keys:
   `fill_ratio()` divides that count by `bit_count()`.
 - `CountingBloomFilter::occupied_slot_count()` counts slots with a positive
   counter, while `fill_ratio()` divides that count by `slot_count()`.
+  `CompactCountingBloomFilter` exposes the same methods over its nibble-packed
+  counters.
 - `CuckooFilter::load_factor()` divides the stored fingerprint count by the
   total number of slots, which is reported by `capacity()`.
 - `estimated_item_count()` derives the number of distinct keys from occupancy
@@ -364,9 +433,10 @@ let restored = @src.BloomFilter::from_bytes(data)
 assert_true(restored.contains("saved"))
 ```
 
-The same methods exist on `CountingBloomFilter`, `CuckooFilter`, and
-`ScalableBloomFilter`. The concurrent wrappers also expose `to_bytes()` and
-`from_bytes()`, copying the underlying filter while holding the lock. Hashing uses fixed seeds, so standard
+The same methods exist on `CountingBloomFilter`, `CompactCountingBloomFilter`,
+`CuckooFilter`, and `ScalableBloomFilter`. The concurrent wrappers also expose
+`to_bytes()` and `from_bytes()`, copying the underlying filter while holding the
+lock. Hashing uses fixed seeds, so standard
 `Hash` implementations produce the same positions in a new process.
 `from_bytes` panics on truncated data, a different filter type, an unsupported
 version, or an invalid configuration.
@@ -396,8 +466,9 @@ moon test
 ```
 
 Benchmarks live in `src/benchmark_test.mbt` and cover insertion, queries, batch
-insertion, conditional insertion, multiplicity queries, deletion round trips,
-set operations, and the concurrent wrapper:
+insertion and batch queries, conditional insertion, multiplicity queries,
+deletion round trips, set operations, disjointness checks, serialization, the
+compact counting filter, and the concurrent wrappers:
 
 ```bash
 moon bench --release
