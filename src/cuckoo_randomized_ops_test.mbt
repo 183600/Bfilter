@@ -1,7 +1,13 @@
 ///|
 test "randomized cuckoo operations preserve live keys across layouts" {
   let layouts : Array[(Int32, Int32)] = [
-    (1, 1), (2, 2), (4, 1), (8, 2), (16, 4), (32, 3), (64, 8),
+    (1, 1),
+    (2, 2),
+    (4, 1),
+    (8, 2),
+    (16, 4),
+    (32, 3),
+    (64, 8),
   ]
   for layout in layouts {
     let (bucket_count, bucket_size) = layout
@@ -60,7 +66,11 @@ test "randomized cuckoo operations preserve live keys across layouts" {
 ///|
 test "randomized cuckoo set ops preserve live keys" {
   let layouts : Array[(Int32, Int32)] = [
-    (4, 1), (8, 2), (16, 4), (32, 3), (64, 4),
+    (4, 1),
+    (8, 2),
+    (16, 4),
+    (32, 3),
+    (64, 4),
   ]
   for layout in layouts {
     let (bucket_count, bucket_size) = layout

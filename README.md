@@ -17,11 +17,11 @@ The repository is named `Bfilter`; the MoonBit module is lowercase
 | Type | Deletion | Notes |
 | --- | --- | --- |
 | `BloomFilter` | no | Bit-packed, standard Bloom filter with configurable false-positive rate. |
-| `BlockedBloomFilter` | no | Cache-friendly blocked layout: one memory block per insertion. |
+| `BlockedBloomFilter` | no | Cache-friendly blocked layout: every probe of a key lands in one memory block. |
 | `CountingBloomFilter` | yes | 16-bit saturating counters; `remove` and `count_of` are supported. |
-| `CompactCountingBloomFilter` | yes | 4-bit packed counters, one quarter of the memory of the counting filter. |
+| `CompactCountingBloomFilter` | yes | 4-bit packed counters, about a quarter of the memory of the counting filter. |
 | `ScalableBloomFilter` | no | Grows by adding slices; `merge` combines compatible filters. |
-| `ScalableCountingBloomFilter` | yes | Scalable slices with counting counters. |
+| `ScalableCountingBloomFilter` | yes | Scalable slices built on counting filters. |
 | `CuckooFilter` | yes | Fingerprint buckets with eviction; different false-positive and capacity model from Bloom filters. |
 | `Concurrent*` wrappers | as wrapped | Native/LLVM use an OS mutex; JS/Wasm targets use a no-op lock because a module runs on one thread. |
 
@@ -120,8 +120,10 @@ filters behave the same in a new process.
 ```text
 .
 ├── moon.mod                 # module metadata
+├── scripts/                 # hygiene check used by CI
 ├── src/
 │   ├── moon.pkg             # package config, native C stub, test imports
+│   ├── pkg.generated.mbti   # generated public interface (moon info)
 │   ├── bloom_filter.mbt
 │   ├── blocked_bloom_filter.mbt
 │   ├── counting_bloom_filter.mbt

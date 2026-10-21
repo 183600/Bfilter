@@ -16,11 +16,8 @@ options(
     "mutex_native.mbt": [ "native", "llvm" ],
     "mutex_single_threaded.mbt": [ "js", "wasm", "wasm-gc" ],
   },
-  readme: "README.md",
-  description: "Bloom, counting, scalable, and Cuckoo filters for MoonBit with serialization and concurrency wrappers",
-  version: "0.1.0",
+  version: "0.2.0",
   authors: [ ],
-  license: "MIT",
   keywords: [
     "bloom-filter",
     "cuckoo-filter",
@@ -29,5 +26,4 @@ options(
     "data-structure",
     "concurrent",
   ],
-  repository: "https://github.com/183600/Bfilter",
 )

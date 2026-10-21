@@ -358,4 +358,3 @@ test "guide definite disjointness" {
   right.insert("shared")
   assert_false(left.is_disjoint_from(right))
 }
-

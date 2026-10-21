@@ -49,33 +49,49 @@ test "panic compact counting serialization rejects truncated data" {
 
 ///|
 test "panic compact counting serialization rejects invalid slot counts" {
-  let bytes = @src.CompactCountingBloomFilter::new(4, 0.01).to_bytes().to_fixedarray()
+  let bytes = @src.CompactCountingBloomFilter::new(4, 0.01)
+    .to_bytes()
+    .to_fixedarray()
   bytes.unsafe_write_uint32_le(8, 0U)
-  @src.CompactCountingBloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
+  @src.CompactCountingBloomFilter::from_bytes(
+    Bytes::from_array(bytes.exact_view()),
+  )
   |> ignore
   bytes.unsafe_write_uint32_le(8, 20U)
-  @src.CompactCountingBloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
+  @src.CompactCountingBloomFilter::from_bytes(
+    Bytes::from_array(bytes.exact_view()),
+  )
   |> ignore
 }
 
 ///|
 test "panic compact counting serialization rejects invalid hash counts" {
-  let bytes = @src.CompactCountingBloomFilter::new(4, 0.01).to_bytes().to_fixedarray()
+  let bytes = @src.CompactCountingBloomFilter::new(4, 0.01)
+    .to_bytes()
+    .to_fixedarray()
   bytes.unsafe_write_uint32_le(12, 0U)
-  @src.CompactCountingBloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
+  @src.CompactCountingBloomFilter::from_bytes(
+    Bytes::from_array(bytes.exact_view()),
+  )
   |> ignore
 }
 
 ///|
 test "panic compact counting serialization rejects trailing data" {
-  let bytes = @src.CompactCountingBloomFilter::new(4, 0.01).to_bytes().add(b"\x00")
+  let bytes = @src.CompactCountingBloomFilter::new(4, 0.01)
+    .to_bytes()
+    .add(b"\x00")
   @src.CompactCountingBloomFilter::from_bytes(bytes) |> ignore
 }
 
 ///|
 test "panic compact counting serialization rejects inconsistent counters" {
-  let bytes = @src.CompactCountingBloomFilter::with_size(16, 1).to_bytes().to_fixedarray()
+  let bytes = @src.CompactCountingBloomFilter::with_size(16, 1)
+    .to_bytes()
+    .to_fixedarray()
   bytes.unsafe_write_uint64_le(20, 0xFFFFUL)
-  @src.CompactCountingBloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
+  @src.CompactCountingBloomFilter::from_bytes(
+    Bytes::from_array(bytes.exact_view()),
+  )
   |> ignore
 }

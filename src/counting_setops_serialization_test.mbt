@@ -1,7 +1,13 @@
 ///|
 test "randomized counting serialization of set op results" {
   let layouts : Array[(Int32, Int32)] = [
-    (16, 1), (16, 4), (16, 20), (48, 20), (16, 300), (48, 720), (256, 2),
+    (16, 1),
+    (16, 4),
+    (16, 20),
+    (48, 20),
+    (16, 300),
+    (48, 720),
+    (256, 2),
   ]
   for layout in layouts {
     let (slots, k) = layout
@@ -24,12 +30,21 @@ test "randomized counting serialization of set op results" {
         }
       }
       let u = left.union(right)
-      assert_eq(@src.CountingBloomFilter::from_bytes(u.to_bytes()).count(), u.count())
+      assert_eq(
+        @src.CountingBloomFilter::from_bytes(u.to_bytes()).count(),
+        u.count(),
+      )
       let i = left.intersection(right)
-      assert_eq(@src.CountingBloomFilter::from_bytes(i.to_bytes()).count(), i.count())
+      assert_eq(
+        @src.CountingBloomFilter::from_bytes(i.to_bytes()).count(),
+        i.count(),
+      )
       let m = left.copy()
       m.merge(right)
-      assert_eq(@src.CountingBloomFilter::from_bytes(m.to_bytes()).count(), m.count())
+      assert_eq(
+        @src.CountingBloomFilter::from_bytes(m.to_bytes()).count(),
+        m.count(),
+      )
     }
   }
 }
@@ -37,7 +52,13 @@ test "randomized counting serialization of set op results" {
 ///|
 test "randomized compact counting serialization of set op results" {
   let layouts : Array[(Int32, Int32)] = [
-    (16, 1), (16, 4), (16, 20), (48, 20), (16, 300), (48, 720), (256, 2),
+    (16, 1),
+    (16, 4),
+    (16, 20),
+    (48, 20),
+    (16, 300),
+    (48, 720),
+    (256, 2),
   ]
   for layout in layouts {
     let (slots, k) = layout
@@ -55,17 +76,28 @@ test "randomized compact counting serialization of set op results" {
           right.insert(key)
         } else {
           let c = left.union(right)
-          let restored = @src.CompactCountingBloomFilter::from_bytes(c.to_bytes())
+          let restored = @src.CompactCountingBloomFilter::from_bytes(
+            c.to_bytes(),
+          )
           assert_eq(restored.count(), c.count())
         }
       }
       let u = left.union(right)
-      assert_eq(@src.CompactCountingBloomFilter::from_bytes(u.to_bytes()).count(), u.count())
+      assert_eq(
+        @src.CompactCountingBloomFilter::from_bytes(u.to_bytes()).count(),
+        u.count(),
+      )
       let i = left.intersection(right)
-      assert_eq(@src.CompactCountingBloomFilter::from_bytes(i.to_bytes()).count(), i.count())
+      assert_eq(
+        @src.CompactCountingBloomFilter::from_bytes(i.to_bytes()).count(),
+        i.count(),
+      )
       let m = left.copy()
       m.merge(right)
-      assert_eq(@src.CompactCountingBloomFilter::from_bytes(m.to_bytes()).count(), m.count())
+      assert_eq(
+        @src.CompactCountingBloomFilter::from_bytes(m.to_bytes()).count(),
+        m.count(),
+      )
     }
   }
 }

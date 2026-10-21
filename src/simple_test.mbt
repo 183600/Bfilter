@@ -1,27 +1,38 @@
-// Simple test to verify MoonBit syntax
-
 ///|
-test "simple_test" {
-  let x = 1
-  let y = 2
-  assert_eq(x + y, 3)
+test "new filter is empty until something is inserted" {
+  let filter = @src.BloomFilter::with_size(1024, 4)
+  assert_true(filter.is_empty())
+  assert_false(filter.contains("missing"))
+  assert_eq(filter.count(), 0)
+  assert_eq(filter.set_bit_count(), 0)
 }
 
 ///|
-test "string_test" {
-  let s = "hello"
-  assert_eq(s.length(), 5)
+test "insert_all keeps membership and the insertion count in sync" {
+  let filter = @src.BloomFilter::with_size(1024, 4)
+  filter.insert_all(["a", "b", "c"])
+  assert_true(filter.contains_all(["a", "b", "c"]))
+  assert_false(filter.is_empty())
+  assert_eq(filter.count(), 3)
 }
 
 ///|
-test "array_test" {
-  let arr = Array::make(10, 0)
-  assert_eq(arr.length(), 10)
+test "empty batch helpers keep the filter unchanged" {
+  let filter = @src.BloomFilter::with_size(1024, 4)
+  let empty : Array[String] = []
+  filter.insert_all(empty)
+  assert_false(filter.contains_any(empty))
+  assert_false(filter.contains_all(["x", "y"]))
+  assert_true(filter.is_empty())
+  assert_eq(filter.count(), 0)
 }
 
 ///|
-test "bool_test" {
-  let b = true
-  assert_true(b)
-  assert_false(!b)
+test "counting filter remove flips membership back" {
+  let filter = @src.CountingBloomFilter::with_size(1024, 4)
+  filter.insert("key")
+  assert_true(filter.contains("key"))
+  assert_true(filter.remove("key"))
+  assert_false(filter.contains("key"))
+  assert_false(filter.remove("key"))
 }

@@ -103,6 +103,12 @@ assert_true(target.contains("left"))
 assert_true(target.contains("target"))
 ```
 
+On the concurrent wrappers these set operations take the *other* filter as an
+unwrapped plain filter (for example
+`ConcurrentBloomFilter::merge(other : BloomFilter)`): the receiver is locked,
+but `other` is not, so do not mutate it from another thread while the
+operation runs.
+
 `is_disjoint_from(other)` answers the opposite question: it returns `true` only
 when the filters are definitely disjoint, meaning no key can be reported present
 by both. For Bloom filters that requires no shared set bit, for counting
