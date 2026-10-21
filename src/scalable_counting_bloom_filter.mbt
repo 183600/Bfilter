@@ -518,7 +518,8 @@ pub fn ScalableCountingBloomFilter::merge(
       other.slices[i]
     }
     let slice = CountingBloomFilter::with_size(
-      source.slot_count(), source.hash_count(),
+      source.slot_count(),
+      source.hash_count(),
     )
     slices.push(slice)
     if i < self_slice_count {
