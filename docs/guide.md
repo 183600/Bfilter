@@ -189,6 +189,36 @@ filter keeps accepting keys. The merged state also survives a `to_bytes` /
 `from_bytes` round trip. `ConcurrentScalableBloomFilter` exposes atomic `merge`,
 `union`, `is_subset_of`, and `is_disjoint_from` methods.
 
+## Scalable Counting Bloom Filter
+
+`ScalableCountingBloomFilter` combines slice growth with removable counters. A
+new key is inserted into the newest slice, and once that slice reaches its
+planned capacity a larger slice is appended. Duplicate insertions stay in the
+slice that already owns the key, so each occurrence can be removed separately.
+
+```moonbit
+let filter = @src.ScalableCountingBloomFilter::new(4, 0.01)
+for i = 0; i < 40; i = i + 1 {
+  filter.insert("key-" + i.to_string())
+}
+filter.insert("key-0")
+assert_true(filter.slice_count() > 1)
+assert_eq(filter.count_of("key-0"), 2)
+assert_true(filter.remove("key-0"))
+assert_eq(filter.count_of("key-0"), 1)
+assert_eq(filter.tracked_key_count(), 40)
+```
+
+The filter tracks a 128-bit hash and the exact multiplicity of every distinct
+key so that `remove` knows which slice to update. `count_of` therefore returns
+the exact number of insertions made through the filter, or `0` for a key that
+was never inserted, even when `contains` reports a false positive. This metadata
+grows with the number of distinct keys and is not included in `memory_bytes()`,
+which reports only the counter arrays. `insert_if_absent`, the batch helpers,
+`copy`, `clear`, and the occupancy statistics mirror the other filters.
+`ConcurrentScalableCountingBloomFilter` adds one-mutex atomic operations and a
+`snapshot()` method.
+
 ## Counting Bloom Filter
 
 `CountingBloomFilter` stores a 16-bit counter per slot, allowing one insertion
@@ -426,7 +456,8 @@ Every filter exposes read-only statistics without scanning keys:
 - `CountingBloomFilter::occupied_slot_count()` counts slots with a positive
   counter, while `fill_ratio()` divides that count by `slot_count()`.
   `CompactCountingBloomFilter` exposes the same methods over its nibble-packed
-  counters.
+  counters. `ScalableCountingBloomFilter` sums positive counter slots across
+  its slices.
 - `CuckooFilter::load_factor()` divides the stored fingerprint count by the
   total number of slots, which is reported by `capacity()`.
 - `estimated_item_count()` derives the number of distinct keys from occupancy
@@ -460,7 +491,8 @@ assert_true(restored.contains("saved"))
 ```
 
 The same methods exist on `CountingBloomFilter`, `CompactCountingBloomFilter`,
-`CuckooFilter`, and `ScalableBloomFilter`. The concurrent wrappers also expose
+`CuckooFilter`, `ScalableBloomFilter`, and `ScalableCountingBloomFilter`. The
+concurrent wrappers also expose
 `to_bytes()` and `from_bytes()`, copying the underlying filter while holding the
 lock. Hashing uses fixed seeds, so standard
 `Hash` implementations produce the same positions in a new process.
