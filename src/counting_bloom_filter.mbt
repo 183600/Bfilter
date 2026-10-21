@@ -14,6 +14,24 @@ pub struct CountingBloomFilter {
 }
 
 ///|
+/// Compute the slot and hash layout used by counting filters.
+fn counting_bloom_layout(
+  expected_items : Int32,
+  false_positive_rate : Double,
+) -> (Int32, Int32) {
+  let n = expected_items.to_double()
+  let ln2 = 0.6931471805599453
+  let bits = -(n * @math.ln(false_positive_rate)) / (ln2 * ln2)
+  guard bits <= 2147483584.0 else { abort("bloom filter size is too large") }
+  let slot_count = (bits.ceil().to_int() + 15) / 16 * 16
+  guard slot_count <= 1073741808 else {
+    abort("counting bloom filter size is too large")
+  }
+  let hash_count = (bits / n * ln2).round().to_int().max(1)
+  (slot_count, hash_count)
+}
+
+///|
 /// Create a counting filter sized for `expected_items` and the target
 /// `false_positive_rate`.
 ///
@@ -27,15 +45,9 @@ pub fn CountingBloomFilter::new(
   guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
     abort("false_positive_rate must be between 0 and 1")
   }
-  let n = expected_items.to_double()
-  let ln2 = 0.6931471805599453
-  let bits = -(n * @math.ln(false_positive_rate)) / (ln2 * ln2)
-  guard bits <= 2147483584.0 else { abort("bloom filter size is too large") }
-  let slot_count = (bits.ceil().to_int() + 15) / 16 * 16
-  guard slot_count <= 1073741808 else {
-    abort("counting bloom filter size is too large")
-  }
-  let hash_count = (bits / n * ln2).round().to_int().max(1)
+  let (slot_count, hash_count) = counting_bloom_layout(
+    expected_items, false_positive_rate,
+  )
   CountingBloomFilter::with_size(slot_count, hash_count)
 }
 
