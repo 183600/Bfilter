@@ -18,8 +18,8 @@ The repository is named `Bfilter`; the MoonBit module is lowercase
 | --- | --- | --- |
 | `BloomFilter` | no | Bit-packed, standard Bloom filter with configurable false-positive rate. |
 | `BlockedBloomFilter` | no | Cache-friendly blocked layout: one memory block per insertion. |
-| `CountingBloomFilter` | yes | 8-bit saturating counters; `remove` and `count_of` are supported. |
-| `CompactCountingBloomFilter` | yes | 4-bit packed counters, about half the memory of the counting filter. |
+| `CountingBloomFilter` | yes | 16-bit saturating counters; `remove` and `count_of` are supported. |
+| `CompactCountingBloomFilter` | yes | 4-bit packed counters, one quarter of the memory of the counting filter. |
 | `ScalableBloomFilter` | no | Grows by adding slices; `merge` combines compatible filters. |
 | `ScalableCountingBloomFilter` | yes | Scalable slices with counting counters. |
 | `CuckooFilter` | yes | Fingerprint buckets with eviction; different false-positive and capacity model from Bloom filters. |
