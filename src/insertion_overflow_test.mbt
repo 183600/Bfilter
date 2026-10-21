@@ -59,14 +59,26 @@ test "panic scalable bloom merge rejects count overflow" {
 
 ///|
 fn max_inserted_scalable_counting() -> @src.ScalableCountingBloomFilter {
-  let bytes = @src.ScalableCountingBloomFilter::new(4, 0.01)
-    .to_bytes()
-    .to_fixedarray()
+  let filter = @src.ScalableCountingBloomFilter::new(4, 0.01)
+  filter.insert("seed")
+  let bytes = filter.to_bytes().to_fixedarray()
+  let view = Bytes::from_array(bytes.exact_view())
+  let entry_count = view.unsafe_read_uint32_le(28).reinterpret_as_int()
+  let slices_offset = 32 + entry_count * 24
+  let slice_header = slices_offset + 4
   bytes.unsafe_write_uint32_le(12, 2147483647U)
   bytes.unsafe_write_uint32_le(52, 2147483647U)
+  bytes.unsafe_write_uint32_le(slice_header + 16, 2147483647U)
   @src.ScalableCountingBloomFilter::from_bytes(
     Bytes::from_array(bytes.exact_view()),
   )
+}
+
+///|
+test "scalable counting max inserted fixture is valid" {
+  let filter = max_inserted_scalable_counting()
+  assert_eq(filter.count(), 2147483647)
+  assert_eq(filter.tracked_key_count(), 1)
 }
 
 ///|
