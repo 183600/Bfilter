@@ -220,20 +220,6 @@ pub fn[K : Hash] ScalableCountingBloomFilter::remove(
     self.refresh_inserted()
     return true
   }
-  for index = 0; index < self.slices.length(); index = index + 1 {
-    if index == slice_index {
-      continue
-    }
-    if self.slices[index].remove(key) {
-      if occurrences > 1 {
-        self.locations.set(id, (index, occurrences - 1))
-      } else {
-        self.locations.remove(id)
-      }
-      self.refresh_inserted()
-      return true
-    }
-  }
   false
 }
 
