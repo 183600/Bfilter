@@ -119,3 +119,24 @@ test "panic scalable counting bloom filter rejects invalid configuration" {
   @src.ScalableCountingBloomFilter::new(10, 0.0) |> ignore
   @src.ScalableCountingBloomFilter::new(10, 1.0) |> ignore
 }
+
+///|
+test "scalable counting bloom filter removes keys from older slices" {
+  let filter = @src.ScalableCountingBloomFilter::new(4, 0.0001)
+  filter.insert("old")
+  filter.insert("old")
+  for i = 0; i < 40; i = i + 1 {
+    filter.insert("fill-" + i.to_string())
+  }
+  assert_true(filter.slice_count() > 1)
+  assert_true(filter.contains("old"))
+  assert_eq(filter.count_of("old"), 2)
+  assert_true(filter.remove("old"))
+  assert_true(filter.remove("old"))
+  assert_eq(filter.count_of("old"), 0)
+  assert_false(filter.remove("old"))
+  assert_false(filter.contains("old"))
+  for i = 0; i < 40; i = i + 1 {
+    assert_true(filter.contains("fill-" + i.to_string()))
+  }
+}
