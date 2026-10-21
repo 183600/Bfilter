@@ -524,14 +524,12 @@ fn CuckooFilter::retry_union(
   second : CuckooFilter,
 ) -> CuckooFilter? {
   for attempt = 0; attempt < 16; attempt = attempt + 1 {
-    let result = CuckooFilter::with_size(first.bucket_count, first.bucket_size)
+    let result = first.copy()
     result.random_state = mix64(
       result.random_state ^ ((attempt.to_uint64() + 1UL) * 0x2545F4914F6CDD1DUL),
     )
-    if result.insert_fingerprints_from(first) {
-      if result.insert_fingerprints_from(second) {
-        return Some(result)
-      }
+    if result.insert_fingerprints_from(second) {
+      return Some(result)
     }
   }
   None
