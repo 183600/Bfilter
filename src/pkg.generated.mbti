@@ -104,6 +104,38 @@ pub fn CompactCountingBloomFilter::to_bytes(Self) -> Bytes
 pub fn CompactCountingBloomFilter::union(Self, Self) -> Self
 pub fn CompactCountingBloomFilter::with_size(Int32, Int32) -> Self
 
+pub struct ConcurrentBlockedBloomFilter {
+  // private fields
+}
+pub fn ConcurrentBlockedBloomFilter::bit_count(Self) -> Int32
+pub fn ConcurrentBlockedBloomFilter::block_count(Self) -> Int32
+pub fn ConcurrentBlockedBloomFilter::clear(Self) -> Unit
+pub fn[K : Hash] ConcurrentBlockedBloomFilter::contains(Self, K) -> Bool
+pub fn[K : Hash] ConcurrentBlockedBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
+pub fn[K : Hash] ConcurrentBlockedBloomFilter::contains_any(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentBlockedBloomFilter::count(Self) -> Int32
+pub fn ConcurrentBlockedBloomFilter::estimated_item_count(Self) -> Double
+pub fn ConcurrentBlockedBloomFilter::false_positive_rate(Self) -> Double
+pub fn ConcurrentBlockedBloomFilter::fill_ratio(Self) -> Double
+pub fn ConcurrentBlockedBloomFilter::from_bytes(Bytes) -> Self
+pub fn ConcurrentBlockedBloomFilter::hash_count(Self) -> Int32
+pub fn[K : Hash] ConcurrentBlockedBloomFilter::insert(Self, K) -> Unit
+pub fn[K : Hash] ConcurrentBlockedBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn[K : Hash] ConcurrentBlockedBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
+pub fn[K : Hash] ConcurrentBlockedBloomFilter::insert_if_absent(Self, K) -> Bool
+pub fn ConcurrentBlockedBloomFilter::intersection(Self, BlockedBloomFilter) -> BlockedBloomFilter
+pub fn ConcurrentBlockedBloomFilter::is_disjoint_from(Self, BlockedBloomFilter) -> Bool
+pub fn ConcurrentBlockedBloomFilter::is_empty(Self) -> Bool
+pub fn ConcurrentBlockedBloomFilter::is_subset_of(Self, BlockedBloomFilter) -> Bool
+pub fn ConcurrentBlockedBloomFilter::memory_bytes(Self) -> Int64
+pub fn ConcurrentBlockedBloomFilter::merge(Self, BlockedBloomFilter) -> Unit
+pub fn ConcurrentBlockedBloomFilter::new(Int32, Double) -> Self
+pub fn ConcurrentBlockedBloomFilter::set_bit_count(Self) -> Int32
+pub fn ConcurrentBlockedBloomFilter::snapshot(Self) -> BlockedBloomFilter
+pub fn ConcurrentBlockedBloomFilter::to_bytes(Self) -> Bytes
+pub fn ConcurrentBlockedBloomFilter::union(Self, BlockedBloomFilter) -> BlockedBloomFilter
+pub fn ConcurrentBlockedBloomFilter::with_size(Int32, Int32) -> Self
+
 pub struct ConcurrentBloomFilter {
   // private fields
 }
