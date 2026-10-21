@@ -302,3 +302,133 @@ test "bench scalable bloom serialization n=1000" (b : @bench.T) {
     b.keep(restored)
   })
 }
+
+///|
+test "bench bloom contains_all n=1000" (b : @bench.T) {
+  let filter = @src.BloomFilter::new(1000, 0.01)
+  filter.insert_all(bench_keys)
+  b.bench(fn() {
+    let present = filter.contains_all(bench_keys)
+    b.keep(present)
+  })
+}
+
+///|
+test "bench bloom is_disjoint_from n=1000" (b : @bench.T) {
+  let left = @src.BloomFilter::new(1000, 0.01)
+  let right = @src.BloomFilter::new(1000, 0.01)
+  left.insert_all(bench_keys)
+  right.insert_all(bench_keys)
+  b.bench(fn() {
+    let disjoint = left.is_disjoint_from(right)
+    b.keep(disjoint)
+  })
+}
+
+///|
+test "bench compact counting insert_remove n=1000" (b : @bench.T) {
+  let filter = @src.CompactCountingBloomFilter::new(1000, 0.01)
+  let mut index = 0
+  let mut removed = 0
+  b.bench(fn() {
+    let key = bench_keys[index]
+    filter.insert(key)
+    if filter.remove(key) {
+      removed = removed + 1
+    }
+    index = (index + 1) % bench_keys.length()
+    b.keep(removed)
+  })
+}
+
+///|
+test "bench compact counting contains n=1000" (b : @bench.T) {
+  let filter = @src.CompactCountingBloomFilter::new(1000, 0.01)
+  filter.insert_all(bench_keys)
+  let mut index = 0
+  let mut hits = 0
+  b.bench(fn() {
+    if filter.contains(bench_keys[index]) {
+      hits = hits + 1
+    }
+    index = (index + 1) % bench_keys.length()
+    b.keep(hits)
+  })
+}
+
+///|
+test "bench compact counting union n=1000" (b : @bench.T) {
+  let left = @src.CompactCountingBloomFilter::new(1000, 0.01)
+  let right = @src.CompactCountingBloomFilter::new(1000, 0.01)
+  left.insert_all(bench_keys)
+  right.insert_all(bench_keys)
+  b.bench(fn() {
+    let combined = left.union(right)
+    b.keep(combined)
+  })
+}
+
+///|
+test "bench compact counting serialization n=1000" (b : @bench.T) {
+  let filter = @src.CompactCountingBloomFilter::new(1000, 0.01)
+  filter.insert_all(bench_keys)
+  b.bench(fn() {
+    let restored = @src.CompactCountingBloomFilter::from_bytes(
+      filter.to_bytes(),
+    )
+    b.keep(restored)
+  })
+}
+
+///|
+test "bench concurrent compact counting contains n=1000" (b : @bench.T) {
+  let filter = @src.ConcurrentCompactCountingBloomFilter::new(1000, 0.01)
+  filter.insert_all(bench_keys)
+  let mut index = 0
+  let mut hits = 0
+  b.bench(fn() {
+    if filter.contains(bench_keys[index]) {
+      hits = hits + 1
+    }
+    index = (index + 1) % bench_keys.length()
+    b.keep(hits)
+  })
+}
+
+///|
+test "bench scalable bloom merge n=1000" (b : @bench.T) {
+  let left = @src.ScalableBloomFilter::new(100, 0.01)
+  let right = @src.ScalableBloomFilter::new(100, 0.01)
+  left.insert_all(bench_keys)
+  right.insert_all(bench_keys)
+  b.bench(fn() {
+    let combined = left.copy()
+    combined.merge(right)
+    b.keep(combined)
+  })
+}
+
+///|
+test "bench scalable bloom union n=1000" (b : @bench.T) {
+  let left = @src.ScalableBloomFilter::new(100, 0.01)
+  let right = @src.ScalableBloomFilter::new(100, 0.01)
+  left.insert_all(bench_keys)
+  right.insert_all(bench_keys)
+  b.bench(fn() {
+    let combined = left.union(right)
+    b.keep(combined)
+  })
+}
+
+///|
+test "bench cuckoo is_disjoint_from n=1000" (b : @bench.T) {
+  let left = @src.CuckooFilter::new(1000)
+  let right = @src.CuckooFilter::new(1000)
+  ignore(left.insert_all(bench_keys))
+  ignore(right.insert_all(bench_keys))
+  b.bench(fn() {
+    let disjoint = left.is_disjoint_from(right)
+    b.keep(disjoint)
+  })
+}
+
