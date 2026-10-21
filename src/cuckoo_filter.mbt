@@ -541,9 +541,9 @@ fn CuckooFilter::retry_union(
 /// Both filters must use the same bucket count and bucket size. Fingerprints
 /// are copied into their original buckets, which preserves each key's two
 /// candidate buckets, and evictions keep that invariant. The combination is
-/// retried with the inputs reversed and from an empty filter so a result is
-/// not rejected merely because one input's existing placement blocks the
-/// other. Returns `None` when the combined fingerprints do not fit in the
+/// retried with the inputs reversed and with fresh eviction randomness so a
+/// result is not rejected merely because one input's existing placement blocks
+/// the other. Returns `None` when the combined fingerprints do not fit in the
 /// available slots; the inputs are left unchanged in that case.
 pub fn CuckooFilter::union(
   self : CuckooFilter,
