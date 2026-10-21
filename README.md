@@ -32,7 +32,30 @@ All filters accept any key type with a `Hash` implementation and expose
 
 ## Quick start
 
-Add the module to `moon.mod` / your package imports, then:
+The module is not yet published to the mooncakes registry, so `moon add
+183600/bfilter` does not work at the moment. Until it is published, consume
+the module from a git checkout through a MoonBit workspace.
+
+Declare the dependency in your application's `moon.mod` (version must match
+the module's `moon.mod`):
+
+```toml
+import {
+  "183600/bfilter@0.2.0",
+}
+```
+
+Clone the repository next to your project and register both modules as
+workspace members:
+
+```bash
+git clone https://github.com/183600/Bfilter.git
+moon work init                # creates moon.work, skip if it exists
+moon work use ./Bfilter
+moon work use ./path/to/your-app
+```
+
+Then import the `src` package and use the filters:
 
 ```moonbit
 ///|
