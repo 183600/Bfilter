@@ -70,3 +70,14 @@ test "compact counting removes keys whose duplicate positions exceed the counter
   assert_eq(filter.count_of(0), 0)
   assert_eq(filter.count(), 0)
 }
+
+///|
+test "counting bloom removes keys with more duplicate positions than counter width" {
+  let filter = @src.CountingBloomFilter::with_size(16, 70000)
+  filter.insert(0)
+  assert_true(filter.contains(0))
+  assert_true(filter.remove(0))
+  assert_false(filter.contains(0))
+  assert_eq(filter.count_of(0), 0)
+  assert_eq(filter.count(), 0)
+}
