@@ -137,16 +137,18 @@ pub fn[K : Hash] ScalableCountingBloomFilter::insert(
 }
 
 ///|
-/// Insert `key` only when no slice reports it present.
+/// Insert `key` only when it is not tracked and no slice reports it present.
 ///
-/// Returns `true` when the key was inserted. A false positive in any slice can
-/// suppress the insertion.
+/// Returns `true` when the key was inserted. A tracked key is treated as
+/// present even when its counters have drained after saturation, so this method
+/// never adds another occurrence to a key that `count_of` still reports. A
+/// false positive in any slice can also suppress the insertion.
 pub fn[K : Hash] ScalableCountingBloomFilter::insert_if_absent(
   self : ScalableCountingBloomFilter,
   key : K,
 ) -> Bool {
   let id = key_hashes(key)
-  if self.contains_hashes(id) {
+  if self.locations.contains(id) || self.contains_hashes(id) {
     return false
   }
   self.insert_hashes(id)

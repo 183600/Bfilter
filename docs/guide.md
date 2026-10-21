@@ -233,6 +233,8 @@ more times than its counters can distinguish, enough removals can drain those
 counters while tracked occurrences remain. `count_of` continues to report the
 exact tracked multiplicity and serialization preserves it, but `contains` may
 already be `false` and `remove` returns `false` for the remaining occurrences.
+`insert_if_absent` consults the tracking metadata as well as the counters, so it
+does not add a new occurrence for a key that is still tracked after saturation.
 Use `count_of` when tracking exact multiplicity past saturation.
 
 ## Counting Bloom Filter
