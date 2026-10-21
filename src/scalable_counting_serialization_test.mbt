@@ -251,3 +251,20 @@ test "scalable counting serialization preserves saturated tracked occurrences" {
   assert_false(restored.remove("saturated"))
   assert_eq(restored.count_of("saturated"), 1)
 }
+
+///|
+test "panic scalable counting serialization rejects missing tracked occurrences" {
+  let filter = @src.ScalableCountingBloomFilter::new(4, 0.01)
+  filter.insert("key")
+  let bytes = filter.to_bytes().to_fixedarray()
+  let view = Bytes::from_array(bytes.exact_view())
+  let entry_count = view.unsafe_read_uint32_le(28).reinterpret_as_int()
+  assert_eq(entry_count, 1)
+  let slices_offset = 32 + entry_count * 24
+  bytes.unsafe_write_uint32_le(12, 2U)
+  bytes.unsafe_write_uint32_le(slices_offset + 4 + 16, 2U)
+  @src.ScalableCountingBloomFilter::from_bytes(
+    Bytes::from_array(bytes.exact_view()),
+  )
+  |> ignore
+}

@@ -544,6 +544,9 @@ pub fn ScalableCountingBloomFilter::from_bytes(
     filter.locations.set(id, (slice_index, occurrences))
     offset = offset + 24
   }
+  guard total_occurrences == inserted.to_int64() else {
+    abort("scalable counting bloom metadata does not match its insertion count")
+  }
   filter.inserted = inserted
   filter
 }
