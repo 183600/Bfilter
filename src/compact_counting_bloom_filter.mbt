@@ -276,6 +276,9 @@ pub fn[K : Hash] CompactCountingBloomFilter::count_of(
   let mut minimum = COMPACT_COUNTER_MAX
   for i = 0; i < self.hash_count; i = i + 1 {
     let value = self.counter_at((state % slot_count).to_int())
+    if value == 0UL {
+      return 0
+    }
     if value < minimum {
       minimum = value
     }

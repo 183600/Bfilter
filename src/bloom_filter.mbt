@@ -21,6 +21,7 @@ fn mix64(x : UInt64) -> UInt64 {
 }
 
 ///|
+#warnings("-unused_value")
 fn bit_index(h1 : UInt64, h2 : UInt64, i : Int32, bit_count : UInt64) -> Int32 {
   ((h1 + i.to_uint64() * h2) % bit_count).to_int()
 }
@@ -144,10 +145,12 @@ fn BloomFilter::insert_if_absent_hashes(
       guard self.inserted < 2147483647 else {
         abort("bloom filter insertion count overflow")
       }
+      let mut remaining_state = state
       for j = i; j < self.hash_count; j = j + 1 {
-        let remaining = bit_index(h1, h2, j, bit_count)
+        let remaining = (remaining_state % bit_count).to_int()
         self.words[remaining / 64] = self.words[remaining / 64] |
           (1UL << (remaining % 64))
+        remaining_state = remaining_state + h2
       }
       self.inserted += 1
       return true

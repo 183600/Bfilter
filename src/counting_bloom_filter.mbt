@@ -372,6 +372,9 @@ pub fn[K : Hash] CountingBloomFilter::count_of(
   let mut minimum = 65535UL
   for i = 0; i < self.hash_count; i = i + 1 {
     let value = self.counter_at((state % slot_count).to_int())
+    if value == 0UL {
+      return 0
+    }
     if value < minimum {
       minimum = value
     }
