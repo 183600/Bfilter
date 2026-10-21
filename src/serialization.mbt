@@ -523,7 +523,7 @@ pub fn ScalableCountingBloomFilter::from_bytes(
     guard slice_index >= 0 && slice_index < slice_count else {
       abort("scalable counting bloom metadata points outside its slices")
     }
-    guard occurrences > 0 else {
+    guard occurrences > 0 && occurrences <= inserted else {
       abort("invalid scalable counting bloom occurrence count")
     }
     let id = (h1, h2)
