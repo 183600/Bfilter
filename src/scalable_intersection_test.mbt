@@ -114,3 +114,35 @@ test "concurrent scalable wrappers expose atomic intersection" {
   assert_eq(counting_common.count_of("left-only"), 0)
   assert_eq(counting_common.count_of("right-only"), 0)
 }
+
+///|
+test "scalable bloom intersection normalizes merged insertion counts" {
+  let left = @src.ScalableBloomFilter::new(4, 0.000001)
+  let right = @src.ScalableBloomFilter::new(4, 0.000001)
+  for i = 0; i < 4; i = i + 1 {
+    let key = "shared-" + i.to_string()
+    left.insert(key)
+    right.insert(key)
+  }
+  for i = 0; i < 16; i = i + 1 {
+    right.insert("right-" + i.to_string())
+  }
+  let merged = left.union(right)
+  assert_eq(merged.count(), 24)
+  let other = @src.ScalableBloomFilter::new(4, 0.000001)
+  for i = 0; i < 4; i = i + 1 {
+    other.insert("shared-" + i.to_string())
+  }
+  for i = 0; i < 20; i = i + 1 {
+    other.insert("other-" + i.to_string())
+  }
+  let common = merged.intersection(other)
+  assert_eq(common.count(), 24)
+  for i = 0; i < 4; i = i + 1 {
+    assert_true(common.contains("shared-" + i.to_string()))
+  }
+  assert_false(common.contains("right-0"))
+  let restored = @src.ScalableBloomFilter::from_bytes(common.to_bytes())
+  assert_eq(restored.count(), common.count())
+  assert_true(restored.contains("shared-0"))
+}
