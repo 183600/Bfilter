@@ -1,5 +1,5 @@
 ///|
-test "zz counting serialization survives saturated churn" {
+test "counting serialization survives saturated churn" {
   for round = 1; round <= 20; round = round + 1 {
     let filter = @src.CountingBloomFilter::with_size(16, 7)
     let mut seed = round
@@ -22,7 +22,7 @@ test "zz counting serialization survives saturated churn" {
 }
 
 ///|
-test "zz compact counting serialization survives saturated churn" {
+test "compact counting serialization survives saturated churn" {
   for round = 1; round <= 20; round = round + 1 {
     let filter = @src.CompactCountingBloomFilter::with_size(16, 7)
     let mut seed = round
@@ -45,7 +45,7 @@ test "zz compact counting serialization survives saturated churn" {
 }
 
 ///|
-test "zz scalable serialization survives growth and merges" {
+test "scalable serialization survives growth and merges" {
   for round = 1; round <= 10; round = round + 1 {
     let left = @src.ScalableBloomFilter::new(3, 0.05)
     let right = @src.ScalableBloomFilter::new(3, 0.05)
@@ -70,7 +70,7 @@ test "zz scalable serialization survives growth and merges" {
 }
 
 ///|
-test "zz blocked serialization survives churn" {
+test "blocked serialization survives churn" {
   for round = 1; round <= 20; round = round + 1 {
     let filter = @src.BlockedBloomFilter::with_size(4096, 4)
     let mut seed = round

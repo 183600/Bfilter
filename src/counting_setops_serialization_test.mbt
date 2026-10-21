@@ -1,5 +1,5 @@
 ///|
-test "zz fuzz counting serialization of set op results" {
+test "randomized counting serialization of set op results" {
   let layouts : Array[(Int32, Int32)] = [
     (16, 1), (16, 4), (16, 20), (48, 20), (16, 300), (48, 720), (256, 2),
   ]
@@ -35,7 +35,7 @@ test "zz fuzz counting serialization of set op results" {
 }
 
 ///|
-test "zz fuzz compact counting serialization of set op results" {
+test "randomized compact counting serialization of set op results" {
   let layouts : Array[(Int32, Int32)] = [
     (16, 1), (16, 4), (16, 20), (48, 20), (16, 300), (48, 720), (256, 2),
   ]

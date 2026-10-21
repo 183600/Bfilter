@@ -285,10 +285,10 @@ jobs:
           # ================= 阶段提示词（perf -> bug -> improve -> complete -> clean；perf/clean 当前不在主循环） =================
           # improve 阶段承接 ada-squash 原 apply 阶段的位置：任务为「改进这个项目」。
           # complete 阶段：确保项目功能完整（核对已声明的功能是否真的可用并补齐）。
-          PROMPT_PERF='优化 Bfilter（MoonBit Bloom Filter 库）的性能和资源占用，可以改进哈希、位数组布局、内存分配与缓存局部性，但不得改变对外的功能语义。每次改动后运行 moon check 与 moon test 自检，不通过就自己修好。不要输出或写入“优化了哪些内容”的报告。另外，.github 目录是 CI 配置，绝对不要删除、修改或移动其中任何文件；LICENSE、README*.md（含所有语言版本的 README）同样绝对不能删除、修改或移动；PLAN.md（如果存在）是项目规划文档，不能删除；所有测试文件（*_test.mbt 等）不能删除或削弱。'
-          PROMPT_BUG='仔细检查 Bfilter 的代码中是否存在 bug，如果有就修改代码。修复必须保持原有功能语义不变，不得借修复之名做无意义的等价重写；不得削弱或删除测试。每次改动后运行 moon check 与 moon test 自检，不通过就自己修好。另外，.github 目录是 CI 配置，绝对不要删除、修改或移动其中任何文件；LICENSE、README*.md（含所有语言版本的 README）同样绝对不能删除、修改或移动；PLAN.md（如果存在）是项目规划文档，不能删除；所有测试文件（*_test.mbt 等）不能删除或削弱。'
-          PROMPT_IMPROVE='改进这个项目（Bfilter：MoonBit Bloom Filter 库）。先通读 README.md 和现有代码，按 README 里的 Planned Features 与 Next Steps 做出实质性改进：先实现基础 Bloom Filter 数据结构、哈希与插入/查询，再逐步补齐计数版、并发安全、基准测试与文档。每次改动后运行 moon check 与 moon test 自检，不通过就自己修好；新增功能必须带测试，不得删除或削弱已有测试。不要输出或写入“改进了哪些内容”的报告。另外，.github 目录是 CI 配置，绝对不要删除、修改或移动其中任何文件；LICENSE、README*.md（含所有语言版本的 README）同样绝对不能删除、修改或移动；PLAN.md（如果存在）是项目规划文档，不能删除；所有测试文件（*_test.mbt 等）不能删除或削弱。每完成一个可验证的改动就立即 git commit（不要 push、不要 amend），避免阶段被超时中断时丢失进度。'
-          PROMPT_COMPLETE='确保项目功能完整。先通读 README.md 与现有代码，逐项核对 README 声明的功能是否真的完整可用：补齐未实现或只做了一半的路径，修好跑不通的入口，让核心功能端到端可用。每次改动后运行 moon check 与 moon test 自检，不通过就自己修好。不要输出或写入“补齐了哪些内容”的报告。另外，.github 目录是 CI 配置，绝对不要删除、修改或移动其中任何文件；LICENSE、README*.md（含所有语言版本的 README）同样绝对不能删除、修改或移动；PLAN.md（如果存在）是项目规划文档，不能删除；所有测试文件（*_test.mbt 等）不能删除或削弱。每完成一个可验证的改动就立即 git commit（不要 push、不要 amend），避免阶段被超时中断时丢失进度。'
+          PROMPT_PERF='优化 Bfilter（MoonBit 概率过滤器库）的性能和资源占用，可以改进哈希、位数组布局、内存分配与缓存局部性，但不得改变对外的功能语义。先读 README.md 与 docs/guide.md，基于现有 Bloom/Counting/Scalable/Cuckoo/Concurrent 实现做增量优化，不要重写已实现的功能。每次改动后运行 moon check 与 moon test 自检，不通过就自己修好。禁止提交 zz_/tmp_/scratch/dbg 前缀的临时测试或探针文件，临时脚本写到 /tmp；测试必须用描述行为的名字并保留。不要输出或写入“优化了哪些内容”的报告。.github、LICENSE、README*.md、docs/ 与所有测试文件不得删除或削弱。'
+          PROMPT_BUG='仔细检查 Bfilter（MoonBit 概率过滤器库）的代码中是否存在 bug，如果有就修改代码。修复必须保持原有功能语义不变，不得借修复之名做无意义的等价重写；不得削弱或删除测试。先读 README.md 与 docs/guide.md，并针对修复补一个回归测试。每次改动后运行 moon check 与 moon test 自检，不通过就自己修好。禁止提交 zz_/tmp_/scratch/dbg 前缀的临时测试或探针文件，临时脚本写到 /tmp。.github、LICENSE、README*.md、docs/ 与所有既有测试不得删除或削弱。'
+          PROMPT_IMPROVE='改进 Bfilter（MoonBit 概率过滤器库）。先通读 README.md、docs/guide.md 和现有代码，按当前已实现能力做实质性增量改进：补边界条件、提高测试覆盖、优化性能或完善文档。不要依据旧版 README 的 Planned Features 重做已存在的 Bloom/Counting/Scalable/Cuckoo/Concurrent 实现。每次改动后运行 moon check 与 moon test 自检，不通过就自己修好；新增功能必须带测试。禁止提交 zz_/tmp_/scratch/dbg 前缀的临时测试或探针文件，临时脚本写到 /tmp。.github、LICENSE、README*.md、docs/ 与所有测试文件不得删除或削弱。每完成一个可验证的改动就立即 git commit（不要 push、不要 amend）。'
+          PROMPT_COMPLETE='确保 Bfilter（MoonBit 概率过滤器库）的功能完整。先通读 README.md、docs/guide.md 与现有代码，逐项核对文档声明的功能是否真的完整可用：补齐未实现或只做了一半的路径，修好跑不通的入口，让核心功能端到端可用。不要重做已经可用的实现。每次改动后运行 moon check 与 moon test 自检，不通过就自己修好。禁止提交 zz_/tmp_/scratch/dbg 前缀的临时测试或探针文件，临时脚本写到 /tmp。.github、LICENSE、README*.md、docs/ 与所有测试文件不得删除或削弱。每完成一个可验证的改动就立即 git commit（不要 push、不要 amend）。'
           PROMPT_CLEAN='确保远程仓库里没有实验结果文件、REPORT*.md、临时调试脚本与调试输出等杂物；确保仓库中没有任何关于修复了哪些bug、优化或改进了哪些内容的记录（包括注释）。删除所有其他多余的内容。注意：.github 目录是 CI 配置，必须原样保留，绝对不能删除、修改或移动其中任何文件，它不属于“多余的内容”；LICENSE 是开源许可证文件，同样必须原样保留，也不属于“多余的内容”；README*.md（含所有语言版本的 README）是项目说明文档，同样必须原样保留，不能删除或移动；PLAN.md（如果存在）是项目规划文档，不能删除；所有测试文件（*_test.mbt 等）必须原样保留；仍被项目引用的数据文件不属于“多余的内容”，必须保留。'
 
           # 每阶段单次调用的最大时长（秒）
@@ -628,12 +628,22 @@ jobs:
             return 0
           }
 
+          remove_scratch_files() {
+            # Agent sessions sometimes leave throwaway probes behind. They are
+            # never part of the library; remove them before every commit.
+            find . -path ./.git -prune -o -type f \
+              \( -name 'zz_*.mbt' -o -name 'tmp_*.mbt' -o -name '_scratch_*.mbt' \
+                 -o -name 'dbg_*.mbt' -o -name '*_probe_*.mbt' -o -name 'probe_*.mbt' \) \
+              -print -delete 2>/dev/null || true
+          }
+
           commit_and_push() {
             ensure_workflow
             ensure_license
             ensure_readme
             ensure_plan
             ensure_tests
+            remove_scratch_files
             rm -f .opencode_issues.md
             git add -A || true
             git commit -m "auto: iteration $1$(model_tag)" || true
@@ -658,6 +668,7 @@ jobs:
               exit 0
             fi
             [ "$SYNTAX_EC" -eq 124 ] && echo "[trap] 语法检查超时（结果未知），保留未提交改动"
+            remove_scratch_files
             rm -f .opencode_issues.md
             git add -A || true
             if ! git diff --cached --quiet; then

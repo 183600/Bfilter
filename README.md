@@ -1,68 +1,164 @@
-# Bloom Filter Library for MoonBit
+# Bfilter — probabilistic filters for MoonBit
 
-A high-performance Bloom filter implementation with variants and concurrency support.
+`Bfilter` is a MoonBit library of Bloom-filter-family data structures. It
+implements classic Bloom filters, counting variants, scalable filters, Cuckoo
+filters, serialization, set operations, and mutex-protected concurrent
+wrappers.
 
-## Project Status
+- Module: `183600/bfilter`
+- Repository: <https://github.com/183600/Bfilter>
+- License: MIT
 
-This project is in early development stage. Currently, only basic project structure and simple syntax tests exist. Core features are planned but not yet implemented.
+The repository is named `Bfilter`; the MoonBit module is lowercase
+(`183600/bfilter`) to follow package naming conventions.
 
-## Planned Features
+## Implemented filters
 
-The following features are planned but not yet implemented:
+| Type | Deletion | Notes |
+| --- | --- | --- |
+| `BloomFilter` | no | Bit-packed, standard Bloom filter with configurable false-positive rate. |
+| `BlockedBloomFilter` | no | Cache-friendly blocked layout: one memory block per insertion. |
+| `CountingBloomFilter` | yes | 8-bit saturating counters; `remove` and `count_of` are supported. |
+| `CompactCountingBloomFilter` | yes | 4-bit packed counters, about half the memory of the counting filter. |
+| `ScalableBloomFilter` | no | Grows by adding slices; `merge` combines compatible filters. |
+| `ScalableCountingBloomFilter` | yes | Scalable slices with counting counters. |
+| `CuckooFilter` | yes | Fingerprint buckets with eviction; different false-positive and capacity model from Bloom filters. |
+| `Concurrent*` wrappers | as wrapped | Native/LLVM use an OS mutex; JS/Wasm targets use a no-op lock because a module runs on one thread. |
 
-1. **Batch Operations API** - Support for bulk insert and query operations
-2. **Concurrent Safety** - Thread-safe wrapper using Ref
-3. **Counting Bloom Filter** - Supports deletion operations
-4. **Cuckoo Filter** - Space-efficient alternative with deletion support
-5. **Performance Benchmarks** - Comprehensive performance testing suite
-6. **Parametric Tests** - Extensive test coverage for various configurations
-7. **Memory Optimization** - Compact implementation using bit-packed arrays
-8. **Documentation** - Comprehensive documentation comments
+All filters accept any key type with a `Hash` implementation and expose
+`insert`, `contains`, batch helpers, statistics, and versioned
+`to_bytes`/`from_bytes` serialization. The full API is documented in
+[docs/guide.md](docs/guide.md).
 
-## Known Issues
+## Quick start
 
-Core features are not yet implemented. The project currently only contains:
-- Basic project structure and configuration
-- Simple MoonBit syntax tests (4 test cases)
-- No actual Bloom Filter implementation
+Add the module to `moon.mod` / your package imports, then:
 
-## Next Steps
+```moonbit
+///|
+test "bloom filter quick start" {
+  let filter = @src.BloomFilter::new(10_000, 0.01)
+  filter.insert("alpha")
+  filter.insert_all(["beta", "gamma"])
 
-1. Implement basic Bloom Filter data structure
-2. Add hash function support
-3. Implement basic insert and query operations
-4. Add unit tests for core functionality
-5. Implement Counting Bloom Filter variant
-6. Implement Cuckoo Filter variant
-7. Add concurrency support
-8. Create performance benchmarks
-9. Add comprehensive documentation
+  assert_true(filter.contains("alpha"))
+  assert_true(filter.contains_all(["beta", "gamma"]))
+  assert_false(filter.contains("not-inserted"))
 
-## File Structure
-
+  // A Bloom filter can produce false positives, never false negatives for
+  // keys that were inserted successfully.
+  assert_true(filter.false_positive_rate() < 0.02)
+}
 ```
-bfilter/
-├── README.md                # This file
-├── LICENSE                  # MIT License
-├── moon.mod.json            # Project configuration
-└── src/
-    ├── moon.pkg.json        # Package configuration
-    └── simple_test.mbt      # Basic MoonBit syntax tests (4 test cases)
+
+Counting and Cuckoo filters support deletion:
+
+```moonbit
+///|
+test "deletion-capable variants" {
+  let counting = @src.CountingBloomFilter::new(1_000, 0.01)
+  counting.insert("session")
+  assert_true(counting.remove("session"))
+
+  let cuckoo = @src.CuckooFilter::new(1_000)
+  assert_true(cuckoo.insert("session"))
+  assert_true(cuckoo.remove("session"))
+  assert_false(cuckoo.contains("session"))
+}
 ```
 
-## Testing
+## Set operations
 
-Currently, only basic MoonBit syntax tests exist (4 test cases). Run the tests:
+Filters with the same configuration can be combined without re-hashing keys:
+
+```moonbit
+let left = @src.BloomFilter::with_size(4096, 4)
+let right = @src.BloomFilter::with_size(4096, 4)
+left.insert("left")
+right.insert("right")
+
+let union = left.union(right)
+assert_true(union.contains("left"))
+assert_true(union.contains("right"))
+assert_true(left.is_subset_of(union))
+```
+
+`merge` performs the union in place. `intersection`, `is_disjoint_from`, and
+`is_subset_of` are available on the Bloom family; the Cuckoo filter has its own
+set-operation semantics documented in the guide. Mismatched configurations
+panic rather than silently producing a wrong result.
+
+## Concurrency
+
+`ConcurrentBloomFilter`, `ConcurrentCountingBloomFilter`,
+`ConcurrentCuckooFilter`, and the other `Concurrent*` wrappers serialize each
+operation with a mutex. Batch operations take the lock once, and `snapshot()`
+returns an independent copy while holding the lock.
+
+The mutex is a real OS mutex on native/LLVM targets. On JavaScript and Wasm it
+is a no-op because those runtimes execute a module on a single thread; the
+wrappers do not make a filter safe to share across workers/threads on those
+targets.
+
+## Serialization
+
+Every filter supports a versioned binary format:
+
+```moonbit
+let original = @src.ScalableBloomFilter::new(1_000, 0.01)
+original.insert("saved")
+let restored = @src.ScalableBloomFilter::from_bytes(original.to_bytes())
+assert_true(restored.contains("saved"))
+```
+
+`from_bytes` panics on truncated input, a different filter type, an unknown
+version, or an invalid configuration. Hashing uses fixed seeds, so persisted
+filters behave the same in a new process.
+
+## Project layout
+
+```text
+.
+├── moon.mod                 # module metadata
+├── src/
+│   ├── moon.pkg             # package config, native C stub, test imports
+│   ├── bloom_filter.mbt
+│   ├── blocked_bloom_filter.mbt
+│   ├── counting_bloom_filter.mbt
+│   ├── compact_counting_bloom_filter.mbt
+│   ├── scalable_*.mbt
+│   ├── cuckoo_filter.mbt
+│   ├── concurrent_*.mbt
+│   ├── serialization.mbt
+│   ├── mutex_native.mbt / mutex_single_threaded.mbt
+│   └── *_test.mbt
+└── docs/guide.md            # API and design guide
+```
+
+## Development
+
+Requires a recent MoonBit toolchain (the CI installs the latest stable from
+`cli.moonbitlang.com`).
+
 ```bash
-moon test
+moon check
+moon test                 # default target
+moon test --target native # exercise the native mutex + C stub
+moon test --target all    # every supported backend
+moon bench --release      # benchmarks in src/benchmark_test.mbt
 ```
 
-Comprehensive functional tests will be added as features are implemented.
+CI (`.github/workflows/ci.yml`) runs `moon check`, the default test suite, the
+native test suite, and a repository-hygiene check on every push and pull
+request.
 
 ## Contributing
 
-This project is in early development. Core features are not yet implemented. Contributions are welcome, especially for implementing the planned features.
+Keep new tests deterministic and name them after the behavior under test. Do
+not commit scratch/probe files (`zz_*`, `tmp_*`, `_scratch_*`, `dbg_*`); put
+throwaway scripts in `/tmp`. Add a regression test for every bug fix and update
+`docs/guide.md` when public behavior changes.
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).

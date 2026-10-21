@@ -1,5 +1,5 @@
 ///|
-test "zz fuzz cuckoo operations preserve live keys across layouts" {
+test "randomized cuckoo operations preserve live keys across layouts" {
   let layouts : Array[(Int32, Int32)] = [
     (1, 1), (2, 2), (4, 1), (8, 2), (16, 4), (32, 3), (64, 8),
   ]
@@ -58,7 +58,7 @@ test "zz fuzz cuckoo operations preserve live keys across layouts" {
 }
 
 ///|
-test "zz fuzz cuckoo set ops preserve live keys" {
+test "randomized cuckoo set ops preserve live keys" {
   let layouts : Array[(Int32, Int32)] = [
     (4, 1), (8, 2), (16, 4), (32, 3), (64, 4),
   ]

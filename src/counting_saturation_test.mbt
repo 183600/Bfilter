@@ -1,5 +1,5 @@
 ///|
-test "zz probe counting saturation shared keys" {
+test "counting saturation shared keys" {
   let filter = @src.CountingBloomFilter::with_size(16, 70000)
   filter.insert("left")
   filter.insert("right")
@@ -10,7 +10,7 @@ test "zz probe counting saturation shared keys" {
 }
 
 ///|
-test "zz probe compact serialization after false positive removal" {
+test "saturation compact serialization after false positive removal" {
   let filter = @src.CompactCountingBloomFilter::with_size(48, 720)
   filter.insert(96)
   assert_true(filter.remove(251))
