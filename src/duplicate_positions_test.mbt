@@ -29,3 +29,29 @@ test "compact counting remove leaves no residue after dense churn" {
   assert_eq(filter.count(), 0)
   assert_eq(filter.occupied_slot_count(), 0)
 }
+
+///|
+test "counting bloom removes saturated duplicate positions" {
+  let filter = @src.CountingBloomFilter::with_size(16, 20)
+  for i = 0; i < 40000; i = i + 1 {
+    filter.insert(0)
+  }
+  for i = 0; i < 40000; i = i + 1 {
+    ignore(filter.remove(0))
+  }
+  assert_false(filter.contains(0))
+  assert_eq(filter.count_of(0), 0)
+}
+
+///|
+test "compact counting removes saturated duplicate positions" {
+  let filter = @src.CompactCountingBloomFilter::with_size(16, 20)
+  for i = 0; i < 40; i = i + 1 {
+    filter.insert(0)
+  }
+  for i = 0; i < 40; i = i + 1 {
+    ignore(filter.remove(0))
+  }
+  assert_false(filter.contains(0))
+  assert_eq(filter.count_of(0), 0)
+}

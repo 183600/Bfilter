@@ -103,6 +103,49 @@ fn CompactCountingBloomFilter::set_counter(
 }
 
 ///|
+/// Raise every selected counter by the number of hash functions that select
+/// it, capping at the largest multiple of that count that fits in four bits.
+///
+/// Capping below 15 when a position repeats keeps the counter removable:
+/// each removal subtracts exactly the same amount that each insertion added,
+/// so a saturated key eventually reaches zero instead of stranding a residue.
+fn CompactCountingBloomFilter::increment_positions(
+  self : CompactCountingBloomFilter,
+  h1 : UInt64,
+  h2 : UInt64,
+) -> Unit {
+  let slot_count = self.slot_count.to_uint64()
+  for i = 0; i < self.hash_count; i = i + 1 {
+    let pos = bit_index(h1, h2, i, slot_count)
+    let mut first_occurrence = true
+    for j = 0; j < i; j = j + 1 {
+      if bit_index(h1, h2, j, slot_count) == pos {
+        first_occurrence = false
+        break
+      }
+    }
+    if first_occurrence {
+      let mut occurrences = 1UL
+      for j = i + 1; j < self.hash_count; j = j + 1 {
+        if bit_index(h1, h2, j, slot_count) == pos {
+          occurrences = occurrences + 1UL
+        }
+      }
+      let limit = if occurrences > COMPACT_COUNTER_MAX {
+        COMPACT_COUNTER_MAX
+      } else {
+        COMPACT_COUNTER_MAX - COMPACT_COUNTER_MAX % occurrences
+      }
+      let value = self.counter_at(pos)
+      if value < limit {
+        let raised = value + occurrences
+        self.set_counter(pos, if raised > limit { limit } else { raised })
+      }
+    }
+  }
+}
+
+///|
 /// Insert `key` by incrementing every selected counter.
 ///
 /// Counters at 15 stay saturated. The insertion counter is incremented for
@@ -115,14 +158,7 @@ pub fn[K : Hash] CompactCountingBloomFilter::insert(
     abort("compact counting bloom filter insertion count overflow")
   }
   let (h1, h2) = key_hashes(key)
-  let slot_count = self.slot_count.to_uint64()
-  for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, slot_count)
-    let value = self.counter_at(pos)
-    if value < COMPACT_COUNTER_MAX {
-      self.set_counter(pos, value + 1UL)
-    }
-  }
+  self.increment_positions(h1, h2)
   self.inserted += 1
 }
 
@@ -144,13 +180,7 @@ pub fn[K : Hash] CompactCountingBloomFilter::insert_if_absent(
       guard self.inserted < 2147483647 else {
         abort("compact counting bloom filter insertion count overflow")
       }
-      for j = 0; j < self.hash_count; j = j + 1 {
-        let remaining = bit_index(h1, h2, j, slot_count)
-        let value = self.counter_at(remaining)
-        if value < COMPACT_COUNTER_MAX {
-          self.set_counter(remaining, value + 1UL)
-        }
-      }
+      self.increment_positions(h1, h2)
       self.inserted += 1
       return true
     }
@@ -288,7 +318,9 @@ fn CompactCountingBloomFilter::ensure_compatible(
 ) -> Unit {
   guard self.slot_count == other.slot_count &&
     self.hash_count == other.hash_count else {
-    abort("compact counting bloom filters must have the same slot and hash counts")
+    abort(
+      "compact counting bloom filters must have the same slot and hash counts",
+    )
   }
 }
 
@@ -353,7 +385,8 @@ pub fn CompactCountingBloomFilter::intersection(
 ) -> CompactCountingBloomFilter {
   self.ensure_compatible(other)
   let result = CompactCountingBloomFilter::with_size(
-    self.slot_count, self.hash_count,
+    self.slot_count,
+    self.hash_count,
   )
   for i = 0; i < result.counters.length(); i = i + 1 {
     let left = self.counters[i]

@@ -85,6 +85,49 @@ fn CountingBloomFilter::set_counter(
 }
 
 ///|
+/// Raise every selected counter by the number of hash functions that select
+/// it, capping at the largest multiple of that count that fits in 16 bits.
+///
+/// Capping below 65535 when a position repeats keeps the counter removable:
+/// each removal subtracts exactly the same amount that each insertion added,
+/// so a saturated key eventually reaches zero instead of stranding a residue.
+fn CountingBloomFilter::increment_positions(
+  self : CountingBloomFilter,
+  h1 : UInt64,
+  h2 : UInt64,
+) -> Unit {
+  let slot_count = self.slot_count.to_uint64()
+  for i = 0; i < self.hash_count; i = i + 1 {
+    let pos = bit_index(h1, h2, i, slot_count)
+    let mut first_occurrence = true
+    for j = 0; j < i; j = j + 1 {
+      if bit_index(h1, h2, j, slot_count) == pos {
+        first_occurrence = false
+        break
+      }
+    }
+    if first_occurrence {
+      let mut occurrences = 1UL
+      for j = i + 1; j < self.hash_count; j = j + 1 {
+        if bit_index(h1, h2, j, slot_count) == pos {
+          occurrences = occurrences + 1UL
+        }
+      }
+      let limit = if occurrences > 65535UL {
+        65535UL
+      } else {
+        65535UL - 65535UL % occurrences
+      }
+      let value = self.counter_at(pos)
+      if value < limit {
+        let raised = value + occurrences
+        self.set_counter(pos, if raised > limit { limit } else { raised })
+      }
+    }
+  }
+}
+
+///|
 /// Insert `key` by incrementing every selected counter.
 ///
 /// Counters at 65535 stay saturated. The insertion counter is incremented for
@@ -97,14 +140,7 @@ pub fn[K : Hash] CountingBloomFilter::insert(
     abort("counting bloom filter insertion count overflow")
   }
   let (h1, h2) = key_hashes(key)
-  let slot_count = self.slot_count.to_uint64()
-  for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, slot_count)
-    let value = self.counter_at(pos)
-    if value < 65535UL {
-      self.set_counter(pos, value + 1UL)
-    }
-  }
+  self.increment_positions(h1, h2)
   self.inserted += 1
 }
 
@@ -126,13 +162,7 @@ pub fn[K : Hash] CountingBloomFilter::insert_if_absent(
       guard self.inserted < 2147483647 else {
         abort("counting bloom filter insertion count overflow")
       }
-      for j = 0; j < self.hash_count; j = j + 1 {
-        let remaining = bit_index(h1, h2, j, slot_count)
-        let value = self.counter_at(remaining)
-        if value < 65535UL {
-          self.set_counter(remaining, value + 1UL)
-        }
-      }
+      self.increment_positions(h1, h2)
       self.inserted += 1
       return true
     }
