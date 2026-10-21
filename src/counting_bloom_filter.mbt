@@ -103,43 +103,39 @@ fn CountingBloomFilter::set_counter(
 /// Compute each distinct slot selected by a key together with the number of
 /// hash functions that select it.
 ///
-/// Small filters use a quadratic scan over a cached position array; filters
-/// with many hash functions switch to a hash map so duplicate detection stays
-/// linear instead of recomputing every position for every probe.
+/// Small filters accumulate counts in a compact array with a quadratic scan;
+/// filters with many hash functions switch to a hash map so duplicate detection
+/// stays linear instead of rescanning every previously seen position.
 fn unique_key_positions(
   h1 : UInt64,
   h2 : UInt64,
   hash_count : Int32,
   slot_count : UInt64,
 ) -> Array[(Int32, Int32)] {
-  let positions : Array[Int32] = Array::make(hash_count, 0)
-  for i = 0; i < hash_count; i = i + 1 {
-    positions[i] = bit_index(h1, h2, i, slot_count)
-  }
   let unique : Array[(Int32, Int32)] = []
   if hash_count <= 64 {
+    let positions : Array[Int32] = Array::make(hash_count, 0)
+    for i = 0; i < hash_count; i = i + 1 {
+      positions[i] = bit_index(h1, h2, i, slot_count)
+    }
     for i = 0; i < hash_count; i = i + 1 {
       let position = positions[i]
-      let mut first_occurrence = true
-      for j = 0; j < i; j = j + 1 {
-        if positions[j] == position {
-          first_occurrence = false
+      let mut found = false
+      for j = 0; j < unique.length(); j = j + 1 {
+        if unique[j].0 == position {
+          unique[j] = (position, unique[j].1 + 1)
+          found = true
           break
         }
       }
-      if first_occurrence {
-        let mut occurrences = 1
-        for j = i + 1; j < hash_count; j = j + 1 {
-          if positions[j] == position {
-            occurrences = occurrences + 1
-          }
-        }
-        unique.push((position, occurrences))
+      if !found {
+        unique.push((position, 1))
       }
     }
   } else {
     let counts : @hashmap.HashMap[Int32, Int32] = @hashmap.HashMap([])
-    for position in positions {
+    for i = 0; i < hash_count; i = i + 1 {
+      let position = bit_index(h1, h2, i, slot_count)
       match counts.get(position) {
         Some(occurrences) => counts.set(position, occurrences + 1)
         None => counts.set(position, 1)
