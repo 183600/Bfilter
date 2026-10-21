@@ -34,8 +34,13 @@ test "scalable counting filter union leaves inputs unchanged" {
   right.insert("shared")
   right.insert("right-only")
   let combined = left.union(right)
-  assert_eq(combined.count(), left.count() + right.count())
+  assert_true(combined.count() <= left.count() + right.count())
   assert_eq(combined.count_of("shared"), 2)
+  let serialized = @src.ScalableCountingBloomFilter::from_bytes(
+    combined.to_bytes(),
+  )
+  assert_eq(serialized.count(), combined.count())
+  assert_eq(serialized.count_of("shared"), 2)
   assert_true(combined.contains("left-only"))
   assert_true(combined.contains("right-only"))
   assert_true(combined.remove("shared"))

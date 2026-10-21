@@ -480,8 +480,8 @@ fn ScalableCountingBloomFilter::ensure_same_policy(
 /// Both filters must share the same initial capacity and target rate, so slice
 /// `i` of each filter uses the same layout and their counters are combined with
 /// the larger value. Slices that only `other` holds are appended as copies, and
-/// tracked multiplicities are combined per key. The insertion counter becomes
-/// the sum of the input counts, a conservative upper bound when keys overlap.
+/// tracked multiplicities are combined per key. The insertion counter is
+/// recomputed from the merged slices so serialization stays consistent.
 pub fn ScalableCountingBloomFilter::merge(
   self : ScalableCountingBloomFilter,
   other : ScalableCountingBloomFilter,
@@ -540,6 +540,7 @@ pub fn ScalableCountingBloomFilter::merge(
     self.locations.set(entry.0, entry.1)
   }
   self.inserted += other.inserted
+  self.refresh_inserted()
 }
 
 ///|
