@@ -20,6 +20,7 @@ pub fn BlockedBloomFilter::count(Self) -> Int32
 pub fn BlockedBloomFilter::estimated_item_count(Self) -> Double
 pub fn BlockedBloomFilter::false_positive_rate(Self) -> Double
 pub fn BlockedBloomFilter::fill_ratio(Self) -> Double
+pub fn BlockedBloomFilter::from_bytes(Bytes) -> Self
 pub fn BlockedBloomFilter::hash_count(Self) -> Int32
 pub fn[K : Hash] BlockedBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] BlockedBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
@@ -33,6 +34,7 @@ pub fn BlockedBloomFilter::memory_bytes(Self) -> Int64
 pub fn BlockedBloomFilter::merge(Self, Self) -> Unit
 pub fn BlockedBloomFilter::new(Int32, Double) -> Self
 pub fn BlockedBloomFilter::set_bit_count(Self) -> Int32
+pub fn BlockedBloomFilter::to_bytes(Self) -> Bytes
 pub fn BlockedBloomFilter::union(Self, Self) -> Self
 pub fn BlockedBloomFilter::with_size(Int32, Int32) -> Self
 

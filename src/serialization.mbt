@@ -20,6 +20,9 @@ const SERIAL_SCALABLE : Byte = b'\x04'
 const SERIAL_COMPACT_COUNTING : Byte = b'\x05'
 
 ///|
+const SERIAL_BLOCKED : Byte = b'\x06'
+
+///|
 const SERIAL_HEADER_BYTES : Int32 = 20
 
 ///|
@@ -400,9 +403,60 @@ pub fn CompactCountingBloomFilter::from_bytes(
     }
   }
   guard counter_mass <= hash_count.to_uint64() * inserted.to_uint64() else {
-    abort(
-      "compact counting insertion count is too small for positive counters",
-    )
+    abort("compact counting insertion count is too small for positive counters")
   }
   { counters, slot_count, hash_count, inserted, }
+}
+
+///|
+/// Encode the blocked filter as a portable byte sequence.
+pub fn BlockedBloomFilter::to_bytes(self : BlockedBloomFilter) -> Bytes {
+  let word_count = self.words.length()
+  let data = FixedArray::make(SERIAL_HEADER_BYTES + word_count * 8, b'\x00')
+  serial_write_header(
+    data,
+    SERIAL_BLOCKED,
+    self.bit_count,
+    self.hash_count,
+    self.inserted,
+  )
+  for i = 0; i < word_count; i = i + 1 {
+    data.unsafe_write_uint64_le(SERIAL_HEADER_BYTES + i * 8, self.words[i])
+  }
+  Bytes::from_array(data.exact_view())
+}
+
+///|
+/// Decode a blocked filter produced by `BlockedBloomFilter::to_bytes`.
+///
+/// Panics if the data is truncated, uses another format version, or contains an
+/// invalid configuration.
+pub fn BlockedBloomFilter::from_bytes(data : Bytes) -> BlockedBloomFilter {
+  let (bit_count, hash_count, inserted) = serial_read_header(
+    data,
+    SERIAL_BLOCKED,
+  )
+  guard bit_count > 0 &&
+    bit_count <= BLOCKED_MAX_BITS &&
+    bit_count % BLOCKED_BLOCK_BITS == 0 else {
+    abort("invalid blocked bloom bit count")
+  }
+  guard hash_count > 0 else { abort("invalid blocked bloom hash count") }
+  guard inserted >= 0 else { abort("invalid blocked bloom insertion count") }
+  let word_count = bit_count / 64
+  serial_check_length(
+    data,
+    SERIAL_HEADER_BYTES.to_int64() + word_count.to_int64() * 8L,
+  )
+  let words = FixedArray::make(word_count, 0UL)
+  let mut set_bits = 0
+  for i = 0; i < word_count; i = i + 1 {
+    let word = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * 8)
+    words[i] = word
+    set_bits = set_bits + word.popcnt()
+  }
+  guard set_bits.to_uint64() <= hash_count.to_uint64() * inserted.to_uint64() else {
+    abort("blocked bloom insertion count is too small for set bits")
+  }
+  { words, bit_count, hash_count, inserted, }
 }
