@@ -28,6 +28,27 @@ pub fn CompactCountingBloomFilter::counter_max() -> Int32 {
 }
 
 ///|
+/// Mark the high bit of every nibble whose counter is positive.
+///
+/// Adding the low three bits of each nibble to itself cannot carry into the
+/// next nibble, so a bitwise AND of two masks identifies slots that are
+/// positive in both filters.
+fn compact_nonzero_lanes(word : UInt64) -> UInt64 {
+  let low = word & 0x7777777777777777UL
+  ((low + 0x7777777777777777UL) | (word & 0x8888888888888888UL)) &
+  0x8888888888888888UL
+}
+
+///|
+/// Sum the sixteen 4-bit counters packed into a word.
+fn compact_word_mass(word : UInt64) -> UInt64 {
+  let even = word & 0x0F0F0F0F0F0F0F0FUL
+  let odd = (word >> 4) & 0x0F0F0F0F0F0F0F0FUL
+  ((even * 0x0101010101010101UL) >> 56) +
+  ((odd * 0x0101010101010101UL) >> 56)
+}
+
+///|
 /// Create a compact counting filter sized for `expected_items` and the target
 /// `false_positive_rate`.
 ///
@@ -344,6 +365,15 @@ pub fn CompactCountingBloomFilter::merge(
   for i = 0; i < self.counters.length(); i = i + 1 {
     let left = self.counters[i]
     let right = other.counters[i]
+    if right == 0UL {
+      merged_mass = merged_mass + compact_word_mass(left)
+      continue
+    }
+    if left == 0UL {
+      self.counters[i] = right
+      merged_mass = merged_mass + compact_word_mass(right)
+      continue
+    }
     let mut merged = 0UL
     for lane = 0; lane < COMPACT_SLOTS_PER_WORD; lane = lane + 1 {
       let shift = lane * 4
@@ -396,6 +426,14 @@ pub fn CompactCountingBloomFilter::intersection(
   for i = 0; i < result.counters.length(); i = i + 1 {
     let left = self.counters[i]
     let right = other.counters[i]
+    if left == 0UL || right == 0UL {
+      continue
+    }
+    if left == right {
+      result.counters[i] = left
+      merged_mass = merged_mass + compact_word_mass(left)
+      continue
+    }
     let mut merged = 0UL
     for lane = 0; lane < COMPACT_SLOTS_PER_WORD; lane = lane + 1 {
       let shift = lane * 4
@@ -427,6 +465,9 @@ pub fn CompactCountingBloomFilter::is_subset_of(
   for i = 0; i < self.counters.length(); i = i + 1 {
     let left = self.counters[i]
     let right = other.counters[i]
+    if left == 0UL || left == right {
+      continue
+    }
     for lane = 0; lane < COMPACT_SLOTS_PER_WORD; lane = lane + 1 {
       let shift = lane * 4
       if ((left >> shift) & COMPACT_COUNTER_MAX) >
@@ -451,14 +492,10 @@ pub fn CompactCountingBloomFilter::is_disjoint_from(
 ) -> Bool {
   self.ensure_compatible(other)
   for i = 0; i < self.counters.length(); i = i + 1 {
-    let left = self.counters[i]
-    let right = other.counters[i]
-    for lane = 0; lane < COMPACT_SLOTS_PER_WORD; lane = lane + 1 {
-      let shift = lane * 4
-      if ((left >> shift) & COMPACT_COUNTER_MAX) != 0UL &&
-        ((right >> shift) & COMPACT_COUNTER_MAX) != 0UL {
-        return false
-      }
+    let left = compact_nonzero_lanes(self.counters[i])
+    let right = compact_nonzero_lanes(other.counters[i])
+    if (left & right) != 0UL {
+      return false
     }
   }
   true
@@ -561,12 +598,7 @@ pub fn CompactCountingBloomFilter::occupied_slot_count(
 ) -> Int32 {
   let mut total = 0
   for i = 0; i < self.counters.length(); i = i + 1 {
-    let word = self.counters[i]
-    for lane = 0; lane < COMPACT_SLOTS_PER_WORD; lane = lane + 1 {
-      if ((word >> (lane * 4)) & COMPACT_COUNTER_MAX) != 0UL {
-        total = total + 1
-      }
-    }
+    total = total + compact_nonzero_lanes(self.counters[i]).popcnt()
   }
   total
 }

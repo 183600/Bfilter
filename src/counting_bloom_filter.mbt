@@ -14,6 +14,28 @@ pub struct CountingBloomFilter {
 }
 
 ///|
+/// Mark the high bit of every 16-bit lane whose counter is positive.
+///
+/// The low 15 bits of each lane are shifted into the high bit without carrying
+/// into the next lane, so a bitwise AND of two masks identifies slots that are
+/// positive in both filters.
+fn counting_nonzero_lanes(word : UInt64) -> UInt64 {
+  let low = word & 0x7FFF7FFF7FFF7FFFUL
+  ((low + 0x7FFF7FFF7FFF7FFFUL) | (word & 0x8000800080008000UL)) &
+  0x8000800080008000UL
+}
+
+///|
+/// Sum the four 16-bit counters packed into a word.
+fn counting_word_mass(word : UInt64) -> UInt64 {
+  let low = word & 0x0000FFFF0000FFFFUL
+  let high = (word >> 16) & 0x0000FFFF0000FFFFUL
+  let pairs = low + high
+  (pairs & 0x00000000FFFFFFFFUL) +
+  ((pairs >> 32) & 0x00000000FFFFFFFFUL)
+}
+
+///|
 /// Compute the slot and hash layout used by counting filters.
 fn counting_bloom_layout(
   expected_items : Int32,
@@ -437,6 +459,15 @@ pub fn CountingBloomFilter::merge(
   for i = 0; i < self.counters.length(); i = i + 1 {
     let left = self.counters[i]
     let right = other.counters[i]
+    if right == 0UL {
+      merged_mass = merged_mass + counting_word_mass(left)
+      continue
+    }
+    if left == 0UL {
+      self.counters[i] = right
+      merged_mass = merged_mass + counting_word_mass(right)
+      continue
+    }
     let mut merged = 0UL
     for lane = 0; lane < 4; lane = lane + 1 {
       let shift = lane * 16
@@ -486,6 +517,14 @@ pub fn CountingBloomFilter::intersection(
   for i = 0; i < result.counters.length(); i = i + 1 {
     let left = self.counters[i]
     let right = other.counters[i]
+    if left == 0UL || right == 0UL {
+      continue
+    }
+    if left == right {
+      result.counters[i] = left
+      merged_mass = merged_mass + counting_word_mass(left)
+      continue
+    }
     let mut merged = 0UL
     for lane = 0; lane < 4; lane = lane + 1 {
       let shift = lane * 16
@@ -517,6 +556,9 @@ pub fn CountingBloomFilter::is_subset_of(
   for i = 0; i < self.counters.length(); i = i + 1 {
     let left = self.counters[i]
     let right = other.counters[i]
+    if left == 0UL || left == right {
+      continue
+    }
     for lane = 0; lane < 4; lane = lane + 1 {
       let shift = lane * 16
       if ((left >> shift) & 0xFFFFUL) > ((right >> shift) & 0xFFFFUL) {
@@ -540,14 +582,10 @@ pub fn CountingBloomFilter::is_disjoint_from(
 ) -> Bool {
   self.ensure_compatible(other)
   for i = 0; i < self.counters.length(); i = i + 1 {
-    let left = self.counters[i]
-    let right = other.counters[i]
-    for lane = 0; lane < 4; lane = lane + 1 {
-      let shift = lane * 16
-      if ((left >> shift) & 0xFFFFUL) != 0UL &&
-        ((right >> shift) & 0xFFFFUL) != 0UL {
-        return false
-      }
+    let left = counting_nonzero_lanes(self.counters[i])
+    let right = counting_nonzero_lanes(other.counters[i])
+    if (left & right) != 0UL {
+      return false
     }
   }
   true
@@ -640,12 +678,7 @@ pub fn CountingBloomFilter::occupied_slot_count(
 ) -> Int32 {
   let mut total = 0
   for i = 0; i < self.counters.length(); i = i + 1 {
-    let word = self.counters[i]
-    for lane = 0; lane < 4; lane = lane + 1 {
-      if ((word >> (lane * 16)) & 0xFFFFUL) != 0UL {
-        total = total + 1
-      }
-    }
+    total = total + counting_nonzero_lanes(self.counters[i]).popcnt()
   }
   total
 }
