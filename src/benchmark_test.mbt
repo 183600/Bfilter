@@ -304,6 +304,44 @@ test "bench scalable bloom serialization n=1000" (b : @bench.T) {
 }
 
 ///|
+test "bench scalable counting bloom insert n=1000" (b : @bench.T) {
+  let filter = @src.ScalableCountingBloomFilter::new(100, 0.01)
+  let mut index = 0
+  b.bench(fn() {
+    filter.insert(bench_keys[index])
+    index = (index + 1) % bench_keys.length()
+    b.keep(filter)
+  })
+}
+
+///|
+test "bench scalable counting bloom contains n=1000" (b : @bench.T) {
+  let filter = @src.ScalableCountingBloomFilter::new(100, 0.01)
+  filter.insert_all(bench_keys)
+  let mut index = 0
+  let mut hits = 0
+  b.bench(fn() {
+    if filter.contains(bench_keys[index]) {
+      hits = hits + 1
+    }
+    index = (index + 1) % bench_keys.length()
+    b.keep(hits)
+  })
+}
+
+///|
+test "bench scalable counting bloom serialization n=1000" (b : @bench.T) {
+  let filter = @src.ScalableCountingBloomFilter::new(100, 0.01)
+  filter.insert_all(bench_keys)
+  b.bench(fn() {
+    let restored = @src.ScalableCountingBloomFilter::from_bytes(
+      filter.to_bytes(),
+    )
+    b.keep(restored)
+  })
+}
+
+///|
 test "bench bloom contains_all n=1000" (b : @bench.T) {
   let filter = @src.BloomFilter::new(1000, 0.01)
   filter.insert_all(bench_keys)
