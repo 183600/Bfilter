@@ -113,10 +113,12 @@ fn unique_key_positions(
   slot_count : UInt64,
 ) -> Array[(Int32, Int32)] {
   let unique : Array[(Int32, Int32)] = []
+  let mut state = h1
   if hash_count <= 64 {
     let positions : Array[Int32] = Array::make(hash_count, 0)
     for i = 0; i < hash_count; i = i + 1 {
-      positions[i] = bit_index(h1, h2, i, slot_count)
+      positions[i] = (state % slot_count).to_int()
+      state = state + h2
     }
     for i = 0; i < hash_count; i = i + 1 {
       let position = positions[i]
@@ -135,11 +137,12 @@ fn unique_key_positions(
   } else {
     let counts : @hashmap.HashMap[Int32, Int32] = @hashmap.HashMap([])
     for i = 0; i < hash_count; i = i + 1 {
-      let position = bit_index(h1, h2, i, slot_count)
+      let position = (state % slot_count).to_int()
       match counts.get(position) {
         Some(occurrences) => counts.set(position, occurrences + 1)
         None => counts.set(position, 1)
       }
+      state = state + h2
     }
     for entry in counts.iter() {
       unique.push(entry)
@@ -224,9 +227,9 @@ fn CountingBloomFilter::insert_if_absent_hashes(
   h2 : UInt64,
 ) -> Bool {
   let slot_count = self.slot_count.to_uint64()
+  let mut state = h1
   for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, slot_count)
-    if self.counter_at(pos) == 0UL {
+    if self.counter_at((state % slot_count).to_int()) == 0UL {
       guard self.inserted < 2147483647 else {
         abort("counting bloom filter insertion count overflow")
       }
@@ -234,6 +237,7 @@ fn CountingBloomFilter::insert_if_absent_hashes(
       self.inserted += 1
       return true
     }
+    state = state + h2
   }
   false
 }
@@ -301,11 +305,12 @@ fn CountingBloomFilter::contains_hashes(
   h2 : UInt64,
 ) -> Bool {
   let slot_count = self.slot_count.to_uint64()
+  let mut state = h1
   for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, slot_count)
-    if self.counter_at(pos) == 0UL {
+    if self.counter_at((state % slot_count).to_int()) == 0UL {
       return false
     }
+    state = state + h2
   }
   true
 }
@@ -333,13 +338,14 @@ pub fn[K : Hash] CountingBloomFilter::count_of(
 ) -> Int32 {
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
+  let mut state = h1
   let mut minimum = 65535UL
   for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, slot_count)
-    let value = self.counter_at(pos)
+    let value = self.counter_at((state % slot_count).to_int())
     if value < minimum {
       minimum = value
     }
+    state = state + h2
   }
   minimum.to_int()
 }

@@ -164,9 +164,9 @@ pub fn[K : Hash] CompactCountingBloomFilter::insert_if_absent(
 ) -> Bool {
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
+  let mut state = h1
   for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, slot_count)
-    if self.counter_at(pos) == 0UL {
+    if self.counter_at((state % slot_count).to_int()) == 0UL {
       guard self.inserted < 2147483647 else {
         abort("compact counting bloom filter insertion count overflow")
       }
@@ -174,6 +174,7 @@ pub fn[K : Hash] CompactCountingBloomFilter::insert_if_absent(
       self.inserted += 1
       return true
     }
+    state = state + h2
   }
   false
 }
@@ -227,11 +228,12 @@ pub fn[K : Hash] CompactCountingBloomFilter::contains(
 ) -> Bool {
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
+  let mut state = h1
   for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, slot_count)
-    if self.counter_at(pos) == 0UL {
+    if self.counter_at((state % slot_count).to_int()) == 0UL {
       return false
     }
+    state = state + h2
   }
   true
 }
@@ -250,13 +252,14 @@ pub fn[K : Hash] CompactCountingBloomFilter::count_of(
 ) -> Int32 {
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
+  let mut state = h1
   let mut minimum = COMPACT_COUNTER_MAX
   for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, slot_count)
-    let value = self.counter_at(pos)
+    let value = self.counter_at((state % slot_count).to_int())
     if value < minimum {
       minimum = value
     }
+    state = state + h2
   }
   minimum.to_int()
 }
