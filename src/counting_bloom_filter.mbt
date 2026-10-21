@@ -194,6 +194,20 @@ fn CountingBloomFilter::increment_positions(
 }
 
 ///|
+/// Insert a key whose two hash values have already been computed.
+fn CountingBloomFilter::insert_hashes(
+  self : CountingBloomFilter,
+  h1 : UInt64,
+  h2 : UInt64,
+) -> Unit {
+  guard self.inserted < 2147483647 else {
+    abort("counting bloom filter insertion count overflow")
+  }
+  self.increment_positions(h1, h2)
+  self.inserted += 1
+}
+
+///|
 /// Insert `key` by incrementing every selected counter.
 ///
 /// Counters at 65535 stay saturated. The insertion counter is incremented for
@@ -202,25 +216,17 @@ pub fn[K : Hash] CountingBloomFilter::insert(
   self : CountingBloomFilter,
   key : K,
 ) -> Unit {
-  guard self.inserted < 2147483647 else {
-    abort("counting bloom filter insertion count overflow")
-  }
   let (h1, h2) = key_hashes(key)
-  self.increment_positions(h1, h2)
-  self.inserted += 1
+  self.insert_hashes(h1, h2)
 }
 
 ///|
-/// Insert `key` only when at least one selected counter is zero.
-///
-/// Returns `true` when the key was inserted, or `false` when every selected
-/// counter was positive and the key may already be present. False positives
-/// can therefore suppress an insertion that would otherwise be harmless.
-pub fn[K : Hash] CountingBloomFilter::insert_if_absent(
+/// Insert a key with precomputed hashes when at least one counter is zero.
+fn CountingBloomFilter::insert_if_absent_hashes(
   self : CountingBloomFilter,
-  key : K,
+  h1 : UInt64,
+  h2 : UInt64,
 ) -> Bool {
-  let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
   for i = 0; i < self.hash_count; i = i + 1 {
     let pos = bit_index(h1, h2, i, slot_count)
@@ -234,6 +240,20 @@ pub fn[K : Hash] CountingBloomFilter::insert_if_absent(
     }
   }
   false
+}
+
+///|
+/// Insert `key` only when at least one selected counter is zero.
+///
+/// Returns `true` when the key was inserted, or `false` when every selected
+/// counter was positive and the key may already be present. False positives
+/// can therefore suppress an insertion that would otherwise be harmless.
+pub fn[K : Hash] CountingBloomFilter::insert_if_absent(
+  self : CountingBloomFilter,
+  key : K,
+) -> Bool {
+  let (h1, h2) = key_hashes(key)
+  self.insert_if_absent_hashes(h1, h2)
 }
 
 ///|
@@ -278,12 +298,12 @@ pub fn[K : Hash] CountingBloomFilter::remove(
 }
 
 ///|
-/// Test whether every counter selected by `key` is positive.
-pub fn[K : Hash] CountingBloomFilter::contains(
+/// Test a key whose two hash values have already been computed.
+fn CountingBloomFilter::contains_hashes(
   self : CountingBloomFilter,
-  key : K,
+  h1 : UInt64,
+  h2 : UInt64,
 ) -> Bool {
-  let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
   for i = 0; i < self.hash_count; i = i + 1 {
     let pos = bit_index(h1, h2, i, slot_count)
@@ -292,6 +312,16 @@ pub fn[K : Hash] CountingBloomFilter::contains(
     }
   }
   true
+}
+
+///|
+/// Test whether every counter selected by `key` is positive.
+pub fn[K : Hash] CountingBloomFilter::contains(
+  self : CountingBloomFilter,
+  key : K,
+) -> Bool {
+  let (h1, h2) = key_hashes(key)
+  self.contains_hashes(h1, h2)
 }
 
 ///|

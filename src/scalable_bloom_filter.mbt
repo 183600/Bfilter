@@ -90,18 +90,29 @@ fn ScalableBloomFilter::ensure_room(self : ScalableBloomFilter) -> Unit {
 }
 
 ///|
+/// Insert a key whose two hash values have already been computed.
+fn ScalableBloomFilter::insert_hashes(
+  self : ScalableBloomFilter,
+  h1 : UInt64,
+  h2 : UInt64,
+) -> Unit {
+  guard self.inserted < 2147483647 else {
+    abort("scalable bloom filter insertion count overflow")
+  }
+  self.ensure_room()
+  self.slices[self.slices.length() - 1].insert_hashes(h1, h2)
+  self.inserted += 1
+}
+
+///|
 /// Insert `key` into the newest slice, adding a slice first when the current
 /// one has reached its planned capacity.
 pub fn[K : Hash] ScalableBloomFilter::insert(
   self : ScalableBloomFilter,
   key : K,
 ) -> Unit {
-  guard self.inserted < 2147483647 else {
-    abort("scalable bloom filter insertion count overflow")
-  }
-  self.ensure_room()
-  self.slices[self.slices.length() - 1].insert(key)
-  self.inserted += 1
+  let (h1, h2) = key_hashes(key)
+  self.insert_hashes(h1, h2)
 }
 
 ///|
@@ -114,16 +125,29 @@ pub fn[K : Hash] ScalableBloomFilter::insert_if_absent(
   self : ScalableBloomFilter,
   key : K,
 ) -> Bool {
-  if self.contains(key) {
+  let (h1, h2) = key_hashes(key)
+  if self.contains_hashes(h1, h2) {
     return false
   }
-  guard self.inserted < 2147483647 else {
-    abort("scalable bloom filter insertion count overflow")
-  }
-  self.ensure_room()
-  self.slices[self.slices.length() - 1].insert(key)
-  self.inserted += 1
+  self.insert_hashes(h1, h2)
   true
+}
+
+///|
+/// Test a key whose two hash values have already been computed.
+fn ScalableBloomFilter::contains_hashes(
+  self : ScalableBloomFilter,
+  h1 : UInt64,
+  h2 : UInt64,
+) -> Bool {
+  let mut index = self.slices.length() - 1
+  while index >= 0 {
+    if self.slices[index].contains_hashes(h1, h2) {
+      return true
+    }
+    index = index - 1
+  }
+  false
 }
 
 ///|
@@ -132,14 +156,8 @@ pub fn[K : Hash] ScalableBloomFilter::contains(
   self : ScalableBloomFilter,
   key : K,
 ) -> Bool {
-  let mut index = self.slices.length() - 1
-  while index >= 0 {
-    if self.slices[index].contains(key) {
-      return true
-    }
-    index = index - 1
-  }
-  false
+  let (h1, h2) = key_hashes(key)
+  self.contains_hashes(h1, h2)
 }
 
 ///|

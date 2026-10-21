@@ -97,15 +97,15 @@ pub fn BloomFilter::with_size(
 }
 
 ///|
-/// Insert `key` by setting every bit selected by the hash functions.
-///
-/// Inserting the same key more than once is allowed. The insertion counter is
-/// incremented on every call, including duplicates.
-pub fn[K : Hash] BloomFilter::insert(self : BloomFilter, key : K) -> Unit {
+/// Insert a key whose two hash values have already been computed.
+fn BloomFilter::insert_hashes(
+  self : BloomFilter,
+  h1 : UInt64,
+  h2 : UInt64,
+) -> Unit {
   guard self.inserted < 2147483647 else {
     abort("bloom filter insertion count overflow")
   }
-  let (h1, h2) = key_hashes(key)
   let bit_count = self.bit_count.to_uint64()
   for i = 0; i < self.hash_count; i = i + 1 {
     let pos = bit_index(h1, h2, i, bit_count)
@@ -117,16 +117,22 @@ pub fn[K : Hash] BloomFilter::insert(self : BloomFilter, key : K) -> Unit {
 }
 
 ///|
-/// Insert `key` only when it is definitely absent.
+/// Insert `key` by setting every bit selected by the hash functions.
 ///
-/// Returns `true` when the key was inserted, or `false` when every selected bit
-/// was already set and the key may already be present. False positives can
-/// therefore suppress an insertion that would otherwise be harmless.
-pub fn[K : Hash] BloomFilter::insert_if_absent(
-  self : BloomFilter,
-  key : K,
-) -> Bool {
+/// Inserting the same key more than once is allowed. The insertion counter is
+/// incremented on every call, including duplicates.
+pub fn[K : Hash] BloomFilter::insert(self : BloomFilter, key : K) -> Unit {
   let (h1, h2) = key_hashes(key)
+  self.insert_hashes(h1, h2)
+}
+
+///|
+/// Insert a key with precomputed hashes only when it is definitely absent.
+fn BloomFilter::insert_if_absent_hashes(
+  self : BloomFilter,
+  h1 : UInt64,
+  h2 : UInt64,
+) -> Bool {
   let bit_count = self.bit_count.to_uint64()
   for i = 0; i < self.hash_count; i = i + 1 {
     let pos = bit_index(h1, h2, i, bit_count)
@@ -148,12 +154,26 @@ pub fn[K : Hash] BloomFilter::insert_if_absent(
 }
 
 ///|
-/// Test whether `key` may have been inserted.
+/// Insert `key` only when it is definitely absent.
 ///
-/// `false` means the key is definitely absent. `true` means it is either
-/// present or a false positive.
-pub fn[K : Hash] BloomFilter::contains(self : BloomFilter, key : K) -> Bool {
+/// Returns `true` when the key was inserted, or `false` when every selected bit
+/// was already set and the key may already be present. False positives can
+/// therefore suppress an insertion that would otherwise be harmless.
+pub fn[K : Hash] BloomFilter::insert_if_absent(
+  self : BloomFilter,
+  key : K,
+) -> Bool {
   let (h1, h2) = key_hashes(key)
+  self.insert_if_absent_hashes(h1, h2)
+}
+
+///|
+/// Test a key whose two hash values have already been computed.
+fn BloomFilter::contains_hashes(
+  self : BloomFilter,
+  h1 : UInt64,
+  h2 : UInt64,
+) -> Bool {
   let bit_count = self.bit_count.to_uint64()
   for i = 0; i < self.hash_count; i = i + 1 {
     let pos = bit_index(h1, h2, i, bit_count)
@@ -166,6 +186,16 @@ pub fn[K : Hash] BloomFilter::contains(self : BloomFilter, key : K) -> Bool {
     }
   }
   true
+}
+
+///|
+/// Test whether `key` may have been inserted.
+///
+/// `false` means the key is definitely absent. `true` means it is either
+/// present or a false positive.
+pub fn[K : Hash] BloomFilter::contains(self : BloomFilter, key : K) -> Bool {
+  let (h1, h2) = key_hashes(key)
+  self.contains_hashes(h1, h2)
 }
 
 ///|

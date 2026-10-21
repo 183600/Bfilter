@@ -96,6 +96,33 @@ fn ScalableCountingBloomFilter::ensure_room(
 }
 
 ///|
+/// Insert a key whose two hash values have already been computed.
+fn ScalableCountingBloomFilter::insert_hashes(
+  self : ScalableCountingBloomFilter,
+  id : (UInt64, UInt64),
+) -> Unit {
+  guard self.inserted < 2147483647 else {
+    abort("scalable counting bloom filter insertion count overflow")
+  }
+  match self.locations.get(id) {
+    Some((slice_index, occurrences)) => {
+      guard occurrences < 2147483647 else {
+        abort("scalable counting bloom filter occurrence count overflow")
+      }
+      self.slices[slice_index].insert_hashes(id.0, id.1)
+      self.locations.set(id, (slice_index, occurrences + 1))
+    }
+    None => {
+      self.ensure_room()
+      let slice_index = self.slices.length() - 1
+      self.slices[slice_index].insert_hashes(id.0, id.1)
+      self.locations.set(id, (slice_index, 1))
+    }
+  }
+  self.inserted += 1
+}
+
+///|
 /// Insert `key` into the slice that already owns it, or into the newest slice
 /// for a new key.
 ///
@@ -105,26 +132,8 @@ pub fn[K : Hash] ScalableCountingBloomFilter::insert(
   self : ScalableCountingBloomFilter,
   key : K,
 ) -> Unit {
-  guard self.inserted < 2147483647 else {
-    abort("scalable counting bloom filter insertion count overflow")
-  }
   let id = key_hashes(key)
-  match self.locations.get(id) {
-    Some((slice_index, occurrences)) => {
-      guard occurrences < 2147483647 else {
-        abort("scalable counting bloom filter occurrence count overflow")
-      }
-      self.slices[slice_index].insert(key)
-      self.locations.set(id, (slice_index, occurrences + 1))
-    }
-    None => {
-      self.ensure_room()
-      let slice_index = self.slices.length() - 1
-      self.slices[slice_index].insert(key)
-      self.locations.set(id, (slice_index, 1))
-    }
-  }
-  self.inserted += 1
+  self.insert_hashes(id)
 }
 
 ///|
@@ -136,11 +145,28 @@ pub fn[K : Hash] ScalableCountingBloomFilter::insert_if_absent(
   self : ScalableCountingBloomFilter,
   key : K,
 ) -> Bool {
-  if self.contains(key) {
+  let id = key_hashes(key)
+  if self.contains_hashes(id) {
     return false
   }
-  self.insert(key)
+  self.insert_hashes(id)
   true
+}
+
+///|
+/// Test a key whose two hash values have already been computed.
+fn ScalableCountingBloomFilter::contains_hashes(
+  self : ScalableCountingBloomFilter,
+  id : (UInt64, UInt64),
+) -> Bool {
+  let mut index = self.slices.length() - 1
+  while index >= 0 {
+    if self.slices[index].contains_hashes(id.0, id.1) {
+      return true
+    }
+    index = index - 1
+  }
+  false
 }
 
 ///|
@@ -149,14 +175,8 @@ pub fn[K : Hash] ScalableCountingBloomFilter::contains(
   self : ScalableCountingBloomFilter,
   key : K,
 ) -> Bool {
-  let mut index = self.slices.length() - 1
-  while index >= 0 {
-    if self.slices[index].contains(key) {
-      return true
-    }
-    index = index - 1
-  }
-  false
+  let id = key_hashes(key)
+  self.contains_hashes(id)
 }
 
 ///|
