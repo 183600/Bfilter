@@ -163,3 +163,42 @@ test "concurrent scalable counting filter supports set operations" {
   }
   assert_eq(left.snapshot().count_of("right-0"), 1)
 }
+
+///|
+test "scalable counting union keeps every tracked key removable" {
+  let left = @src.ScalableCountingBloomFilter::new(3, 0.01)
+  let right = @src.ScalableCountingBloomFilter::new(3, 0.01)
+  let key_count = 12
+  let left_live : Array[Int32] = Array::make(key_count, 0)
+  let right_live : Array[Int32] = Array::make(key_count, 0)
+  let mut seed = 614
+  for step = 0; step < 200; step = step + 1 {
+    seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+    let key = seed % key_count
+    if seed / 31 % 2 == 0 {
+      left.insert(key)
+      left_live[key] = left_live[key] + 1
+    } else {
+      right.insert(key)
+      right_live[key] = right_live[key] + 1
+    }
+  }
+  let combined = left.union(right)
+  for key = 0; key < key_count; key = key + 1 {
+    let occurrences = combined.count_of(key)
+    for i = 0; i < occurrences; i = i + 1 {
+      assert_true(combined.remove(key))
+    }
+    assert_eq(combined.count_of(key), 0)
+    assert_false(combined.contains(key))
+  }
+  assert_eq(combined.count(), 0)
+  assert_eq(combined.tracked_key_count(), 0)
+  assert_eq(left.count_of(1), left_live[1])
+  assert_eq(right.count_of(1), right_live[1])
+  let restored = @src.ScalableCountingBloomFilter::from_bytes(
+    combined.to_bytes(),
+  )
+  assert_eq(restored.count(), combined.count())
+  assert_eq(restored.tracked_key_count(), 0)
+}

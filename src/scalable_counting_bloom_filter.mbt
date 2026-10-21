@@ -478,10 +478,13 @@ fn ScalableCountingBloomFilter::ensure_same_policy(
 /// Merge every slice and tracked key of `other` into `self` in place.
 ///
 /// Both filters must share the same initial capacity and target rate, so slice
-/// `i` of each filter uses the same layout and their counters are combined with
-/// the larger value. Slices that only `other` holds are appended as copies, and
-/// tracked multiplicities are combined per key. The insertion counter is
-/// recomputed from the merged slices so serialization stays consistent.
+/// `i` of each filter uses the same layout. Counters are rebuilt from the
+/// tracked multiplicities of both inputs instead of taking the larger aggregate
+/// counter, which keeps every key removable after the merge. Keys present in
+/// both filters in the same slice keep the larger multiplicity; keys in
+/// different slices keep both contributions. The insertion counter is
+/// recomputed from the merged tracked multiplicities so it stays consistent
+/// with the rebuilt counters and serialization.
 pub fn ScalableCountingBloomFilter::merge(
   self : ScalableCountingBloomFilter,
   other : ScalableCountingBloomFilter,
@@ -490,20 +493,43 @@ pub fn ScalableCountingBloomFilter::merge(
   guard self.inserted <= 2147483647 - other.inserted else {
     abort("scalable counting bloom filter insertion count overflow")
   }
+  let self_slice_count = self.slices.length()
+  let other_slice_count = other.slices.length()
   let mut total_slots = self.slot_count()
-  for i = self.slices.length(); i < other.slices.length(); i = i + 1 {
+  for i = self_slice_count; i < other_slice_count; i = i + 1 {
     total_slots = total_slots + other.slices[i].slot_count().to_int64()
   }
   guard total_slots * 16L <= 2147483584L else {
     abort("scalable counting bloom filter is too large")
   }
-  for i = 0; i < other.slices.length(); i = i + 1 {
-    if i < self.slices.length() {
-      self.slices[i].merge(other.slices[i])
+  let slice_count = if self_slice_count > other_slice_count {
+    self_slice_count
+  } else {
+    other_slice_count
+  }
+  let slices : Array[CountingBloomFilter] = []
+  let capacities : Array[Int32] = []
+  let slice_inserted : Array[Int32] = Array::make(slice_count, 0)
+  for i = 0; i < slice_count; i = i + 1 {
+    let source = if i < self_slice_count {
+      self.slices[i]
     } else {
-      self.slices.push(other.slices[i].copy())
-      self.capacities.push(other.capacities[i])
+      other.slices[i]
     }
+    let slice = CountingBloomFilter::with_size(
+      source.slot_count(), source.hash_count(),
+    )
+    slices.push(slice)
+    if i < self_slice_count {
+      capacities.push(self.capacities[i])
+    } else {
+      capacities.push(other.capacities[i])
+    }
+  }
+  for entry in self.locations.iter() {
+    let (id, (slice_index, occurrences)) = entry
+    slices[slice_index].raise_positions(id.0, id.1, occurrences)
+    slice_inserted[slice_index] = slice_inserted[slice_index] + occurrences
   }
   let merged : @hashmap.HashMap[(UInt64, UInt64), (Int32, Int32)] = @hashmap.HashMap([],
   )
@@ -512,29 +538,40 @@ pub fn ScalableCountingBloomFilter::merge(
   }
   for entry in other.locations.iter() {
     let (id, (other_slice, other_occurrences)) = entry
-    match merged.get(id) {
+    match self.locations.get(id) {
       Some((self_slice, self_occurrences)) =>
         if self_slice == other_slice {
-          merged.set(
-            id,
-            (
-              self_slice,
-              if self_occurrences > other_occurrences {
-                self_occurrences
-              } else {
-                other_occurrences
-              },
-            ),
-          )
+          let occurrences = if self_occurrences > other_occurrences {
+            self_occurrences
+          } else {
+            other_occurrences
+          }
+          let extra = occurrences - self_occurrences
+          slices[other_slice].raise_positions(id.0, id.1, extra)
+          slice_inserted[other_slice] = slice_inserted[other_slice] + extra
+          merged.set(id, (other_slice, occurrences))
         } else {
           guard self_occurrences <= 2147483647 - other_occurrences else {
             abort("scalable counting bloom filter occurrence count overflow")
           }
+          slices[other_slice].raise_positions(id.0, id.1, other_occurrences)
+          slice_inserted[other_slice] = slice_inserted[other_slice] +
+            other_occurrences
           merged.set(id, (self_slice, self_occurrences + other_occurrences))
         }
-      None => merged.set(id, (other_slice, other_occurrences))
+      None => {
+        slices[other_slice].raise_positions(id.0, id.1, other_occurrences)
+        slice_inserted[other_slice] = slice_inserted[other_slice] +
+          other_occurrences
+        merged.set(id, (other_slice, other_occurrences))
+      }
     }
   }
+  for i = 0; i < slice_count; i = i + 1 {
+    slices[i].inserted = slice_inserted[i]
+  }
+  self.slices = slices
+  self.capacities = capacities
   self.locations.clear()
   for entry in merged.iter() {
     self.locations.set(entry.0, entry.1)

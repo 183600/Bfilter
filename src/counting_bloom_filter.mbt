@@ -106,10 +106,11 @@ fn CountingBloomFilter::set_counter(
 /// Capping below 65535 when a position repeats keeps the counter removable:
 /// each removal subtracts exactly the same amount that each insertion added,
 /// so a saturated key eventually reaches zero instead of stranding a residue.
-fn CountingBloomFilter::increment_positions(
+fn CountingBloomFilter::raise_positions(
   self : CountingBloomFilter,
   h1 : UInt64,
   h2 : UInt64,
+  multiplicity : Int32,
 ) -> Unit {
   let slot_count = self.slot_count.to_uint64()
   for i = 0; i < self.hash_count; i = i + 1 {
@@ -135,11 +136,21 @@ fn CountingBloomFilter::increment_positions(
       }
       let value = self.counter_at(pos)
       if value < limit {
-        let raised = value + occurrences
+        let added = multiplicity.to_uint64() * occurrences
+        let raised = value + added
         self.set_counter(pos, if raised > limit { limit } else { raised })
       }
     }
   }
+}
+
+///|
+fn CountingBloomFilter::increment_positions(
+  self : CountingBloomFilter,
+  h1 : UInt64,
+  h2 : UInt64,
+) -> Unit {
+  self.raise_positions(h1, h2, 1)
 }
 
 ///|
