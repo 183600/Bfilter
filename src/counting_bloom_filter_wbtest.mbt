@@ -1,4 +1,9 @@
 ///|
+fn bit_index(h1 : UInt64, h2 : UInt64, i : Int32, bit_count : UInt64) -> Int32 {
+  ((h1 + i.to_uint64() * h2) % bit_count).to_int()
+}
+
+///|
 fn duplicate_position_key() -> (String, Int32) {
   for i = 0; i < 100000; i = i + 1 {
     let key = "dup-" + i.to_string()

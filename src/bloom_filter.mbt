@@ -21,12 +21,6 @@ fn mix64(x : UInt64) -> UInt64 {
 }
 
 ///|
-#warnings("-unused_value")
-fn bit_index(h1 : UInt64, h2 : UInt64, i : Int32, bit_count : UInt64) -> Int32 {
-  ((h1 + i.to_uint64() * h2) % bit_count).to_int()
-}
-
-///|
 fn[T : Hash] key_hashes(key : T) -> (UInt64, UInt64) {
   let hasher = Hasher(seed=0x243F6A88)
   hasher.combine(key)
