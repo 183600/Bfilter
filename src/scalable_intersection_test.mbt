@@ -18,7 +18,7 @@ test "scalable bloom intersection keeps keys shared by corresponding slices" {
   }
   assert_false(common.contains("left-0"))
   assert_false(common.contains("right-0"))
-  assert_true(common.count() <= left.count().min(right.count()))
+  assert_eq(common.count(), left.count().min(right.count()))
   let restored = @src.ScalableBloomFilter::from_bytes(common.to_bytes())
   assert_eq(restored.count(), common.count())
   assert_true(restored.contains("shared-0"))
