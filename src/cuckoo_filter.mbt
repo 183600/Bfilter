@@ -587,7 +587,7 @@ fn CuckooFilter::min_bucket_fingerprints(
 ) -> CuckooFilter {
   let result = CuckooFilter::with_size(self.bucket_count, self.bucket_size)
   let mut stored = 0
-  let visited : Array[(Int32, Byte)] = []
+  let visited : @hashmap.HashMap[(Int32, Byte), Unit] = @hashmap.HashMap([])
   for bucket = 0; bucket < result.bucket_count; bucket = bucket + 1 {
     let base = bucket * result.bucket_size
     for slot = 0; slot < result.bucket_size; slot = slot + 1 {
@@ -598,17 +598,11 @@ fn CuckooFilter::min_bucket_fingerprints(
       }
       let alternate = self.alternate_index(bucket, fingerprint)
       let canonical = bucket.min(alternate)
-      let mut seen = false
-      for pair in visited {
-        if pair.0 == canonical && pair.1 == fingerprint {
-          seen = true
-          break
-        }
-      }
-      if seen {
+      let pair = (canonical, fingerprint)
+      if visited.contains(pair) {
         continue
       }
-      visited.push((canonical, fingerprint))
+      visited.set(pair, ())
       let keep = self
         .pair_fingerprint_count(canonical, fingerprint)
         .min(other.pair_fingerprint_count(canonical, fingerprint))
