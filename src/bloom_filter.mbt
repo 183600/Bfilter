@@ -297,6 +297,26 @@ pub fn BloomFilter::is_subset_of(
 }
 
 ///|
+/// Whether `self` and `other` are definitely disjoint.
+///
+/// Both filters must use the same bit and hash counts. Returns `true` only when
+/// no bit is set in both filters, which guarantees that no key can be reported
+/// present by both. A `false` result is inconclusive because a bit set in both
+/// filters may come from different keys.
+pub fn BloomFilter::is_disjoint_from(
+  self : BloomFilter,
+  other : BloomFilter,
+) -> Bool {
+  self.ensure_compatible(other)
+  for i = 0; i < self.words.length(); i = i + 1 {
+    if (self.words[i] & other.words[i]) != 0UL {
+      return false
+    }
+  }
+  true
+}
+
+///|
 /// Return an independent copy of the filter.
 ///
 /// Later inserts or clears on either filter do not affect the other.

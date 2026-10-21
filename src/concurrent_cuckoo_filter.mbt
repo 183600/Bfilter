@@ -149,6 +149,18 @@ pub fn ConcurrentCuckooFilter::is_subset_of(
 }
 
 ///|
+/// Whether the current filter and `other` are definitely disjoint, while
+/// holding the lock once.
+///
+/// The other filter must use the same bucket count and bucket size.
+pub fn ConcurrentCuckooFilter::is_disjoint_from(
+  self : ConcurrentCuckooFilter,
+  other : CuckooFilter,
+) -> Bool {
+  self.with_lock(filter => filter.is_disjoint_from(other))
+}
+
+///|
 /// Build a filter containing only the fingerprints present in both inputs while
 /// holding the lock once.
 ///

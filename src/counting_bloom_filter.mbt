@@ -378,6 +378,32 @@ pub fn CountingBloomFilter::is_subset_of(
 }
 
 ///|
+/// Whether `self` and `other` are definitely disjoint.
+///
+/// Both filters must use the same slot and hash counts. Returns `true` only
+/// when no slot has a positive counter in both filters, which guarantees that
+/// no key can be reported present by both. A `false` result is inconclusive
+/// because a slot may be positive for different keys.
+pub fn CountingBloomFilter::is_disjoint_from(
+  self : CountingBloomFilter,
+  other : CountingBloomFilter,
+) -> Bool {
+  self.ensure_compatible(other)
+  for i = 0; i < self.counters.length(); i = i + 1 {
+    let left = self.counters[i]
+    let right = other.counters[i]
+    for lane = 0; lane < 4; lane = lane + 1 {
+      let shift = lane * 16
+      if ((left >> shift) & 0xFFFFUL) != 0UL &&
+        ((right >> shift) & 0xFFFFUL) != 0UL {
+        return false
+      }
+    }
+  }
+  true
+}
+
+///|
 /// Test every key in `keys`, returning `false` at the first definite miss.
 pub fn[K : Hash] CountingBloomFilter::contains_all(
   self : CountingBloomFilter,

@@ -731,6 +731,35 @@ pub fn CuckooFilter::is_subset_of(
 }
 
 ///|
+/// Whether `self` and `other` are definitely disjoint.
+///
+/// Both filters must use the same bucket count and bucket size. Returns `true`
+/// only when no fingerprint stored in `self` also appears in the matching
+/// candidate pair of `other`, which guarantees that no key can be reported
+/// present by both. A `false` result is inconclusive because equal fingerprints
+/// may come from different keys.
+pub fn CuckooFilter::is_disjoint_from(
+  self : CuckooFilter,
+  other : CuckooFilter,
+) -> Bool {
+  guard self.bucket_count == other.bucket_count &&
+    self.bucket_size == other.bucket_size else {
+    abort("cuckoo filters must have the same bucket count and size")
+  }
+  for bucket = 0; bucket < self.bucket_count; bucket = bucket + 1 {
+    let base = bucket * self.bucket_size
+    for slot = 0; slot < self.bucket_size; slot = slot + 1 {
+      let fingerprint = self.buckets[base + slot]
+      if fingerprint != b'\x00' &&
+        other.pair_fingerprint_count(bucket, fingerprint) > 0 {
+        return false
+      }
+    }
+  }
+  true
+}
+
+///|
 /// Test every key in `keys`, returning `false` at the first definite miss.
 pub fn[K : Hash] CuckooFilter::contains_all(
   self : CuckooFilter,

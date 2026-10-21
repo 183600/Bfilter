@@ -153,6 +153,18 @@ pub fn ConcurrentBloomFilter::is_subset_of(
 }
 
 ///|
+/// Whether the current filter and `other` are definitely disjoint, while
+/// holding the lock once.
+///
+/// The other filter must use the same bit and hash counts.
+pub fn ConcurrentBloomFilter::is_disjoint_from(
+  self : ConcurrentBloomFilter,
+  other : BloomFilter,
+) -> Bool {
+  self.with_lock(filter => filter.is_disjoint_from(other))
+}
+
+///|
 /// Test every key in `keys` while holding the lock once.
 pub fn[K : Hash] ConcurrentBloomFilter::contains_all(
   self : ConcurrentBloomFilter,

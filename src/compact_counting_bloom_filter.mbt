@@ -392,6 +392,32 @@ pub fn CompactCountingBloomFilter::is_subset_of(
 }
 
 ///|
+/// Whether `self` and `other` are definitely disjoint.
+///
+/// Both filters must use the same slot and hash counts. Returns `true` only
+/// when no slot has a positive counter in both filters, which guarantees that
+/// no key can be reported present by both. A `false` result is inconclusive
+/// because a slot may be positive for different keys.
+pub fn CompactCountingBloomFilter::is_disjoint_from(
+  self : CompactCountingBloomFilter,
+  other : CompactCountingBloomFilter,
+) -> Bool {
+  self.ensure_compatible(other)
+  for i = 0; i < self.counters.length(); i = i + 1 {
+    let left = self.counters[i]
+    let right = other.counters[i]
+    for lane = 0; lane < COMPACT_SLOTS_PER_WORD; lane = lane + 1 {
+      let shift = lane * 4
+      if ((left >> shift) & COMPACT_COUNTER_MAX) != 0UL &&
+        ((right >> shift) & COMPACT_COUNTER_MAX) != 0UL {
+        return false
+      }
+    }
+  }
+  true
+}
+
+///|
 /// Test every key in `keys`, returning `false` at the first definite miss.
 pub fn[K : Hash] CompactCountingBloomFilter::contains_all(
   self : CompactCountingBloomFilter,

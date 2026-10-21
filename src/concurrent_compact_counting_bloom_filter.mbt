@@ -169,6 +169,18 @@ pub fn ConcurrentCompactCountingBloomFilter::is_subset_of(
 }
 
 ///|
+/// Whether the current filter and `other` are definitely disjoint, while
+/// holding the lock once.
+///
+/// The other filter must use the same slot and hash counts.
+pub fn ConcurrentCompactCountingBloomFilter::is_disjoint_from(
+  self : ConcurrentCompactCountingBloomFilter,
+  other : CompactCountingBloomFilter,
+) -> Bool {
+  self.with_lock(filter => filter.is_disjoint_from(other))
+}
+
+///|
 /// Remove one insertion of every key in `keys` while holding the lock once.
 pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::remove_all(
   self : ConcurrentCompactCountingBloomFilter,

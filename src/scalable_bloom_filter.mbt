@@ -421,3 +421,35 @@ pub fn ScalableBloomFilter::is_subset_of(
   }
   true
 }
+
+///|
+/// Whether `self` and `other` are definitely disjoint.
+///
+/// Both filters must share the same initial capacity and target rate. Returns
+/// `true` only when each pair of slices with the same index has no bit set in
+/// both filters and neither filter holds a non-empty slice beyond the other's
+/// last slice. That guarantees no key can be reported present by both; a
+/// `false` result is inconclusive because equal bits may come from different
+/// keys or from slices with different layouts.
+pub fn ScalableBloomFilter::is_disjoint_from(
+  self : ScalableBloomFilter,
+  other : ScalableBloomFilter,
+) -> Bool {
+  self.ensure_same_policy(other)
+  let shared = self.slices.length().min(other.slices.length())
+  for i = 0; i < self.slices.length(); i = i + 1 {
+    if i < shared {
+      if !self.slices[i].is_disjoint_from(other.slices[i]) {
+        return false
+      }
+    } else if self.slices[i].set_bit_count() > 0 {
+      return false
+    }
+  }
+  for i = shared; i < other.slices.length(); i = i + 1 {
+    if other.slices[i].set_bit_count() > 0 {
+      return false
+    }
+  }
+  true
+}

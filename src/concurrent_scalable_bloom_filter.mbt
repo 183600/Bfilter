@@ -140,6 +140,18 @@ pub fn ConcurrentScalableBloomFilter::is_subset_of(
 }
 
 ///|
+/// Whether the current filter and `other` are definitely disjoint, while
+/// holding the lock once.
+///
+/// The other filter must share the initial capacity and target rate.
+pub fn ConcurrentScalableBloomFilter::is_disjoint_from(
+  self : ConcurrentScalableBloomFilter,
+  other : ScalableBloomFilter,
+) -> Bool {
+  self.with_lock(filter => filter.is_disjoint_from(other))
+}
+
+///|
 /// Return a consistent copy of the underlying filter, including every slice.
 pub fn ConcurrentScalableBloomFilter::snapshot(
   self : ConcurrentScalableBloomFilter,
