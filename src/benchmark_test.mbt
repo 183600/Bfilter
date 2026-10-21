@@ -318,7 +318,6 @@ test "bench bloom is_disjoint_from n=1000" (b : @bench.T) {
   let left = @src.BloomFilter::new(1000, 0.01)
   let right = @src.BloomFilter::new(1000, 0.01)
   left.insert_all(bench_keys)
-  right.insert_all(bench_keys)
   b.bench(fn() {
     let disjoint = left.is_disjoint_from(right)
     b.keep(disjoint)
@@ -425,7 +424,6 @@ test "bench cuckoo is_disjoint_from n=1000" (b : @bench.T) {
   let left = @src.CuckooFilter::new(1000)
   let right = @src.CuckooFilter::new(1000)
   ignore(left.insert_all(bench_keys))
-  ignore(right.insert_all(bench_keys))
   b.bench(fn() {
     let disjoint = left.is_disjoint_from(right)
     b.keep(disjoint)
