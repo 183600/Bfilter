@@ -152,15 +152,11 @@ pub fn[K : Hash] CountingBloomFilter::remove(
 ) -> Bool {
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
-  let positions : Array[Int32] = []
   for i = 0; i < self.hash_count; i = i + 1 {
-    positions.push(bit_index(h1, h2, i, slot_count))
-  }
-  for i = 0; i < positions.length(); i = i + 1 {
-    let pos = positions[i]
+    let pos = bit_index(h1, h2, i, slot_count)
     let mut remaining = 0UL
-    for j = i; j < positions.length(); j = j + 1 {
-      if positions[j] == pos {
+    for j = i; j < self.hash_count; j = j + 1 {
+      if bit_index(h1, h2, j, slot_count) == pos {
         remaining = remaining + 1UL
       }
     }
@@ -168,7 +164,8 @@ pub fn[K : Hash] CountingBloomFilter::remove(
       return false
     }
   }
-  for pos in positions {
+  for i = 0; i < self.hash_count; i = i + 1 {
+    let pos = bit_index(h1, h2, i, slot_count)
     self.set_counter(pos, self.counter_at(pos) - 1UL)
   }
   if self.inserted > 0 {

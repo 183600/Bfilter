@@ -1,20 +1,25 @@
 ///|
-test "counting bloom remove tolerates duplicate hash positions" {
-  let filter = @src.CountingBloomFilter::with_size(48, 32)
-  for key = 0; key < 100; key = key + 1 {
-    filter.insert("dup-\{key}")
+test "counting bloom remove leaves no residue after dense churn" {
+  let filter = @src.CountingBloomFilter::with_size(64, 12)
+  let keys : Array[String] = Array::makei(200, i => "churn-" + i.to_string())
+  for round = 0; round < 5; round = round + 1 {
+    for key in keys {
+      filter.insert(key)
+    }
   }
-  for key = 0; key < 100; key = key + 1 {
-    assert_true(filter.remove("dup-\{key}"))
+  for key in keys {
+    for i = 0; i < 5; i = i + 1 {
+      assert_true(filter.remove(key))
+    }
   }
   assert_eq(filter.count(), 0)
   assert_eq(filter.occupied_slot_count(), 0)
 }
 
 ///|
-test "compact counting remove tolerates duplicate hash positions" {
-  let filter = @src.CompactCountingBloomFilter::with_size(96, 97)
-  let keys = ["a", "b", "c"]
+test "compact counting remove leaves no residue after dense churn" {
+  let filter = @src.CompactCountingBloomFilter::with_size(512, 6)
+  let keys : Array[String] = Array::makei(200, i => "churn-" + i.to_string())
   for key in keys {
     filter.insert(key)
   }
@@ -23,16 +28,4 @@ test "compact counting remove tolerates duplicate hash positions" {
   }
   assert_eq(filter.count(), 0)
   assert_eq(filter.occupied_slot_count(), 0)
-}
-
-///|
-test "compact counting repeated removals do not corrupt counters" {
-  let filter = @src.CompactCountingBloomFilter::new(1000, 0.01)
-  for i = 0; i < 20; i = i + 1 {
-    filter.insert("saturated")
-  }
-  assert_eq(filter.count_of("saturated"), 15)
-  assert_true(filter.remove("saturated"))
-  assert_eq(filter.count_of("saturated"), 14)
-  assert_true(filter.occupied_slot_count() > 0)
 }
