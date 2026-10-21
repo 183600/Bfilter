@@ -212,3 +212,78 @@ test "randomized cuckoo unions and merges preserve live keys" {
     }
   }
 }
+
+///|
+test "randomized scalable counting operations match a live-key model" {
+  let key_count = 30
+  for round = 1; round <= 20; round = round + 1 {
+    let filter = @src.ScalableCountingBloomFilter::new(2, 0.01)
+    let live : Array[Int32] = Array::make(key_count, 0)
+    let mut total = 0
+    let mut seed = round
+    for step = 0; step < 500; step = step + 1 {
+      seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+      let key = seed % key_count
+      let action = seed / 31 % 5
+      if action == 0 {
+        filter.insert(key)
+        live[key] = live[key] + 1
+        total = total + 1
+      } else if action == 1 {
+        if live[key] > 0 {
+          assert_true(filter.remove(key))
+          live[key] = live[key] - 1
+          total = total - 1
+          assert_eq(filter.count_of(key), live[key])
+        } else {
+          assert_false(filter.remove(key))
+        }
+      } else if action == 2 {
+        assert_eq(filter.count_of(key), live[key])
+        if live[key] > 0 {
+          assert_true(filter.contains(key))
+        }
+      } else if action == 3 {
+        let added = filter.insert_if_absent(key)
+        if live[key] > 0 {
+          assert_false(added)
+        } else if added {
+          live[key] = 1
+          total = total + 1
+        }
+      } else {
+        assert_eq(filter.count(), total)
+        let restored = @src.ScalableCountingBloomFilter::from_bytes(
+          filter.to_bytes(),
+        )
+        assert_eq(restored.count(), total)
+        assert_eq(restored.tracked_key_count(), filter.tracked_key_count())
+        for k = 0; k < key_count; k = k + 1 {
+          assert_eq(restored.count_of(k), live[k])
+          if live[k] > 0 {
+            assert_true(restored.contains(k))
+          }
+        }
+      }
+    }
+    for key = 0; key < key_count; key = key + 1 {
+      while live[key] > 0 {
+        assert_true(filter.remove(key))
+        live[key] = live[key] - 1
+      }
+      assert_eq(filter.count_of(key), 0)
+    }
+    assert_eq(filter.count(), 0)
+    assert_eq(filter.tracked_key_count(), 0)
+    assert_true(filter.is_empty())
+    for key = 0; key < key_count; key = key + 1 {
+      assert_false(filter.contains(key))
+    }
+    let restored = @src.ScalableCountingBloomFilter::from_bytes(
+      filter.to_bytes(),
+    )
+    assert_eq(restored.count(), 0)
+    assert_eq(restored.tracked_key_count(), 0)
+    assert_true(restored.is_empty())
+  }
+}
