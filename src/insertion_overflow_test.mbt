@@ -82,6 +82,21 @@ test "scalable counting max inserted fixture is valid" {
 }
 
 ///|
+test "scalable counting same-slice merge keeps the larger max multiplicity" {
+  let left = max_inserted_scalable_counting()
+  let right = @src.ScalableCountingBloomFilter::new(4, 0.01)
+  right.insert("seed")
+  left.merge(right)
+  assert_eq(left.count_of("seed"), 2147483647)
+  assert_eq(left.count(), 2147483647)
+  assert_eq(left.tracked_key_count(), 1)
+  let restored = @src.ScalableCountingBloomFilter::from_bytes(left.to_bytes())
+  assert_eq(restored.count(), 2147483647)
+  assert_eq(restored.count_of("seed"), 2147483647)
+  assert_eq(restored.tracked_key_count(), 1)
+}
+
+///|
 test "panic scalable counting insert rejects count overflow" {
   let filter = max_inserted_scalable_counting()
   filter.insert("overflow")
