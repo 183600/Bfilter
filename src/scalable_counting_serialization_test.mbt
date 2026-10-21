@@ -229,3 +229,25 @@ test "panic scalable counting serialization rejects metadata exceeding its slice
   )
   |> ignore
 }
+
+///|
+test "scalable counting serialization preserves saturated tracked occurrences" {
+  let filter = @src.ScalableCountingBloomFilter::new(65536, 0.5)
+  for i = 0; i < 65536; i = i + 1 {
+    filter.insert("saturated")
+  }
+  for i = 0; i < 65535; i = i + 1 {
+    assert_true(filter.remove("saturated"))
+  }
+  assert_false(filter.contains("saturated"))
+  assert_eq(filter.count_of("saturated"), 1)
+  assert_eq(filter.tracked_key_count(), 1)
+  assert_eq(filter.count(), 1)
+  let restored = @src.ScalableCountingBloomFilter::from_bytes(filter.to_bytes())
+  assert_false(restored.contains("saturated"))
+  assert_eq(restored.count_of("saturated"), 1)
+  assert_eq(restored.tracked_key_count(), 1)
+  assert_eq(restored.count(), 1)
+  assert_false(restored.remove("saturated"))
+  assert_eq(restored.count_of("saturated"), 1)
+}
