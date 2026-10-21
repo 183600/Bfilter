@@ -397,6 +397,35 @@ pub fn ScalableBloomFilter::target_false_positive_rate(Self) -> Double
 pub fn ScalableBloomFilter::to_bytes(Self) -> Bytes
 pub fn ScalableBloomFilter::union(Self, Self) -> Self
 
+pub struct ScalableCountingBloomFilter {
+  // private fields
+}
+pub fn ScalableCountingBloomFilter::capacity(Self) -> Int64
+pub fn ScalableCountingBloomFilter::clear(Self) -> Unit
+pub fn[K : Hash] ScalableCountingBloomFilter::contains(Self, K) -> Bool
+pub fn[K : Hash] ScalableCountingBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
+pub fn[K : Hash] ScalableCountingBloomFilter::contains_any(Self, ArrayView[K]) -> Bool
+pub fn ScalableCountingBloomFilter::copy(Self) -> Self
+pub fn ScalableCountingBloomFilter::count(Self) -> Int32
+pub fn[K : Hash] ScalableCountingBloomFilter::count_of(Self, K) -> Int32
+pub fn ScalableCountingBloomFilter::estimated_item_count(Self) -> Double
+pub fn ScalableCountingBloomFilter::false_positive_rate(Self) -> Double
+pub fn ScalableCountingBloomFilter::fill_ratio(Self) -> Double
+pub fn[K : Hash] ScalableCountingBloomFilter::insert(Self, K) -> Unit
+pub fn[K : Hash] ScalableCountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn[K : Hash] ScalableCountingBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
+pub fn[K : Hash] ScalableCountingBloomFilter::insert_if_absent(Self, K) -> Bool
+pub fn ScalableCountingBloomFilter::is_empty(Self) -> Bool
+pub fn ScalableCountingBloomFilter::memory_bytes(Self) -> Int64
+pub fn ScalableCountingBloomFilter::new(Int32, Double) -> Self
+pub fn ScalableCountingBloomFilter::occupied_slot_count(Self) -> Int64
+pub fn[K : Hash] ScalableCountingBloomFilter::remove(Self, K) -> Bool
+pub fn[K : Hash] ScalableCountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
+pub fn ScalableCountingBloomFilter::slice_count(Self) -> Int32
+pub fn ScalableCountingBloomFilter::slot_count(Self) -> Int64
+pub fn ScalableCountingBloomFilter::target_false_positive_rate(Self) -> Double
+pub fn ScalableCountingBloomFilter::tracked_key_count(Self) -> Int32
+
 // Type aliases
 
 // Traits
