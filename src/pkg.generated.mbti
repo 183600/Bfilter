@@ -150,13 +150,16 @@ pub fn[K : Hash] ConcurrentScalableBloomFilter::insert_all(Self, ArrayView[K]) -
 pub fn[K : Hash] ConcurrentScalableBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
 pub fn[K : Hash] ConcurrentScalableBloomFilter::insert_if_absent(Self, K) -> Bool
 pub fn ConcurrentScalableBloomFilter::is_empty(Self) -> Bool
+pub fn ConcurrentScalableBloomFilter::is_subset_of(Self, ScalableBloomFilter) -> Bool
 pub fn ConcurrentScalableBloomFilter::memory_bytes(Self) -> Int64
+pub fn ConcurrentScalableBloomFilter::merge(Self, ScalableBloomFilter) -> Unit
 pub fn ConcurrentScalableBloomFilter::new(Int32, Double) -> Self
 pub fn ConcurrentScalableBloomFilter::set_bit_count(Self) -> Int32
 pub fn ConcurrentScalableBloomFilter::slice_count(Self) -> Int32
 pub fn ConcurrentScalableBloomFilter::snapshot(Self) -> ScalableBloomFilter
 pub fn ConcurrentScalableBloomFilter::target_false_positive_rate(Self) -> Double
 pub fn ConcurrentScalableBloomFilter::to_bytes(Self) -> Bytes
+pub fn ConcurrentScalableBloomFilter::union(Self, ScalableBloomFilter) -> ScalableBloomFilter
 
 pub struct CountingBloomFilter {
   // private fields
@@ -243,12 +246,15 @@ pub fn[K : Hash] ScalableBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
 pub fn[K : Hash] ScalableBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
 pub fn[K : Hash] ScalableBloomFilter::insert_if_absent(Self, K) -> Bool
 pub fn ScalableBloomFilter::is_empty(Self) -> Bool
+pub fn ScalableBloomFilter::is_subset_of(Self, Self) -> Bool
 pub fn ScalableBloomFilter::memory_bytes(Self) -> Int64
+pub fn ScalableBloomFilter::merge(Self, Self) -> Unit
 pub fn ScalableBloomFilter::new(Int32, Double) -> Self
 pub fn ScalableBloomFilter::set_bit_count(Self) -> Int32
 pub fn ScalableBloomFilter::slice_count(Self) -> Int32
 pub fn ScalableBloomFilter::target_false_positive_rate(Self) -> Double
 pub fn ScalableBloomFilter::to_bytes(Self) -> Bytes
+pub fn ScalableBloomFilter::union(Self, Self) -> Self
 
 // Type aliases
 

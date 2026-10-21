@@ -325,9 +325,6 @@ pub fn ScalableBloomFilter::from_bytes(data : Bytes) -> ScalableBloomFilter {
       slice.hash_count() == expected_hashes else {
       abort("scalable bloom slice does not match its layout")
     }
-    guard slice.count() <= capacity else {
-      abort("scalable bloom slice count exceeds its capacity")
-    }
     total_inserted = total_inserted + slice.count().to_int64()
     filter.slices.push(slice)
     filter.capacities.push(capacity)

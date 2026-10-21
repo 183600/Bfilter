@@ -102,6 +102,44 @@ pub fn[K : Hash] ConcurrentScalableBloomFilter::contains_any(
 }
 
 ///|
+/// Merge another filter into this one while holding the lock once.
+///
+/// The other filter must share the initial capacity and target rate. Its
+/// slices are combined with the current state and its insertion count is
+/// added.
+pub fn ConcurrentScalableBloomFilter::merge(
+  self : ConcurrentScalableBloomFilter,
+  other : ScalableBloomFilter,
+) -> Unit {
+  self.with_lock(filter => filter.merge(other))
+}
+
+///|
+/// Build a scalable filter containing every key present in either input while
+/// holding the lock once.
+///
+/// The other filter must share the initial capacity and target rate. The
+/// result is an independent filter; the concurrent receiver is left unchanged.
+pub fn ConcurrentScalableBloomFilter::union(
+  self : ConcurrentScalableBloomFilter,
+  other : ScalableBloomFilter,
+) -> ScalableBloomFilter {
+  self.with_lock(filter => filter.union(other))
+}
+
+///|
+/// Whether every key reported present by the current filter is also reported
+/// present by `other`, while holding the lock once.
+///
+/// The other filter must share the initial capacity and target rate.
+pub fn ConcurrentScalableBloomFilter::is_subset_of(
+  self : ConcurrentScalableBloomFilter,
+  other : ScalableBloomFilter,
+) -> Bool {
+  self.with_lock(filter => filter.is_subset_of(other))
+}
+
+///|
 /// Return a consistent copy of the underlying filter, including every slice.
 pub fn ConcurrentScalableBloomFilter::snapshot(
   self : ConcurrentScalableBloomFilter,

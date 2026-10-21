@@ -329,3 +329,95 @@ pub fn ScalableBloomFilter::memory_bytes(self : ScalableBloomFilter) -> Int64 {
   }
   total
 }
+
+///|
+fn ScalableBloomFilter::ensure_same_policy(
+  self : ScalableBloomFilter,
+  other : ScalableBloomFilter,
+) -> Unit {
+  guard self.initial_capacity == other.initial_capacity &&
+    self.target_rate == other.target_rate else {
+    abort(
+      "scalable bloom filters must share the initial capacity and target rate",
+    )
+  }
+}
+
+///|
+/// Merge every slice of `other` into `self` in place.
+///
+/// Both filters must share the same initial capacity and target rate, so slice
+/// `i` of each filter uses the same layout and their bits are combined with a
+/// bitwise OR. Slices that only `other` holds are appended as copies. After
+/// merging, `self` reports every key reported by either input. The insertion
+/// counter becomes the sum of the input counts, a conservative upper bound when
+/// keys overlap, and a slice whose combined count exceeds its planned capacity
+/// triggers growth before the next insertion.
+pub fn ScalableBloomFilter::merge(
+  self : ScalableBloomFilter,
+  other : ScalableBloomFilter,
+) -> Unit {
+  self.ensure_same_policy(other)
+  guard self.inserted <= 2147483647 - other.inserted else {
+    abort("scalable bloom filter insertion count overflow")
+  }
+  let mut total_bits = self.bit_count().to_int64()
+  for slice in other.slices {
+    total_bits = total_bits + slice.bit_count().to_int64()
+  }
+  guard total_bits <= 2147483584L else {
+    abort("scalable bloom filter is too large")
+  }
+  for i = 0; i < other.slices.length(); i = i + 1 {
+    if i < self.slices.length() {
+      self.slices[i].merge(other.slices[i])
+    } else {
+      self.slices.push(other.slices[i].copy())
+      self.capacities.push(other.capacities[i])
+    }
+  }
+  self.inserted += other.inserted
+}
+
+///|
+/// Build a new filter containing every key present in either input.
+///
+/// Both filters must share the same initial capacity and target rate. The
+/// result uses the per-slice union of their bit arrays, so it never reports a
+/// false negative for a key either input reported present. The inputs are left
+/// unchanged.
+pub fn ScalableBloomFilter::union(
+  self : ScalableBloomFilter,
+  other : ScalableBloomFilter,
+) -> ScalableBloomFilter {
+  let result = self.copy()
+  result.merge(other)
+  result
+}
+
+///|
+/// Whether every key reported present by `self` is also reported present by
+/// `other`.
+///
+/// Both filters must share the same initial capacity and target rate. Slice `i`
+/// of `self` is compared only against slice `i` of `other` because slices with
+/// different indices use different layouts; a slice of `self` beyond the last
+/// slice of `other` must be completely empty. A `true` result is therefore
+/// sufficient but not necessary for membership containment: a key missed by its
+/// own slice in `other` could still be covered by another slice.
+pub fn ScalableBloomFilter::is_subset_of(
+  self : ScalableBloomFilter,
+  other : ScalableBloomFilter,
+) -> Bool {
+  self.ensure_same_policy(other)
+  for i = 0; i < self.slices.length(); i = i + 1 {
+    if i < other.slices.length() {
+      if !self.slices[i].is_subset_of(other.slices[i]) {
+        return false
+      }
+    } else if self.slices[i].set_bit_count() > 0 {
+      return false
+    }
+  }
+  true
+}
