@@ -100,6 +100,59 @@ fn CountingBloomFilter::set_counter(
 }
 
 ///|
+/// Compute each distinct slot selected by a key together with the number of
+/// hash functions that select it.
+///
+/// Small filters use a quadratic scan over a cached position array; filters
+/// with many hash functions switch to a hash map so duplicate detection stays
+/// linear instead of recomputing every position for every probe.
+fn unique_key_positions(
+  h1 : UInt64,
+  h2 : UInt64,
+  hash_count : Int32,
+  slot_count : UInt64,
+) -> Array[(Int32, Int32)] {
+  let positions : Array[Int32] = Array::make(hash_count, 0)
+  for i = 0; i < hash_count; i = i + 1 {
+    positions[i] = bit_index(h1, h2, i, slot_count)
+  }
+  let unique : Array[(Int32, Int32)] = []
+  if hash_count <= 64 {
+    for i = 0; i < hash_count; i = i + 1 {
+      let position = positions[i]
+      let mut first_occurrence = true
+      for j = 0; j < i; j = j + 1 {
+        if positions[j] == position {
+          first_occurrence = false
+          break
+        }
+      }
+      if first_occurrence {
+        let mut occurrences = 1
+        for j = i + 1; j < hash_count; j = j + 1 {
+          if positions[j] == position {
+            occurrences = occurrences + 1
+          }
+        }
+        unique.push((position, occurrences))
+      }
+    }
+  } else {
+    let counts : @hashmap.HashMap[Int32, Int32] = @hashmap.HashMap([])
+    for position in positions {
+      match counts.get(position) {
+        Some(occurrences) => counts.set(position, occurrences + 1)
+        None => counts.set(position, 1)
+      }
+    }
+    for entry in counts.iter() {
+      unique.push(entry)
+    }
+  }
+  unique
+}
+
+///|
 /// Raise every selected counter by the number of hash functions that select
 /// it, capping at the largest multiple of that count that fits in 16 bits.
 ///
@@ -113,33 +166,20 @@ fn CountingBloomFilter::raise_positions(
   multiplicity : Int32,
 ) -> Unit {
   let slot_count = self.slot_count.to_uint64()
-  for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, slot_count)
-    let mut first_occurrence = true
-    for j = 0; j < i; j = j + 1 {
-      if bit_index(h1, h2, j, slot_count) == pos {
-        first_occurrence = false
-        break
-      }
+  let positions = unique_key_positions(h1, h2, self.hash_count, slot_count)
+  for entry in positions {
+    let (pos, occurrences) = entry
+    let occurrences = occurrences.to_uint64()
+    let limit = if occurrences > 65535UL {
+      65535UL
+    } else {
+      65535UL - 65535UL % occurrences
     }
-    if first_occurrence {
-      let mut occurrences = 1UL
-      for j = i + 1; j < self.hash_count; j = j + 1 {
-        if bit_index(h1, h2, j, slot_count) == pos {
-          occurrences = occurrences + 1UL
-        }
-      }
-      let limit = if occurrences > 65535UL {
-        65535UL
-      } else {
-        65535UL - 65535UL % occurrences
-      }
-      let value = self.counter_at(pos)
-      if value < limit {
-        let added = multiplicity.to_uint64() * occurrences
-        let raised = value + added
-        self.set_counter(pos, if raised > limit { limit } else { raised })
-      }
+    let value = self.counter_at(pos)
+    if value < limit {
+      let added = multiplicity.to_uint64() * occurrences
+      let raised = value + added
+      self.set_counter(pos, if raised > limit { limit } else { raised })
     }
   }
 }
@@ -208,39 +248,24 @@ pub fn[K : Hash] CountingBloomFilter::remove(
 ) -> Bool {
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
-  for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, slot_count)
-    let mut remaining = 0UL
-    for j = i; j < self.hash_count; j = j + 1 {
-      if bit_index(h1, h2, j, slot_count) == pos {
-        remaining = remaining + 1UL
-      }
+  let positions = unique_key_positions(h1, h2, self.hash_count, slot_count)
+  for entry in positions {
+    let (pos, occurrences) = entry
+    let required = if occurrences.to_uint64() > 0xFFFFUL {
+      0xFFFFUL
+    } else {
+      occurrences.to_uint64()
     }
-    let required = if remaining > 0xFFFFUL { 0xFFFFUL } else { remaining }
     if self.counter_at(pos) < required {
       return false
     }
   }
-  for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, slot_count)
-    let mut first_occurrence = true
-    for j = 0; j < i; j = j + 1 {
-      if bit_index(h1, h2, j, slot_count) == pos {
-        first_occurrence = false
-        break
-      }
-    }
-    if first_occurrence {
-      let mut occurrences = 1UL
-      for j = i + 1; j < self.hash_count; j = j + 1 {
-        if bit_index(h1, h2, j, slot_count) == pos {
-          occurrences = occurrences + 1UL
-        }
-      }
-      let value = self.counter_at(pos)
-      let decrement = if value < occurrences { value } else { occurrences }
-      self.set_counter(pos, value - decrement)
-    }
+  for entry in positions {
+    let (pos, occurrences) = entry
+    let occurrences = occurrences.to_uint64()
+    let value = self.counter_at(pos)
+    let decrement = if value < occurrences { value } else { occurrences }
+    self.set_counter(pos, value - decrement)
   }
   let needed = (self.counter_mass + self.hash_count.to_uint64() - 1UL) /
     self.hash_count.to_uint64()

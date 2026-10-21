@@ -118,32 +118,19 @@ fn CompactCountingBloomFilter::increment_positions(
   h2 : UInt64,
 ) -> Unit {
   let slot_count = self.slot_count.to_uint64()
-  for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, slot_count)
-    let mut first_occurrence = true
-    for j = 0; j < i; j = j + 1 {
-      if bit_index(h1, h2, j, slot_count) == pos {
-        first_occurrence = false
-        break
-      }
+  let positions = unique_key_positions(h1, h2, self.hash_count, slot_count)
+  for entry in positions {
+    let (pos, occurrences) = entry
+    let occurrences = occurrences.to_uint64()
+    let limit = if occurrences > COMPACT_COUNTER_MAX {
+      COMPACT_COUNTER_MAX
+    } else {
+      COMPACT_COUNTER_MAX - COMPACT_COUNTER_MAX % occurrences
     }
-    if first_occurrence {
-      let mut occurrences = 1UL
-      for j = i + 1; j < self.hash_count; j = j + 1 {
-        if bit_index(h1, h2, j, slot_count) == pos {
-          occurrences = occurrences + 1UL
-        }
-      }
-      let limit = if occurrences > COMPACT_COUNTER_MAX {
-        COMPACT_COUNTER_MAX
-      } else {
-        COMPACT_COUNTER_MAX - COMPACT_COUNTER_MAX % occurrences
-      }
-      let value = self.counter_at(pos)
-      if value < limit {
-        let raised = value + occurrences
-        self.set_counter(pos, if raised > limit { limit } else { raised })
-      }
+    let value = self.counter_at(pos)
+    if value < limit {
+      let raised = value + occurrences
+      self.set_counter(pos, if raised > limit { limit } else { raised })
     }
   }
 }
@@ -203,43 +190,24 @@ pub fn[K : Hash] CompactCountingBloomFilter::remove(
 ) -> Bool {
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
-  for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, slot_count)
-    let mut remaining = 0UL
-    for j = i; j < self.hash_count; j = j + 1 {
-      if bit_index(h1, h2, j, slot_count) == pos {
-        remaining = remaining + 1UL
-      }
-    }
-    let required = if remaining > COMPACT_COUNTER_MAX {
+  let positions = unique_key_positions(h1, h2, self.hash_count, slot_count)
+  for entry in positions {
+    let (pos, occurrences) = entry
+    let required = if occurrences.to_uint64() > COMPACT_COUNTER_MAX {
       COMPACT_COUNTER_MAX
     } else {
-      remaining
+      occurrences.to_uint64()
     }
     if self.counter_at(pos) < required {
       return false
     }
   }
-  for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, slot_count)
-    let mut first_occurrence = true
-    for j = 0; j < i; j = j + 1 {
-      if bit_index(h1, h2, j, slot_count) == pos {
-        first_occurrence = false
-        break
-      }
-    }
-    if first_occurrence {
-      let mut occurrences = 1UL
-      for j = i + 1; j < self.hash_count; j = j + 1 {
-        if bit_index(h1, h2, j, slot_count) == pos {
-          occurrences = occurrences + 1UL
-        }
-      }
-      let value = self.counter_at(pos)
-      let decrement = if value < occurrences { value } else { occurrences }
-      self.set_counter(pos, value - decrement)
-    }
+  for entry in positions {
+    let (pos, occurrences) = entry
+    let occurrences = occurrences.to_uint64()
+    let value = self.counter_at(pos)
+    let decrement = if value < occurrences { value } else { occurrences }
+    self.set_counter(pos, value - decrement)
   }
   let needed = (self.counter_mass + self.hash_count.to_uint64() - 1UL) /
     self.hash_count.to_uint64()
