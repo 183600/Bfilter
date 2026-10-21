@@ -245,3 +245,26 @@ test "scalable counting chained merges keep every key removable" {
     assert_eq(combined.tracked_key_count(), 0)
   }
 }
+
+///|
+test "scalable counting remove follows a merged key to its other slice" {
+  let left = @src.ScalableCountingBloomFilter::new(4, 0.000001)
+  let right = @src.ScalableCountingBloomFilter::new(4, 0.000001)
+  left.insert("shared")
+  for i = 0; i < 20; i = i + 1 {
+    left.insert("left-" + i.to_string())
+  }
+  for i = 0; i < 20; i = i + 1 {
+    right.insert("right-" + i.to_string())
+  }
+  right.insert("shared")
+  let combined = left.union(right)
+  assert_eq(combined.count_of("shared"), 2)
+  assert_true(combined.remove("shared"))
+  assert_eq(combined.count_of("shared"), 1)
+  assert_true(combined.remove("shared"))
+  assert_eq(combined.count_of("shared"), 0)
+  assert_false(combined.contains("shared"))
+  assert_false(combined.remove("shared"))
+  assert_eq(combined.count(), left.count() + right.count() - 2)
+}
