@@ -107,11 +107,16 @@ fn BloomFilter::insert_hashes(
     abort("bloom filter insertion count overflow")
   }
   let bit_count = self.bit_count.to_uint64()
+  let step = h2 % bit_count
+  let mut pos = h1 % bit_count
   for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, bit_count)
-    let word = pos / 64
-    let bit = pos % 64
+    let word = (pos / 64UL).to_int()
+    let bit = (pos % 64UL).to_int()
     self.words[word] = self.words[word] | (1UL << bit)
+    pos = pos + step
+    if pos >= bit_count {
+      pos = pos - bit_count
+    }
   }
   self.inserted += 1
 }
@@ -134,20 +139,29 @@ fn BloomFilter::insert_if_absent_hashes(
   h2 : UInt64,
 ) -> Bool {
   let bit_count = self.bit_count.to_uint64()
+  let step = h2 % bit_count
+  let mut pos = h1 % bit_count
   for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, bit_count)
-    let mask = 1UL << (pos % 64)
-    if (self.words[pos / 64] & mask) == 0UL {
+    let mask = 1UL << (pos % 64UL).to_int()
+    if (self.words[(pos / 64UL).to_int()] & mask) == 0UL {
       guard self.inserted < 2147483647 else {
         abort("bloom filter insertion count overflow")
       }
+      let mut remaining = pos
       for j = i; j < self.hash_count; j = j + 1 {
-        let remaining = bit_index(h1, h2, j, bit_count)
-        self.words[remaining / 64] = self.words[remaining / 64] |
-          (1UL << (remaining % 64))
+        self.words[(remaining / 64UL).to_int()] = self.words[(remaining / 64UL).to_int()] |
+          (1UL << (remaining % 64UL).to_int())
+        remaining = remaining + step
+        if remaining >= bit_count {
+          remaining = remaining - bit_count
+        }
       }
       self.inserted += 1
       return true
+    }
+    pos = pos + step
+    if pos >= bit_count {
+      pos = pos - bit_count
     }
   }
   false
@@ -175,14 +189,19 @@ fn BloomFilter::contains_hashes(
   h2 : UInt64,
 ) -> Bool {
   let bit_count = self.bit_count.to_uint64()
+  let step = h2 % bit_count
+  let mut pos = h1 % bit_count
   for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, bit_count)
-    let word = pos / 64
-    let bit = pos % 64
+    let word = (pos / 64UL).to_int()
+    let bit = (pos % 64UL).to_int()
     let mask = 1UL << bit
     let present = self.words[word] & mask
     if present == 0UL {
       return false
+    }
+    pos = pos + step
+    if pos >= bit_count {
+      pos = pos - bit_count
     }
   }
   true

@@ -116,11 +116,17 @@ pub fn[K : Hash] BlockedBloomFilter::insert(
   let (h1, h2) = key_hashes(key)
   let base = self.block_base(h1)
   let block_bits = BLOCKED_BLOCK_BITS.to_uint64()
+  let step = (h2 % block_bits).to_int()
+  let mut offset = (h1 % block_bits).to_int()
   for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = base + bit_index(h1, h2, i, block_bits)
+    let pos = base + offset
     let word = pos / 64
     let bit = pos % 64
     self.words[word] = self.words[word] | (1UL << bit)
+    offset = offset + step
+    if offset >= BLOCKED_BLOCK_BITS {
+      offset = offset - BLOCKED_BLOCK_BITS
+    }
   }
   self.inserted += 1
 }
@@ -138,20 +144,31 @@ pub fn[K : Hash] BlockedBloomFilter::insert_if_absent(
   let (h1, h2) = key_hashes(key)
   let base = self.block_base(h1)
   let block_bits = BLOCKED_BLOCK_BITS.to_uint64()
+  let step = (h2 % block_bits).to_int()
+  let mut offset = (h1 % block_bits).to_int()
   for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = base + bit_index(h1, h2, i, block_bits)
+    let pos = base + offset
     let mask = 1UL << (pos % 64)
     if (self.words[pos / 64] & mask) == 0UL {
       guard self.inserted < 2147483647 else {
         abort("blocked bloom filter insertion count overflow")
       }
+      let mut remaining = offset
       for j = i; j < self.hash_count; j = j + 1 {
-        let remaining = base + bit_index(h1, h2, j, block_bits)
-        self.words[remaining / 64] = self.words[remaining / 64] |
-          (1UL << (remaining % 64))
+        let target = base + remaining
+        self.words[target / 64] = self.words[target / 64] |
+          (1UL << (target % 64))
+        remaining = remaining + step
+        if remaining >= BLOCKED_BLOCK_BITS {
+          remaining = remaining - BLOCKED_BLOCK_BITS
+        }
       }
       self.inserted += 1
       return true
+    }
+    offset = offset + step
+    if offset >= BLOCKED_BLOCK_BITS {
+      offset = offset - BLOCKED_BLOCK_BITS
     }
   }
   false
@@ -169,11 +186,17 @@ pub fn[K : Hash] BlockedBloomFilter::contains(
   let (h1, h2) = key_hashes(key)
   let base = self.block_base(h1)
   let block_bits = BLOCKED_BLOCK_BITS.to_uint64()
+  let step = (h2 % block_bits).to_int()
+  let mut offset = (h1 % block_bits).to_int()
   for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = base + bit_index(h1, h2, i, block_bits)
+    let pos = base + offset
     let mask = 1UL << (pos % 64)
     if (self.words[pos / 64] & mask) == 0UL {
       return false
+    }
+    offset = offset + step
+    if offset >= BLOCKED_BLOCK_BITS {
+      offset = offset - BLOCKED_BLOCK_BITS
     }
   }
   true
