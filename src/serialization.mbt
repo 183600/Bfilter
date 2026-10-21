@@ -23,6 +23,9 @@ const SERIAL_COMPACT_COUNTING : Byte = b'\x05'
 const SERIAL_BLOCKED : Byte = b'\x06'
 
 ///|
+const SERIAL_SCALABLE_COUNTING : Byte = b'\x07'
+
+///|
 const SERIAL_HEADER_BYTES : Int32 = 20
 
 ///|
@@ -346,6 +349,189 @@ pub fn ScalableBloomFilter::from_bytes(data : Bytes) -> ScalableBloomFilter {
   }
   guard total_inserted == inserted.to_int64() else {
     abort("scalable bloom insertion count does not match its slices")
+  }
+  filter.inserted = inserted
+  filter
+}
+
+///|
+/// Encode the scalable counting filter as a portable byte sequence.
+///
+/// The header stores the slice count, insertion count, initial capacity, and
+/// target false-positive rate. A table of tracked key hashes records the owning
+/// slice and exact multiplicity for every distinct key, followed by each slice
+/// as a length-prefixed `CountingBloomFilter` byte sequence.
+pub fn ScalableCountingBloomFilter::to_bytes(
+  self : ScalableCountingBloomFilter,
+) -> Bytes {
+  let encoded : Array[Bytes] = []
+  let mut total = SERIAL_HEADER_BYTES + 12
+  for slice in self.slices {
+    let bytes = slice.to_bytes()
+    encoded.push(bytes)
+    total = total + 4 + bytes.length()
+  }
+  let entry_count = self.locations.length()
+  guard entry_count >= 0 && entry_count <= (2147483647 - total) / 24 else {
+    abort("scalable counting bloom filter is too large to serialize")
+  }
+  total = total + entry_count * 24
+  let data = FixedArray::make(total, b'\x00')
+  serial_write_header(
+    data,
+    SERIAL_SCALABLE_COUNTING,
+    self.slices.length(),
+    self.inserted,
+    self.initial_capacity,
+  )
+  data.unsafe_write_uint64_le(
+    SERIAL_HEADER_BYTES,
+    self.target_rate.reinterpret_as_uint64(),
+  )
+  data.unsafe_write_uint32_le(
+    SERIAL_HEADER_BYTES + 8,
+    entry_count.reinterpret_as_uint(),
+  )
+  let mut offset = SERIAL_HEADER_BYTES + 12
+  for entry in self.locations.iter() {
+    let ((h1, h2), (slice_index, occurrences)) = entry
+    data.unsafe_write_uint64_le(offset, h1)
+    data.unsafe_write_uint64_le(offset + 8, h2)
+    data.unsafe_write_uint32_le(offset + 16, slice_index.reinterpret_as_uint())
+    data.unsafe_write_uint32_le(offset + 20, occurrences.reinterpret_as_uint())
+    offset = offset + 24
+  }
+  for bytes in encoded {
+    data.unsafe_write_uint32_le(offset, bytes.length().reinterpret_as_uint())
+    offset = offset + 4
+    for i = 0; i < bytes.length(); i = i + 1 {
+      data[offset + i] = bytes.at(i)
+    }
+    offset = offset + bytes.length()
+  }
+  Bytes::from_array(data.exact_view())
+}
+
+///|
+/// Decode a scalable counting filter produced by
+/// `ScalableCountingBloomFilter::to_bytes`.
+///
+/// Panics if the data is truncated, uses another format, has an invalid target
+/// rate, contains slices that do not match the growth policy, or has metadata
+/// that points outside the decoded slices.
+pub fn ScalableCountingBloomFilter::from_bytes(
+  data : Bytes,
+) -> ScalableCountingBloomFilter {
+  let (slice_count, inserted, initial_capacity) = serial_read_header(
+    data,
+    SERIAL_SCALABLE_COUNTING,
+  )
+  guard slice_count > 0 && slice_count <= 64 else {
+    abort("invalid scalable counting bloom slice count")
+  }
+  guard initial_capacity > 0 else {
+    abort("invalid scalable counting bloom initial capacity")
+  }
+  guard inserted >= 0 else {
+    abort("invalid scalable counting bloom insertion count")
+  }
+  guard data.length() >= SERIAL_HEADER_BYTES + 12 else {
+    abort("serialized scalable counting bloom filter is too short")
+  }
+  let target_rate = data
+    .unsafe_read_uint64_le(SERIAL_HEADER_BYTES)
+    .reinterpret_as_double()
+  guard target_rate > 0.0 && target_rate < 1.0 else {
+    abort("invalid scalable counting bloom false positive rate")
+  }
+  let entry_count = data
+    .unsafe_read_uint32_le(SERIAL_HEADER_BYTES + 8)
+    .reinterpret_as_int()
+  guard entry_count >= 0 && entry_count <= inserted else {
+    abort("invalid scalable counting bloom metadata count")
+  }
+  let metadata_offset = SERIAL_HEADER_BYTES + 12
+  guard entry_count <= (data.length() - metadata_offset) / 24 else {
+    abort("serialized scalable counting bloom metadata is truncated")
+  }
+  let slices_offset = metadata_offset + entry_count * 24
+  let filter : ScalableCountingBloomFilter = {
+    slices: [],
+    capacities: [],
+    locations: @hashmap.HashMap([]),
+    initial_capacity,
+    target_rate,
+    inserted: 0,
+  }
+  let mut offset = slices_offset
+  let mut total_inserted = 0L
+  let mut total_bits = 0L
+  for index = 0; index < slice_count; index = index + 1 {
+    guard offset <= data.length() - 4 else {
+      abort("serialized scalable counting bloom slice is truncated")
+    }
+    let length = data.unsafe_read_uint32_le(offset).reinterpret_as_int()
+    offset = offset + 4
+    guard length >= SERIAL_HEADER_BYTES && length <= data.length() - offset else {
+      abort("serialized scalable counting bloom slice has invalid length")
+    }
+    let slice = CountingBloomFilter::from_bytes(
+      data.exact_view(start=offset, end=offset + length).to_owned(),
+    )
+    let capacity = if index == 0 {
+      initial_capacity
+    } else {
+      let previous = filter.capacities[index - 1]
+      if previous > 2147483647 / SCALABLE_COUNTING_GROWTH {
+        abort("scalable counting bloom filter is too large")
+      }
+      previous * SCALABLE_COUNTING_GROWTH
+    }
+    let (expected_slots, expected_hashes) = counting_bloom_layout(
+      capacity,
+      scalable_counting_slice_rate(target_rate, index),
+    )
+    guard slice.slot_count() == expected_slots &&
+      slice.hash_count() == expected_hashes else {
+      abort("scalable counting bloom slice does not match its layout")
+    }
+    total_bits = total_bits + slice.slot_count().to_int64() * 16L
+    guard total_bits <= 2147483584L else {
+      abort("scalable counting bloom filter is too large")
+    }
+    total_inserted = total_inserted + slice.count().to_int64()
+    filter.slices.push(slice)
+    filter.capacities.push(capacity)
+    offset = offset + length
+  }
+  guard offset == data.length() else {
+    abort("serialized scalable counting bloom filter has trailing data")
+  }
+  guard total_inserted == inserted.to_int64() else {
+    abort("scalable counting bloom insertion count does not match its slices")
+  }
+  offset = metadata_offset
+  for entry = 0; entry < entry_count; entry = entry + 1 {
+    let h1 = data.unsafe_read_uint64_le(offset)
+    let h2 = data.unsafe_read_uint64_le(offset + 8)
+    let slice_index = data
+      .unsafe_read_uint32_le(offset + 16)
+      .reinterpret_as_int()
+    let occurrences = data
+      .unsafe_read_uint32_le(offset + 20)
+      .reinterpret_as_int()
+    guard slice_index >= 0 && slice_index < slice_count else {
+      abort("scalable counting bloom metadata points outside its slices")
+    }
+    guard occurrences > 0 else {
+      abort("invalid scalable counting bloom occurrence count")
+    }
+    let id = (h1, h2)
+    guard !filter.locations.contains(id) else {
+      abort("duplicate scalable counting bloom metadata entry")
+    }
+    filter.locations.set(id, (slice_index, occurrences))
+    offset = offset + 24
   }
   filter.inserted = inserted
   filter

@@ -411,6 +411,7 @@ pub fn[K : Hash] ScalableCountingBloomFilter::count_of(Self, K) -> Int32
 pub fn ScalableCountingBloomFilter::estimated_item_count(Self) -> Double
 pub fn ScalableCountingBloomFilter::false_positive_rate(Self) -> Double
 pub fn ScalableCountingBloomFilter::fill_ratio(Self) -> Double
+pub fn ScalableCountingBloomFilter::from_bytes(Bytes) -> Self
 pub fn[K : Hash] ScalableCountingBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] ScalableCountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
 pub fn[K : Hash] ScalableCountingBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
@@ -424,6 +425,7 @@ pub fn[K : Hash] ScalableCountingBloomFilter::remove_all(Self, ArrayView[K]) -> 
 pub fn ScalableCountingBloomFilter::slice_count(Self) -> Int32
 pub fn ScalableCountingBloomFilter::slot_count(Self) -> Int64
 pub fn ScalableCountingBloomFilter::target_false_positive_rate(Self) -> Double
+pub fn ScalableCountingBloomFilter::to_bytes(Self) -> Bytes
 pub fn ScalableCountingBloomFilter::tracked_key_count(Self) -> Int32
 
 // Type aliases
