@@ -175,3 +175,57 @@ test "panic scalable counting serialization rejects excessive total occurrences"
   )
   |> ignore
 }
+
+///|
+test "panic scalable counting serialization rejects metadata exceeding its slice count" {
+  let filter = @src.ScalableCountingBloomFilter::new(4, 0.000001)
+  for i = 0; i < 5; i = i + 1 {
+    filter.insert("key-" + i.to_string())
+  }
+  let bytes = filter.to_bytes().to_fixedarray()
+  let view = Bytes::from_array(bytes.exact_view())
+  let entry_count = view.unsafe_read_uint32_le(28).reinterpret_as_int()
+  let slices_offset = 32 + entry_count * 24
+  let first_length = view
+    .unsafe_read_uint32_le(slices_offset)
+    .reinterpret_as_int()
+  let first_header = slices_offset + 4
+  let second_header = first_header + first_length + 4
+  let second_count = view
+    .unsafe_read_uint32_le(second_header + 16)
+    .reinterpret_as_int()
+  let target_count = second_count + 1
+  let mut offset = 32
+  let mut delta = 0
+  for entry = 0; entry < entry_count; entry = entry + 1 {
+    let slice_index = view
+      .unsafe_read_uint32_le(offset + 16)
+      .reinterpret_as_int()
+    if slice_index == 1 {
+      let occurrences = view
+        .unsafe_read_uint32_le(offset + 20)
+        .reinterpret_as_int()
+      delta = target_count - occurrences
+      bytes.unsafe_write_uint32_le(
+        offset + 20,
+        target_count.reinterpret_as_uint(),
+      )
+      break
+    }
+    offset = offset + 24
+  }
+  assert_true(delta > 0)
+  let inserted = view.unsafe_read_uint32_le(12).reinterpret_as_int()
+  bytes.unsafe_write_uint32_le(12, (inserted + delta).reinterpret_as_uint())
+  let first_count = view
+    .unsafe_read_uint32_le(first_header + 16)
+    .reinterpret_as_int()
+  bytes.unsafe_write_uint32_le(
+    first_header + 16,
+    (first_count + delta).reinterpret_as_uint(),
+  )
+  @src.ScalableCountingBloomFilter::from_bytes(
+    Bytes::from_array(bytes.exact_view()),
+  )
+  |> ignore
+}

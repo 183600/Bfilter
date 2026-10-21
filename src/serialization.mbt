@@ -510,6 +510,7 @@ pub fn ScalableCountingBloomFilter::from_bytes(
   guard total_inserted == inserted.to_int64() else {
     abort("scalable counting bloom insertion count does not match its slices")
   }
+  let slice_occurrences : Array[Int64] = Array::make(slice_count, 0L)
   offset = metadata_offset
   let mut total_occurrences = 0L
   for entry = 0; entry < entry_count; entry = entry + 1 {
@@ -527,6 +528,11 @@ pub fn ScalableCountingBloomFilter::from_bytes(
     guard occurrences > 0 else {
       abort("invalid scalable counting bloom occurrence count")
     }
+    let slice_total = slice_occurrences[slice_index] + occurrences.to_int64()
+    guard slice_total <= filter.slices[slice_index].count().to_int64() else {
+      abort("scalable counting bloom metadata exceeds its slice count")
+    }
+    slice_occurrences[slice_index] = slice_total
     total_occurrences = total_occurrences + occurrences.to_int64()
     guard total_occurrences <= inserted.to_int64() else {
       abort("invalid scalable counting bloom occurrence count")
