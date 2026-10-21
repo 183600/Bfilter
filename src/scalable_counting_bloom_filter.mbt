@@ -191,18 +191,44 @@ pub fn[K : Hash] ScalableCountingBloomFilter::remove(
     Some(location) => location
     None => return false
   }
-  if !self.slices[slice_index].remove(key) {
-    return false
+  if self.slices[slice_index].remove(key) {
+    if occurrences > 1 {
+      self.locations.set(id, (slice_index, occurrences - 1))
+    } else {
+      self.locations.remove(id)
+    }
+    self.refresh_inserted()
+    return true
   }
-  if occurrences > 1 {
-    self.locations.set(id, (slice_index, occurrences - 1))
-  } else {
-    self.locations.remove(id)
+  for index = 0; index < self.slices.length(); index = index + 1 {
+    if index == slice_index {
+      continue
+    }
+    if self.slices[index].remove(key) {
+      if occurrences > 1 {
+        self.locations.set(id, (index, occurrences - 1))
+      } else {
+        self.locations.remove(id)
+      }
+      self.refresh_inserted()
+      return true
+    }
   }
-  if self.inserted > 0 {
-    self.inserted -= 1
+  false
+}
+
+///|
+/// Keep the global insertion count consistent with the slice counters after a
+/// removal. Counter collisions can make an individual slice keep a saturated
+/// residue, so the total is recomputed instead of decremented blindly.
+fn ScalableCountingBloomFilter::refresh_inserted(
+  self : ScalableCountingBloomFilter,
+) -> Unit {
+  let mut total = 0
+  for slice in self.slices {
+    total = total + slice.count()
   }
-  true
+  self.inserted = total
 }
 
 ///|
@@ -433,4 +459,163 @@ pub fn ScalableCountingBloomFilter::memory_bytes(
     total = total + slice.memory_bytes()
   }
   total
+}
+
+///|
+fn ScalableCountingBloomFilter::ensure_same_policy(
+  self : ScalableCountingBloomFilter,
+  other : ScalableCountingBloomFilter,
+) -> Unit {
+  guard self.initial_capacity == other.initial_capacity &&
+    self.target_rate == other.target_rate else {
+    abort(
+      "scalable counting bloom filters must share the initial capacity and target rate",
+    )
+  }
+}
+
+///|
+/// Merge every slice and tracked key of `other` into `self` in place.
+///
+/// Both filters must share the same initial capacity and target rate, so slice
+/// `i` of each filter uses the same layout and their counters are combined with
+/// the larger value. Slices that only `other` holds are appended as copies, and
+/// tracked multiplicities are combined per key. The insertion counter becomes
+/// the sum of the input counts, a conservative upper bound when keys overlap.
+pub fn ScalableCountingBloomFilter::merge(
+  self : ScalableCountingBloomFilter,
+  other : ScalableCountingBloomFilter,
+) -> Unit {
+  self.ensure_same_policy(other)
+  guard self.inserted <= 2147483647 - other.inserted else {
+    abort("scalable counting bloom filter insertion count overflow")
+  }
+  let mut total_slots = self.slot_count()
+  for i = self.slices.length(); i < other.slices.length(); i = i + 1 {
+    total_slots = total_slots + other.slices[i].slot_count().to_int64()
+  }
+  guard total_slots * 16L <= 2147483584L else {
+    abort("scalable counting bloom filter is too large")
+  }
+  for i = 0; i < other.slices.length(); i = i + 1 {
+    if i < self.slices.length() {
+      self.slices[i].merge(other.slices[i])
+    } else {
+      self.slices.push(other.slices[i].copy())
+      self.capacities.push(other.capacities[i])
+    }
+  }
+  let merged : @hashmap.HashMap[(UInt64, UInt64), (Int32, Int32)] = @hashmap.HashMap([],
+  )
+  for entry in self.locations.iter() {
+    merged.set(entry.0, entry.1)
+  }
+  for entry in other.locations.iter() {
+    let (id, (other_slice, other_occurrences)) = entry
+    match merged.get(id) {
+      Some((self_slice, self_occurrences)) =>
+        if self_slice == other_slice {
+          merged.set(
+            id,
+            (
+              self_slice,
+              if self_occurrences > other_occurrences {
+                self_occurrences
+              } else {
+                other_occurrences
+              },
+            ),
+          )
+        } else {
+          guard self_occurrences <= 2147483647 - other_occurrences else {
+            abort("scalable counting bloom filter occurrence count overflow")
+          }
+          merged.set(id, (self_slice, self_occurrences + other_occurrences))
+        }
+      None => merged.set(id, (other_slice, other_occurrences))
+    }
+  }
+  self.locations.clear()
+  for entry in merged.iter() {
+    self.locations.set(entry.0, entry.1)
+  }
+  self.inserted += other.inserted
+}
+
+///|
+/// Build a new filter containing every key present in either input.
+///
+/// Both filters must share the same initial capacity and target rate. The
+/// result uses the per-slice union of their counters, so it never reports a
+/// false negative for a key either input reported present. The inputs are left
+/// unchanged.
+pub fn ScalableCountingBloomFilter::union(
+  self : ScalableCountingBloomFilter,
+  other : ScalableCountingBloomFilter,
+) -> ScalableCountingBloomFilter {
+  let result = self.copy()
+  result.merge(other)
+  result
+}
+
+///|
+/// Whether every key reported present by `self` is also reported present by
+/// `other`.
+///
+/// Both filters must share the same initial capacity and target rate. Slice `i`
+/// of `self` is compared only against slice `i` of `other` because slices with
+/// different indices use different layouts; a slice of `self` beyond the last
+/// slice of `other` must be empty. A `true` result is therefore sufficient but
+/// not necessary for membership containment: a key missed by its own slice in
+/// `other` could still be covered by another slice.
+pub fn ScalableCountingBloomFilter::is_subset_of(
+  self : ScalableCountingBloomFilter,
+  other : ScalableCountingBloomFilter,
+) -> Bool {
+  self.ensure_same_policy(other)
+  for i = 0; i < self.slices.length(); i = i + 1 {
+    if i < other.slices.length() {
+      if !self.slices[i].is_subset_of(other.slices[i]) {
+        return false
+      }
+    } else if self.slices[i].occupied_slot_count() > 0 {
+      return false
+    }
+  }
+  true
+}
+
+///|
+/// Whether `self` and `other` are definitely disjoint.
+///
+/// Both filters must share the same initial capacity and target rate. Returns
+/// `true` only when every slice of `self` has no positive counter in common with
+/// every slice of `other`. A key can only be reported by both filters when its
+/// counters are positive in one slice of each, so this guarantees no key is
+/// reported present by both. A `false` result is inconclusive because equal
+/// counters may come from different keys.
+///
+/// Slices at different indices use different layouts, so their counter arrays
+/// cannot be compared directly. A pair of slices with different layouts is
+/// treated as not provably disjoint once both are non-empty; an empty slice
+/// never reports any key and therefore cannot overlap.
+pub fn ScalableCountingBloomFilter::is_disjoint_from(
+  self : ScalableCountingBloomFilter,
+  other : ScalableCountingBloomFilter,
+) -> Bool {
+  self.ensure_same_policy(other)
+  for left in self.slices {
+    for right in other.slices {
+      if left.occupied_slot_count() > 0 && right.occupied_slot_count() > 0 {
+        if left.slot_count() != right.slot_count() ||
+          left.hash_count() != right.hash_count() {
+          return false
+        }
+        if !left.is_disjoint_from(right) {
+          return false
+        }
+      }
+    }
+  }
+  true
 }

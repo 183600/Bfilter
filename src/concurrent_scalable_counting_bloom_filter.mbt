@@ -130,6 +130,56 @@ pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::contains_any(
 }
 
 ///|
+/// Merge another filter into this one while holding the lock once.
+///
+/// The other filter must share the initial capacity and target rate. Its slices
+/// and tracked keys are combined with the current state and its insertion count
+/// is added.
+pub fn ConcurrentScalableCountingBloomFilter::merge(
+  self : ConcurrentScalableCountingBloomFilter,
+  other : ScalableCountingBloomFilter,
+) -> Unit {
+  self.with_lock(filter => filter.merge(other))
+}
+
+///|
+/// Build a scalable counting filter containing every key present in either
+/// input while holding the lock once.
+///
+/// The other filter must share the initial capacity and target rate. The result
+/// is an independent filter; the concurrent receiver is left unchanged.
+pub fn ConcurrentScalableCountingBloomFilter::union(
+  self : ConcurrentScalableCountingBloomFilter,
+  other : ScalableCountingBloomFilter,
+) -> ScalableCountingBloomFilter {
+  self.with_lock(filter => filter.union(other))
+}
+
+///|
+/// Whether every key reported present by the current filter is also reported
+/// present by `other`, while holding the lock once.
+///
+/// The other filter must share the initial capacity and target rate.
+pub fn ConcurrentScalableCountingBloomFilter::is_subset_of(
+  self : ConcurrentScalableCountingBloomFilter,
+  other : ScalableCountingBloomFilter,
+) -> Bool {
+  self.with_lock(filter => filter.is_subset_of(other))
+}
+
+///|
+/// Whether the current filter and `other` are definitely disjoint, while
+/// holding the lock once.
+///
+/// The other filter must share the initial capacity and target rate.
+pub fn ConcurrentScalableCountingBloomFilter::is_disjoint_from(
+  self : ConcurrentScalableCountingBloomFilter,
+  other : ScalableCountingBloomFilter,
+) -> Bool {
+  self.with_lock(filter => filter.is_disjoint_from(other))
+}
+
+///|
 /// Return a consistent copy of the underlying filter, including slices and
 /// location metadata.
 pub fn ConcurrentScalableCountingBloomFilter::snapshot(

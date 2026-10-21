@@ -317,8 +317,11 @@ pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
 pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
 pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::insert_if_absent(Self, K) -> Bool
+pub fn ConcurrentScalableCountingBloomFilter::is_disjoint_from(Self, ScalableCountingBloomFilter) -> Bool
 pub fn ConcurrentScalableCountingBloomFilter::is_empty(Self) -> Bool
+pub fn ConcurrentScalableCountingBloomFilter::is_subset_of(Self, ScalableCountingBloomFilter) -> Bool
 pub fn ConcurrentScalableCountingBloomFilter::memory_bytes(Self) -> Int64
+pub fn ConcurrentScalableCountingBloomFilter::merge(Self, ScalableCountingBloomFilter) -> Unit
 pub fn ConcurrentScalableCountingBloomFilter::new(Int32, Double) -> Self
 pub fn ConcurrentScalableCountingBloomFilter::occupied_slot_count(Self) -> Int64
 pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::remove(Self, K) -> Bool
@@ -329,6 +332,7 @@ pub fn ConcurrentScalableCountingBloomFilter::snapshot(Self) -> ScalableCounting
 pub fn ConcurrentScalableCountingBloomFilter::target_false_positive_rate(Self) -> Double
 pub fn ConcurrentScalableCountingBloomFilter::to_bytes(Self) -> Bytes
 pub fn ConcurrentScalableCountingBloomFilter::tracked_key_count(Self) -> Int32
+pub fn ConcurrentScalableCountingBloomFilter::union(Self, ScalableCountingBloomFilter) -> ScalableCountingBloomFilter
 
 pub struct CountingBloomFilter {
   // private fields
@@ -447,8 +451,11 @@ pub fn[K : Hash] ScalableCountingBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] ScalableCountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
 pub fn[K : Hash] ScalableCountingBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
 pub fn[K : Hash] ScalableCountingBloomFilter::insert_if_absent(Self, K) -> Bool
+pub fn ScalableCountingBloomFilter::is_disjoint_from(Self, Self) -> Bool
 pub fn ScalableCountingBloomFilter::is_empty(Self) -> Bool
+pub fn ScalableCountingBloomFilter::is_subset_of(Self, Self) -> Bool
 pub fn ScalableCountingBloomFilter::memory_bytes(Self) -> Int64
+pub fn ScalableCountingBloomFilter::merge(Self, Self) -> Unit
 pub fn ScalableCountingBloomFilter::new(Int32, Double) -> Self
 pub fn ScalableCountingBloomFilter::occupied_slot_count(Self) -> Int64
 pub fn[K : Hash] ScalableCountingBloomFilter::remove(Self, K) -> Bool
@@ -458,6 +465,7 @@ pub fn ScalableCountingBloomFilter::slot_count(Self) -> Int64
 pub fn ScalableCountingBloomFilter::target_false_positive_rate(Self) -> Double
 pub fn ScalableCountingBloomFilter::to_bytes(Self) -> Bytes
 pub fn ScalableCountingBloomFilter::tracked_key_count(Self) -> Int32
+pub fn ScalableCountingBloomFilter::union(Self, Self) -> Self
 
 // Type aliases
 
