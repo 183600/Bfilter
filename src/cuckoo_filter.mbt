@@ -398,10 +398,13 @@ pub fn[K : Hash] CuckooFilter::insert_if_absent(
   self : CuckooFilter,
   key : K,
 ) -> Bool {
-  if self.contains(key) {
+  let (index1, fingerprint) = self.key_info(key)
+  let index2 = self.alternate_index(index1, fingerprint)
+  if self.bucket_contains(index1, fingerprint) ||
+    self.bucket_contains(index2, fingerprint) {
     false
   } else {
-    self.insert(key)
+    self.insert_fingerprint(index1, fingerprint)
   }
 }
 

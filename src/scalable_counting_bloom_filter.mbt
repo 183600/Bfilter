@@ -211,7 +211,7 @@ pub fn[K : Hash] ScalableCountingBloomFilter::remove(
     Some(location) => location
     None => return false
   }
-  if self.slices[slice_index].remove(key) {
+  if self.slices[slice_index].remove_hashes(id.0, id.1) {
     if occurrences > 1 {
       self.locations.set(id, (slice_index, occurrences - 1))
     } else {

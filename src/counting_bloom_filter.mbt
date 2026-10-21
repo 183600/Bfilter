@@ -267,6 +267,15 @@ pub fn[K : Hash] CountingBloomFilter::remove(
   key : K,
 ) -> Bool {
   let (h1, h2) = key_hashes(key)
+  self.remove_hashes(h1, h2)
+}
+
+///|
+fn CountingBloomFilter::remove_hashes(
+  self : CountingBloomFilter,
+  h1 : UInt64,
+  h2 : UInt64,
+) -> Bool {
   let slot_count = self.slot_count.to_uint64()
   let positions = unique_key_positions(h1, h2, self.hash_count, slot_count)
   for entry in positions {
