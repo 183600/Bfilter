@@ -299,6 +299,37 @@ pub fn ConcurrentScalableBloomFilter::target_false_positive_rate(Self) -> Double
 pub fn ConcurrentScalableBloomFilter::to_bytes(Self) -> Bytes
 pub fn ConcurrentScalableBloomFilter::union(Self, ScalableBloomFilter) -> ScalableBloomFilter
 
+pub struct ConcurrentScalableCountingBloomFilter {
+  // private fields
+}
+pub fn ConcurrentScalableCountingBloomFilter::capacity(Self) -> Int64
+pub fn ConcurrentScalableCountingBloomFilter::clear(Self) -> Unit
+pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::contains(Self, K) -> Bool
+pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
+pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::contains_any(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentScalableCountingBloomFilter::count(Self) -> Int32
+pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::count_of(Self, K) -> Int32
+pub fn ConcurrentScalableCountingBloomFilter::estimated_item_count(Self) -> Double
+pub fn ConcurrentScalableCountingBloomFilter::false_positive_rate(Self) -> Double
+pub fn ConcurrentScalableCountingBloomFilter::fill_ratio(Self) -> Double
+pub fn ConcurrentScalableCountingBloomFilter::from_bytes(Bytes) -> Self
+pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::insert(Self, K) -> Unit
+pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
+pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
+pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::insert_if_absent(Self, K) -> Bool
+pub fn ConcurrentScalableCountingBloomFilter::is_empty(Self) -> Bool
+pub fn ConcurrentScalableCountingBloomFilter::memory_bytes(Self) -> Int64
+pub fn ConcurrentScalableCountingBloomFilter::new(Int32, Double) -> Self
+pub fn ConcurrentScalableCountingBloomFilter::occupied_slot_count(Self) -> Int64
+pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::remove(Self, K) -> Bool
+pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentScalableCountingBloomFilter::slice_count(Self) -> Int32
+pub fn ConcurrentScalableCountingBloomFilter::slot_count(Self) -> Int64
+pub fn ConcurrentScalableCountingBloomFilter::snapshot(Self) -> ScalableCountingBloomFilter
+pub fn ConcurrentScalableCountingBloomFilter::target_false_positive_rate(Self) -> Double
+pub fn ConcurrentScalableCountingBloomFilter::to_bytes(Self) -> Bytes
+pub fn ConcurrentScalableCountingBloomFilter::tracked_key_count(Self) -> Int32
+
 pub struct CountingBloomFilter {
   // private fields
 }
