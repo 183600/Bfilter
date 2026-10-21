@@ -170,14 +170,23 @@ pub fn[K : Hash] CompactCountingBloomFilter::remove(
 ) -> Bool {
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
+  let positions : Array[Int32] = []
   for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, slot_count)
-    if self.counter_at(pos) == 0UL {
+    positions.push(bit_index(h1, h2, i, slot_count))
+  }
+  for i = 0; i < positions.length(); i = i + 1 {
+    let pos = positions[i]
+    let mut remaining = 0UL
+    for j = i; j < positions.length(); j = j + 1 {
+      if positions[j] == pos {
+        remaining = remaining + 1UL
+      }
+    }
+    if self.counter_at(pos) < remaining {
       return false
     }
   }
-  for i = 0; i < self.hash_count; i = i + 1 {
-    let pos = bit_index(h1, h2, i, slot_count)
+  for pos in positions {
     self.set_counter(pos, self.counter_at(pos) - 1UL)
   }
   if self.inserted > 0 {
