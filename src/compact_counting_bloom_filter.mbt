@@ -208,13 +208,35 @@ pub fn[K : Hash] CompactCountingBloomFilter::remove(
         remaining = remaining + 1UL
       }
     }
-    if self.counter_at(pos) < remaining {
+    let required = if remaining > COMPACT_COUNTER_MAX {
+      COMPACT_COUNTER_MAX
+    } else {
+      remaining
+    }
+    if self.counter_at(pos) < required {
       return false
     }
   }
   for i = 0; i < self.hash_count; i = i + 1 {
     let pos = bit_index(h1, h2, i, slot_count)
-    self.set_counter(pos, self.counter_at(pos) - 1UL)
+    let mut first_occurrence = true
+    for j = 0; j < i; j = j + 1 {
+      if bit_index(h1, h2, j, slot_count) == pos {
+        first_occurrence = false
+        break
+      }
+    }
+    if first_occurrence {
+      let mut occurrences = 1UL
+      for j = i + 1; j < self.hash_count; j = j + 1 {
+        if bit_index(h1, h2, j, slot_count) == pos {
+          occurrences = occurrences + 1UL
+        }
+      }
+      let value = self.counter_at(pos)
+      let decrement = if value < occurrences { value } else { occurrences }
+      self.set_counter(pos, value - decrement)
+    }
   }
   if self.inserted > 0 {
     self.inserted -= 1

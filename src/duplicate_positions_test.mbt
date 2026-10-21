@@ -55,3 +55,18 @@ test "compact counting removes saturated duplicate positions" {
   assert_false(filter.contains(0))
   assert_eq(filter.count_of(0), 0)
 }
+
+///|
+test "compact counting removes keys whose duplicate positions exceed the counter width" {
+  let filter = @src.CompactCountingBloomFilter::with_size(16, 300)
+  filter.insert(0)
+  assert_true(filter.contains(0))
+  assert_eq(
+    filter.count_of(0),
+    @src.CompactCountingBloomFilter::counter_max(),
+  )
+  assert_true(filter.remove(0))
+  assert_false(filter.contains(0))
+  assert_eq(filter.count_of(0), 0)
+  assert_eq(filter.count(), 0)
+}
