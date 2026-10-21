@@ -31,8 +31,7 @@ fn counting_word_mass(word : UInt64) -> UInt64 {
   let low = word & 0x0000FFFF0000FFFFUL
   let high = (word >> 16) & 0x0000FFFF0000FFFFUL
   let pairs = low + high
-  (pairs & 0x00000000FFFFFFFFUL) +
-  ((pairs >> 32) & 0x00000000FFFFFFFFUL)
+  (pairs & 0x00000000FFFFFFFFUL) + ((pairs >> 32) & 0x00000000FFFFFFFFUL)
 }
 
 ///|

@@ -23,7 +23,9 @@ test "randomized scalable counting intersections stay removable and serializable
       let expected = left_live[key].min(right_live[key])
       assert_eq(common.count_of(key), expected)
     }
-    let restored = @src.ScalableCountingBloomFilter::from_bytes(common.to_bytes())
+    let restored = @src.ScalableCountingBloomFilter::from_bytes(
+      common.to_bytes(),
+    )
     assert_eq(restored.count(), common.count())
     assert_eq(restored.tracked_key_count(), common.tracked_key_count())
     for key = 0; key < key_count; key = key + 1 {

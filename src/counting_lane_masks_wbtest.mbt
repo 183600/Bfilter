@@ -1,13 +1,7 @@
 ///|
 test "counting lane helpers match per-lane scans" {
   let words : Array[UInt64] = [
-    0UL,
-    1UL,
-    0x8000UL,
-    0xFFFFUL,
-    0x0001000200030004UL,
-    0x8000800080008000UL,
-    0xFFFFFFFFFFFFFFFFUL,
+    0UL, 1UL, 0x8000UL, 0xFFFFUL, 0x0001000200030004UL, 0x8000800080008000UL, 0xFFFFFFFFFFFFFFFFUL,
   ]
   for word in words {
     let mut expected_mask = 0UL
@@ -27,13 +21,7 @@ test "counting lane helpers match per-lane scans" {
 ///|
 test "compact lane helpers match per-lane scans" {
   let words : Array[UInt64] = [
-    0UL,
-    1UL,
-    8UL,
-    0xFUL,
-    0x123456789ABCDEF0UL,
-    0x8888888888888888UL,
-    0xFFFFFFFFFFFFFFFFUL,
+    0UL, 1UL, 8UL, 0xFUL, 0x123456789ABCDEF0UL, 0x8888888888888888UL, 0xFFFFFFFFFFFFFFFFUL,
   ]
   for word in words {
     let mut expected_mask = 0UL

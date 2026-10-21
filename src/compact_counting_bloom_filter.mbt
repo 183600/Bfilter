@@ -44,8 +44,7 @@ fn compact_nonzero_lanes(word : UInt64) -> UInt64 {
 fn compact_word_mass(word : UInt64) -> UInt64 {
   let even = word & 0x0F0F0F0F0F0F0F0FUL
   let odd = (word >> 4) & 0x0F0F0F0F0F0F0F0FUL
-  ((even * 0x0101010101010101UL) >> 56) +
-  ((odd * 0x0101010101010101UL) >> 56)
+  ((even * 0x0101010101010101UL) >> 56) + ((odd * 0x0101010101010101UL) >> 56)
 }
 
 ///|

@@ -16,4 +16,3 @@ test "scalable counting intersection survives serialization when slots collide" 
   assert_eq(restored.count(), common.count())
   assert_true(restored.contains("shared"))
 }
-

@@ -31,9 +31,7 @@ test "panic compact counting merge rejects count overflow" {
 
 ///|
 fn max_inserted_scalable_bloom() -> @src.ScalableBloomFilter {
-  let bytes = @src.ScalableBloomFilter::new(4, 0.01)
-    .to_bytes()
-    .to_fixedarray()
+  let bytes = @src.ScalableBloomFilter::new(4, 0.01).to_bytes().to_fixedarray()
   bytes.unsafe_write_uint32_le(12, 2147483647U)
   bytes.unsafe_write_uint32_le(48, 2147483647U)
   @src.ScalableBloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
