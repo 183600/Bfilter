@@ -21,10 +21,7 @@ pub struct ScalableCountingBloomFilter {
 const SCALABLE_COUNTING_GROWTH : Int32 = 2
 
 ///|
-fn scalable_counting_slice_rate(
-  target_rate : Double,
-  index : Int32,
-) -> Double {
+fn scalable_counting_slice_rate(target_rate : Double, index : Int32) -> Double {
   let rate = target_rate * @math.pow(0.5, (index + 1).to_double())
   if rate > 0.0 {
     rate

@@ -7,9 +7,7 @@ test "scalable counting filter serialization round trip" {
     filter.insert("key-" + i.to_string())
   }
   assert_true(filter.remove("key-1"))
-  let restored = @src.ScalableCountingBloomFilter::from_bytes(
-    filter.to_bytes(),
-  )
+  let restored = @src.ScalableCountingBloomFilter::from_bytes(filter.to_bytes())
   assert_eq(restored.count(), filter.count())
   assert_eq(restored.tracked_key_count(), filter.tracked_key_count())
   assert_eq(restored.slice_count(), filter.slice_count())
@@ -34,9 +32,7 @@ test "scalable counting filter serialization round trip" {
 ///|
 test "scalable counting filter serialization round trips empty filters" {
   let filter = @src.ScalableCountingBloomFilter::new(16, 0.001)
-  let restored = @src.ScalableCountingBloomFilter::from_bytes(
-    filter.to_bytes(),
-  )
+  let restored = @src.ScalableCountingBloomFilter::from_bytes(filter.to_bytes())
   assert_true(restored.is_empty())
   assert_eq(restored.count(), 0)
   assert_eq(restored.tracked_key_count(), 0)
