@@ -362,8 +362,8 @@ pub fn ScalableBloomFilter::merge(
     abort("scalable bloom filter insertion count overflow")
   }
   let mut total_bits = self.bit_count().to_int64()
-  for slice in other.slices {
-    total_bits = total_bits + slice.bit_count().to_int64()
+  for i = self.slices.length(); i < other.slices.length(); i = i + 1 {
+    total_bits = total_bits + other.slices[i].bit_count().to_int64()
   }
   guard total_bits <= 2147483584L else {
     abort("scalable bloom filter is too large")

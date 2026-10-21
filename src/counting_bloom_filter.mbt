@@ -10,6 +10,7 @@ pub struct CountingBloomFilter {
   priv slot_count : Int32
   priv hash_count : Int32
   priv mut inserted : Int32
+  priv mut counter_mass : UInt64
 }
 
 ///|
@@ -57,6 +58,7 @@ pub fn CountingBloomFilter::with_size(
     slot_count: rounded,
     hash_count,
     inserted: 0,
+    counter_mass: 0UL,
   }
 }
 
@@ -82,6 +84,7 @@ fn CountingBloomFilter::set_counter(
   let old = (self.counters[word] >> shift) & 0xFFFFUL
   let cleared = self.counters[word] ^ (old << shift)
   self.counters[word] = cleared | (value << shift)
+  self.counter_mass = self.counter_mass - old + value
 }
 
 ///|
@@ -216,9 +219,13 @@ pub fn[K : Hash] CountingBloomFilter::remove(
       self.set_counter(pos, value - decrement)
     }
   }
-  if self.inserted > 0 {
-    self.inserted -= 1
+  let needed = (self.counter_mass + self.hash_count.to_uint64() - 1UL) /
+    self.hash_count.to_uint64()
+  let mut next = if self.inserted > 0 { self.inserted - 1 } else { 0 }
+  if needed > next.to_uint64() {
+    next = needed.to_int()
   }
+  self.inserted = next
   true
 }
 
@@ -337,6 +344,7 @@ pub fn CountingBloomFilter::merge(
   guard self.inserted <= 2147483647 - other.inserted else {
     abort("counting bloom filter insertion count overflow")
   }
+  let mut merged_mass = 0UL
   for i = 0; i < self.counters.length(); i = i + 1 {
     let left = self.counters[i]
     let right = other.counters[i]
@@ -345,10 +353,13 @@ pub fn CountingBloomFilter::merge(
       let shift = lane * 16
       let a = (left >> shift) & 0xFFFFUL
       let b = (right >> shift) & 0xFFFFUL
-      merged = merged | ((if a > b { a } else { b }) << shift)
+      let value = if a > b { a } else { b }
+      merged = merged | (value << shift)
+      merged_mass = merged_mass + value
     }
     self.counters[i] = merged
   }
+  self.counter_mass = merged_mass
   self.inserted += other.inserted
 }
 
@@ -382,6 +393,7 @@ pub fn CountingBloomFilter::intersection(
 ) -> CountingBloomFilter {
   self.ensure_compatible(other)
   let result = CountingBloomFilter::with_size(self.slot_count, self.hash_count)
+  let mut merged_mass = 0UL
   for i = 0; i < result.counters.length(); i = i + 1 {
     let left = self.counters[i]
     let right = other.counters[i]
@@ -390,10 +402,13 @@ pub fn CountingBloomFilter::intersection(
       let shift = lane * 16
       let a = (left >> shift) & 0xFFFFUL
       let b = (right >> shift) & 0xFFFFUL
-      merged = merged | ((if a < b { a } else { b }) << shift)
+      let value = if a < b { a } else { b }
+      merged = merged | (value << shift)
+      merged_mass = merged_mass + value
     }
     result.counters[i] = merged
   }
+  result.counter_mass = merged_mass
   result.inserted = self.inserted.min(other.inserted)
   result
 }
@@ -491,6 +506,7 @@ pub fn CountingBloomFilter::copy(
     slot_count: self.slot_count,
     hash_count: self.hash_count,
     inserted: self.inserted,
+    counter_mass: self.counter_mass,
   }
 }
 
@@ -501,6 +517,7 @@ pub fn CountingBloomFilter::clear(self : CountingBloomFilter) -> Unit {
     self.counters[i] = 0UL
   }
   self.inserted = 0
+  self.counter_mass = 0UL
 }
 
 ///|

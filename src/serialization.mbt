@@ -169,7 +169,7 @@ pub fn CountingBloomFilter::from_bytes(data : Bytes) -> CountingBloomFilter {
   guard counter_mass <= hash_count.to_uint64() * inserted.to_uint64() else {
     abort("counting insertion count is too small for positive counters")
   }
-  { counters, slot_count, hash_count, inserted, }
+  { counters, slot_count, hash_count, inserted, counter_mass, }
 }
 
 ///|
@@ -302,6 +302,7 @@ pub fn ScalableBloomFilter::from_bytes(data : Bytes) -> ScalableBloomFilter {
   }
   let mut offset = SERIAL_HEADER_BYTES + 8
   let mut total_inserted = 0L
+  let mut total_bits = 0L
   for index = 0; index < slice_count; index = index + 1 {
     guard offset <= data.length() - 4 else {
       abort("serialized scalable bloom slice is truncated")
@@ -330,6 +331,10 @@ pub fn ScalableBloomFilter::from_bytes(data : Bytes) -> ScalableBloomFilter {
     guard slice.bit_count() == expected_bits &&
       slice.hash_count() == expected_hashes else {
       abort("scalable bloom slice does not match its layout")
+    }
+    total_bits = total_bits + slice.bit_count().to_int64()
+    guard total_bits <= 2147483584L else {
+      abort("scalable bloom filter is too large")
     }
     total_inserted = total_inserted + slice.count().to_int64()
     filter.slices.push(slice)
@@ -405,7 +410,7 @@ pub fn CompactCountingBloomFilter::from_bytes(
   guard counter_mass <= hash_count.to_uint64() * inserted.to_uint64() else {
     abort("compact counting insertion count is too small for positive counters")
   }
-  { counters, slot_count, hash_count, inserted, }
+  { counters, slot_count, hash_count, inserted, counter_mass, }
 }
 
 ///|
