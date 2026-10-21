@@ -223,6 +223,9 @@ was never inserted, even when `contains` reports a false positive. This metadata
 grows with the number of distinct keys and is not included in `memory_bytes()`,
 which reports only the counter arrays. `insert_if_absent`, the batch helpers,
 `copy`, `clear`, and the occupancy statistics mirror the other filters.
+`union` and `merge` rebuild counters from the tracked multiplicities: a key
+tracked by both filters keeps the larger multiplicity when both stored it in
+the same slice and the sum when they stored it in different slices.
 `intersection` keeps the keys tracked by both filters with the smaller
 multiplicity, even when the inputs stored them in different slices.
 `ConcurrentScalableCountingBloomFilter` adds one-mutex atomic operations,

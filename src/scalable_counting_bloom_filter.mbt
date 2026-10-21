@@ -593,11 +593,12 @@ pub fn ScalableCountingBloomFilter::merge(
 }
 
 ///|
-/// Build a new filter containing every key present in either input.
+/// Build a new filter containing every key tracked by either input.
 ///
 /// Both filters must share the same initial capacity and target rate. The
-/// result uses the per-slice union of their counters, so it never reports a
-/// false negative for a key either input reported present. The inputs are left
+/// result rebuilds counters from the merged tracked multiplicities, so every
+/// key tracked by either input remains present and removable. Keys tracked in
+/// both filters keep their combined multiplicity. The inputs are left
 /// unchanged.
 pub fn ScalableCountingBloomFilter::union(
   self : ScalableCountingBloomFilter,
