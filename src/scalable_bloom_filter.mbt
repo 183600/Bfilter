@@ -431,6 +431,11 @@ pub fn ScalableBloomFilter::is_subset_of(
 /// are set in one slice of each, so this guarantees no key is reported present
 /// by both. A `false` result is inconclusive because equal bits may come from
 /// different keys.
+///
+/// Slices at different indices use different layouts, so their bit arrays
+/// cannot be compared directly. A pair of slices with different layouts is
+/// treated as not provably disjoint once both are non-empty; an empty slice
+/// never reports any key and therefore cannot overlap.
 pub fn ScalableBloomFilter::is_disjoint_from(
   self : ScalableBloomFilter,
   other : ScalableBloomFilter,
@@ -438,8 +443,14 @@ pub fn ScalableBloomFilter::is_disjoint_from(
   self.ensure_same_policy(other)
   for left in self.slices {
     for right in other.slices {
-      if !left.is_disjoint_from(right) {
-        return false
+      if left.set_bit_count() > 0 && right.set_bit_count() > 0 {
+        if left.bit_count() != right.bit_count() ||
+          left.hash_count() != right.hash_count() {
+          return false
+        }
+        if !left.is_disjoint_from(right) {
+          return false
+        }
       }
     }
   }

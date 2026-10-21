@@ -134,9 +134,7 @@ test "concurrent filters expose disjointness checks" {
   counting_other.insert("shared")
   assert_false(counting.is_disjoint_from(counting_other))
 
-  let compact = @src.ConcurrentCompactCountingBloomFilter::with_size(
-    1 << 20, 2,
-  )
+  let compact = @src.ConcurrentCompactCountingBloomFilter::with_size(1 << 20, 2)
   let compact_other = @src.CompactCountingBloomFilter::with_size(1 << 20, 2)
   assert_true(compact.is_disjoint_from(compact_other))
   compact.insert("shared")
@@ -156,4 +154,24 @@ test "concurrent filters expose disjointness checks" {
   scalable.insert("shared")
   scalable_other.insert("shared")
   assert_false(scalable.is_disjoint_from(scalable_other))
+}
+
+///|
+test "scalable bloom disjointness handles slices with different layouts" {
+  let grown = @src.ScalableBloomFilter::new(1, 0.001)
+  let empty = @src.ScalableBloomFilter::new(1, 0.001)
+  for i = 0; i < 20; i = i + 1 {
+    grown.insert("grown-" + i.to_string())
+  }
+  assert_true(grown.slice_count() > 1)
+  assert_true(grown.is_disjoint_from(empty))
+  assert_true(empty.is_disjoint_from(grown))
+  let other = @src.ScalableBloomFilter::new(1, 0.001)
+  for i = 0; i < 20; i = i + 1 {
+    other.insert("other-" + i.to_string())
+  }
+  assert_true(other.slice_count() > 1)
+  assert_false(grown.is_disjoint_from(other))
+  other.clear()
+  assert_true(grown.is_disjoint_from(other))
 }
