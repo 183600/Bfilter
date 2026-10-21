@@ -599,6 +599,74 @@ pub fn ScalableCountingBloomFilter::union(
 }
 
 ///|
+/// Build a new filter containing keys tracked by both inputs.
+///
+/// Both filters must share the same initial capacity and target rate. A key
+/// present in both keeps the smaller multiplicity and is placed in the slice
+/// recorded by the shorter input, so keys are found even when the inputs
+/// stored them in different slices. The result has as many slices as the
+/// shorter input and leaves both inputs unchanged.
+pub fn ScalableCountingBloomFilter::intersection(
+  self : ScalableCountingBloomFilter,
+  other : ScalableCountingBloomFilter,
+) -> ScalableCountingBloomFilter {
+  self.ensure_same_policy(other)
+  let self_slice_count = self.slices.length()
+  let other_slice_count = other.slices.length()
+  let slice_count = self_slice_count.min(other_slice_count)
+  let slices : Array[CountingBloomFilter] = []
+  let capacities : Array[Int32] = []
+  let slice_inserted : Array[Int32] = Array::make(slice_count, 0)
+  for i = 0; i < slice_count; i = i + 1 {
+    let source = self.slices[i]
+    slices.push(
+      CountingBloomFilter::with_size(source.slot_count(), source.hash_count()),
+    )
+    capacities.push(self.capacities[i])
+  }
+  let locations : @hashmap.HashMap[(UInt64, UInt64), (Int32, Int32)] = @hashmap.HashMap([],
+  )
+  for entry in self.locations.iter() {
+    let (id, (self_slice, self_occurrences)) = entry
+    match other.locations.get(id) {
+      Some((other_slice, other_occurrences)) => {
+        let occurrences = if self_occurrences < other_occurrences {
+          self_occurrences
+        } else {
+          other_occurrences
+        }
+        let slice_index = if self_slice_count < other_slice_count {
+          self_slice
+        } else if other_slice_count < self_slice_count {
+          other_slice
+        } else if self_slice < other_slice {
+          self_slice
+        } else {
+          other_slice
+        }
+        slices[slice_index].raise_positions(id.0, id.1, occurrences)
+        slice_inserted[slice_index] = slice_inserted[slice_index] + occurrences
+        locations.set(id, (slice_index, occurrences))
+      }
+      None => ()
+    }
+  }
+  let mut inserted = 0
+  for i = 0; i < slice_count; i = i + 1 {
+    slices[i].inserted = slice_inserted[i]
+    inserted = inserted + slice_inserted[i]
+  }
+  {
+    slices,
+    capacities,
+    locations,
+    initial_capacity: self.initial_capacity,
+    target_rate: self.target_rate,
+    inserted,
+  }
+}
+
+///|
 /// Whether every key reported present by `self` is also reported present by
 /// `other`.
 ///

@@ -128,6 +128,19 @@ pub fn ConcurrentScalableBloomFilter::union(
 }
 
 ///|
+/// Build a scalable filter containing keys reported present by both inputs
+/// while holding the lock once.
+///
+/// The other filter must share the initial capacity and target rate. The
+/// result is an independent filter; the concurrent receiver is left unchanged.
+pub fn ConcurrentScalableBloomFilter::intersection(
+  self : ConcurrentScalableBloomFilter,
+  other : ScalableBloomFilter,
+) -> ScalableBloomFilter {
+  self.with_lock(filter => filter.intersection(other))
+}
+
+///|
 /// Whether every key reported present by the current filter is also reported
 /// present by `other`, while holding the lock once.
 ///

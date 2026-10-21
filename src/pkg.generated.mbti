@@ -286,6 +286,7 @@ pub fn[K : Hash] ConcurrentScalableBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] ConcurrentScalableBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
 pub fn[K : Hash] ConcurrentScalableBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
 pub fn[K : Hash] ConcurrentScalableBloomFilter::insert_if_absent(Self, K) -> Bool
+pub fn ConcurrentScalableBloomFilter::intersection(Self, ScalableBloomFilter) -> ScalableBloomFilter
 pub fn ConcurrentScalableBloomFilter::is_disjoint_from(Self, ScalableBloomFilter) -> Bool
 pub fn ConcurrentScalableBloomFilter::is_empty(Self) -> Bool
 pub fn ConcurrentScalableBloomFilter::is_subset_of(Self, ScalableBloomFilter) -> Bool
@@ -317,6 +318,7 @@ pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
 pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
 pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::insert_if_absent(Self, K) -> Bool
+pub fn ConcurrentScalableCountingBloomFilter::intersection(Self, ScalableCountingBloomFilter) -> ScalableCountingBloomFilter
 pub fn ConcurrentScalableCountingBloomFilter::is_disjoint_from(Self, ScalableCountingBloomFilter) -> Bool
 pub fn ConcurrentScalableCountingBloomFilter::is_empty(Self) -> Bool
 pub fn ConcurrentScalableCountingBloomFilter::is_subset_of(Self, ScalableCountingBloomFilter) -> Bool
@@ -420,6 +422,7 @@ pub fn[K : Hash] ScalableBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] ScalableBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
 pub fn[K : Hash] ScalableBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
 pub fn[K : Hash] ScalableBloomFilter::insert_if_absent(Self, K) -> Bool
+pub fn ScalableBloomFilter::intersection(Self, Self) -> Self
 pub fn ScalableBloomFilter::is_disjoint_from(Self, Self) -> Bool
 pub fn ScalableBloomFilter::is_empty(Self) -> Bool
 pub fn ScalableBloomFilter::is_subset_of(Self, Self) -> Bool
@@ -451,6 +454,7 @@ pub fn[K : Hash] ScalableCountingBloomFilter::insert(Self, K) -> Unit
 pub fn[K : Hash] ScalableCountingBloomFilter::insert_all(Self, ArrayView[K]) -> Unit
 pub fn[K : Hash] ScalableCountingBloomFilter::insert_all_if_absent(Self, ArrayView[K]) -> Int32
 pub fn[K : Hash] ScalableCountingBloomFilter::insert_if_absent(Self, K) -> Bool
+pub fn ScalableCountingBloomFilter::intersection(Self, Self) -> Self
 pub fn ScalableCountingBloomFilter::is_disjoint_from(Self, Self) -> Bool
 pub fn ScalableCountingBloomFilter::is_empty(Self) -> Bool
 pub fn ScalableCountingBloomFilter::is_subset_of(Self, Self) -> Bool

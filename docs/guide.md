@@ -173,7 +173,8 @@ provides the same operations with one mutex and a `snapshot()` method.
 Scalable filters can also be combined when they share the same initial capacity
 and target false-positive rate. Slices are matched by index, so `merge` ORs the
 bits of corresponding slices and appends slices that only the other filter
-holds. `union` returns a new combined filter, and `is_subset_of` compares each
+holds. `union` returns a new combined filter, `intersection` intersects slices
+with the same index up to the shorter input, and `is_subset_of` compares each
 slice against the slice with the same index:
 
 ```moonbit
@@ -193,7 +194,7 @@ Merging adds the insertion counts, and a slice whose combined count exceeds its
 planned capacity simply triggers growth before the next insertion, so a merged
 filter keeps accepting keys. The merged state also survives a `to_bytes` /
 `from_bytes` round trip. `ConcurrentScalableBloomFilter` exposes atomic `merge`,
-`union`, `is_subset_of`, and `is_disjoint_from` methods.
+`union`, `intersection`, `is_subset_of`, and `is_disjoint_from` methods.
 
 ## Scalable Counting Bloom Filter
 
@@ -222,8 +223,10 @@ was never inserted, even when `contains` reports a false positive. This metadata
 grows with the number of distinct keys and is not included in `memory_bytes()`,
 which reports only the counter arrays. `insert_if_absent`, the batch helpers,
 `copy`, `clear`, and the occupancy statistics mirror the other filters.
-`ConcurrentScalableCountingBloomFilter` adds one-mutex atomic operations and a
-`snapshot()` method.
+`intersection` keeps the keys tracked by both filters with the smaller
+multiplicity, even when the inputs stored them in different slices.
+`ConcurrentScalableCountingBloomFilter` adds one-mutex atomic operations,
+including `intersection`, and a `snapshot()` method.
 
 ## Counting Bloom Filter
 

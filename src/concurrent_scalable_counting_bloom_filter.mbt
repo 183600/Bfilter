@@ -156,6 +156,19 @@ pub fn ConcurrentScalableCountingBloomFilter::union(
 }
 
 ///|
+/// Build a scalable counting filter containing keys tracked by both inputs
+/// while holding the lock once.
+///
+/// The other filter must share the initial capacity and target rate. The result
+/// is an independent filter; the concurrent receiver is left unchanged.
+pub fn ConcurrentScalableCountingBloomFilter::intersection(
+  self : ConcurrentScalableCountingBloomFilter,
+  other : ScalableCountingBloomFilter,
+) -> ScalableCountingBloomFilter {
+  self.with_lock(filter => filter.intersection(other))
+}
+
+///|
 /// Whether every key reported present by the current filter is also reported
 /// present by `other`, while holding the lock once.
 ///

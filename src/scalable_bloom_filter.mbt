@@ -396,6 +396,37 @@ pub fn ScalableBloomFilter::union(
 }
 
 ///|
+/// Build a new filter containing keys reported present by both inputs.
+///
+/// Both filters must share the same initial capacity and target rate. Slice `i`
+/// of `self` is intersected with slice `i` of `other`, and slices beyond the
+/// shorter filter are omitted because they have no counterpart to compare.
+/// The inputs are left unchanged.
+pub fn ScalableBloomFilter::intersection(
+  self : ScalableBloomFilter,
+  other : ScalableBloomFilter,
+) -> ScalableBloomFilter {
+  self.ensure_same_policy(other)
+  let slice_count = self.slices.length().min(other.slices.length())
+  let slices : Array[BloomFilter] = []
+  let capacities : Array[Int32] = []
+  let mut inserted = 0
+  for i = 0; i < slice_count; i = i + 1 {
+    let slice = self.slices[i].intersection(other.slices[i])
+    inserted = inserted + slice.count()
+    slices.push(slice)
+    capacities.push(self.capacities[i])
+  }
+  {
+    slices,
+    capacities,
+    initial_capacity: self.initial_capacity,
+    target_rate: self.target_rate,
+    inserted,
+  }
+}
+
+///|
 /// Whether every key reported present by `self` is also reported present by
 /// `other`.
 ///
