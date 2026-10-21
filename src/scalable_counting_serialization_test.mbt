@@ -162,3 +162,16 @@ test "panic scalable counting serialization rejects excessive occurrences" {
   )
   |> ignore
 }
+
+///|
+test "panic scalable counting serialization rejects excessive total occurrences" {
+  let filter = @src.ScalableCountingBloomFilter::new(4, 0.01)
+  filter.insert("one")
+  filter.insert("two")
+  let bytes = filter.to_bytes().to_fixedarray()
+  bytes.unsafe_write_uint32_le(32 + 20, 2U)
+  @src.ScalableCountingBloomFilter::from_bytes(
+    Bytes::from_array(bytes.exact_view()),
+  )
+  |> ignore
+}
