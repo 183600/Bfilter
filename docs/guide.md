@@ -562,14 +562,17 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   a power of two and a wider hash count exceeds a cycle of at most 16,384
   positions, inserts, removals, and conditional inserts enumerate that cycle
   once and assign each position its exact number of occurrences; `contains` and
-  `count_of` always stop at the cycle. Other slot counts keep scanning every
-  probe so later wraparound offsets cannot hide a counter. Set operations scan
-  the packed counter words, and merging into an empty receiver copies the packed
-  words directly.
+  `count_of` always stop at the cycle. Selecting that window is constant-time:
+  the power-of-two cycle length comes from the lowest set bit of the probe step,
+  so a wide hash count does not add a GCD loop to each query. Other slot counts
+  keep scanning every probe so later wraparound offsets cannot hide a counter.
+  Set operations scan the packed counter words, and merging into an empty
+  receiver copies the packed words directly.
 - `CuckooFilter` checks two buckets of `B` fingerprints per query, so a lookup
   is `O(B)` expected. An insert may evict fingerprints and, when random eviction
   does not find room, run a bounded breadth-first search for an augmenting path;
-  a failed insert restores every eviction. Storage is one byte per slot.
+  a failed insert restores every eviction and the eviction state. Storage is one
+  byte per slot.
 - `ScalableBloomFilter` queries up to `s` slices, while
   `ScalableCountingBloomFilter` also consults its tracked-key map. Inserts append
   a slice when the newest one reaches its planned capacity, so growth is
