@@ -223,3 +223,35 @@ test "compact set operations match packed lane helpers" {
   assert_true(common.is_subset_of(left))
   assert_true(common.is_subset_of(right))
 }
+
+///|
+test "counting insert respects a selected lane above its removable ceiling" {
+  let filter = CountingBloomFilter::with_size(16, 17)
+  let key = "ceiling"
+  let (h1, h2) = key_hashes(key)
+  let positions = unique_key_positions(
+    h1, h2, filter.hash_count, filter.slot_count.to_uint64(),
+  )
+  let mut duplicated = -1
+  for entry in positions {
+    if duplicated < 0 && entry.1 >= 2 {
+      duplicated = entry.0
+    }
+  }
+  assert_true(duplicated >= 0)
+  // A lane selected twice can only record even values up to 65534. A value
+  // above that ceiling has no room for another complete contribution.
+  filter.set_counter(duplicated, 0xFFFFUL)
+  filter.insert(key)
+  assert_eq(filter.counter_at(duplicated), 0xFFFFUL)
+  assert_eq(filter.count(), 1)
+  assert_eq(filter.count_of(key), 1)
+  assert_true(filter.contains(key))
+  // Removing one occurrence subtracts only the contribution the saturated lane
+  // can record. The residual counter mass keeps the insertion count
+  // conservative instead of dropping it to zero.
+  assert_true(filter.remove(key))
+  assert_eq(filter.count_of(key), 0)
+  assert_false(filter.contains(key))
+  assert_true(filter.count() > 1)
+}

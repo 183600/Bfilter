@@ -135,3 +135,12 @@ test "cuckoo augmenting path works for large layouts" {
   assert_eq(filter.buckets[30888], first)
   assert_eq(filter.buckets[third_bucket], second)
 }
+
+///|
+test "cuckoo sparse augmenting path fills an empty large bucket" {
+  let filter = CuckooFilter::with_size(131072, 1)
+  assert_true(filter.insert_fingerprint_bfs_sparse(0, b'\x01'))
+  assert_eq(filter.count(), 1)
+  assert_eq(filter.buckets[0], b'\x01')
+}
+

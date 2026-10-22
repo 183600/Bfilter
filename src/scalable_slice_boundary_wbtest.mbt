@@ -93,3 +93,24 @@ test "scalable counting set operations ignore count-only empty slices" {
   right.append_slice()
   assert_true(left.is_disjoint_from(right))
 }
+
+///|
+test "scalable bloom disjointness skips empty slices between non-empty ones" {
+  let left = ScalableBloomFilter::new(2, 0.01)
+  left.append_slice()
+  assert_eq(left.slices[0].set_bit_count(), 0)
+  left.slices[1].insert("shared")
+  left.inserted = 1
+
+  let right = ScalableBloomFilter::new(2, 0.01)
+  right.insert("other")
+  right.append_slice()
+  right.slices[1].insert("shared")
+  right.inserted = 2
+  assert_true(right.slices[0].set_bit_count() > 0)
+
+  // The empty first slice is skipped in both directions, while the shared
+  // second slice keeps the pair from being reported as definitely disjoint.
+  assert_false(left.is_disjoint_from(right))
+  assert_false(right.is_disjoint_from(left))
+}
