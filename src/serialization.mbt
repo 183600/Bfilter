@@ -165,9 +165,7 @@ pub fn CountingBloomFilter::from_bytes(data : Bytes) -> CountingBloomFilter {
   for i = 0; i < word_count; i = i + 1 {
     let word = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * 8)
     counters[i] = word
-    for lane = 0; lane < 4; lane = lane + 1 {
-      counter_mass = counter_mass + ((word >> (lane * 16)) & 0xFFFFUL)
-    }
+    counter_mass = counter_mass + counting_word_mass(word)
   }
   guard counter_mass <= hash_count.to_uint64() * inserted.to_uint64() else {
     abort("counting insertion count is too small for positive counters")
@@ -603,9 +601,7 @@ pub fn CompactCountingBloomFilter::from_bytes(
   for i = 0; i < word_count; i = i + 1 {
     let word = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * 8)
     counters[i] = word
-    for lane = 0; lane < COMPACT_SLOTS_PER_WORD; lane = lane + 1 {
-      counter_mass = counter_mass + ((word >> (lane * 4)) & COMPACT_COUNTER_MAX)
-    }
+    counter_mass = counter_mass + compact_word_mass(word)
   }
   guard counter_mass <= hash_count.to_uint64() * inserted.to_uint64() else {
     abort("compact counting insertion count is too small for positive counters")
