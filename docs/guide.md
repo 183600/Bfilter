@@ -555,7 +555,8 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
 - `BloomFilter` and `BlockedBloomFilter` probe `k` positions per insert or query
   and store `m` bits in about `m / 8` bytes. `BlockedBloomFilter` keeps every
   probe inside one 512-bit block, so a query touches one cache line regardless
-  of `k`. Set operations scan the `m / 64` backing words.
+  of `k`. An empty filter has no set bit, so queries return `false` without
+  probing. Set operations scan the `m / 64` backing words.
 - `CountingBloomFilter` and `CompactCountingBloomFilter` update `k` counters,
   deduplicating positions selected more than once, and store 16 bits or 4 bits
   per slot respectively. Inserts and removals reuse a per-filter probe workspace

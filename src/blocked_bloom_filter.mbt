@@ -208,6 +208,11 @@ pub fn[K : Hash] BlockedBloomFilter::contains(
   self : BlockedBloomFilter,
   key : K,
 ) -> Bool {
+  // No insertion has happened, so no bit can be set. Avoid probing a block on
+  // an empty filter.
+  if self.inserted == 0 {
+    return false
+  }
   let (h1, h2) = key_hashes(key)
   let base = self.block_base(h1)
   let block_bits = BLOCKED_BLOCK_BITS.to_uint64()
