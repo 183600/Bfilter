@@ -507,6 +507,33 @@ assert_eq(snapshot.count(), 1)
 assert_true(snapshot.contains("before"))
 ```
 
+## Complexity and Memory
+
+Let `k` be `hash_count()`, `m` the number of bits or slots, `s` the number of
+slices, and `B` the bucket size. The bounds below describe the backing data
+structures; hashing a key costs whatever the key's `Hash` implementation costs.
+
+- `BloomFilter` and `BlockedBloomFilter` probe `k` positions per insert or query
+  and store `m` bits in about `m / 8` bytes. `BlockedBloomFilter` keeps every
+  probe inside one 512-bit block, so a query touches one cache line regardless
+  of `k`. Set operations scan the `m / 64` backing words.
+- `CountingBloomFilter` and `CompactCountingBloomFilter` update `k` counters,
+  deduplicating positions selected more than once, and store 16 bits or 4 bits
+  per slot respectively. Set operations scan the packed counter words.
+- `CuckooFilter` checks two buckets of `B` fingerprints per query, so a lookup
+  is `O(B)` expected. An insert may evict fingerprints and, when random eviction
+  does not find room, run a bounded breadth-first search for an augmenting path;
+  a failed insert restores every eviction. Storage is one byte per slot.
+- `ScalableBloomFilter` queries up to `s` slices, while
+  `ScalableCountingBloomFilter` also consults its tracked-key map. Inserts append
+  a slice when the newest one reaches its planned capacity, so growth is
+  amortized. Merges and unions process the slices they combine. The scalable
+  counting map grows with the number of distinct tracked keys and is not
+  included in `memory_bytes()`, which reports only counter storage.
+- The `optimal_size` helpers compute layouts without allocating, and the
+  concurrent wrappers forward them without taking the mutex. Batch operations on
+  the concurrent wrappers take the lock once for the whole batch.
+
 ## Occupancy and Storage
 
 Every filter exposes read-only statistics without scanning keys:

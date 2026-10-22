@@ -30,8 +30,8 @@ All filters accept any key type with a `Hash` implementation and expose
 `to_bytes`/`from_bytes` serialization. The fixed-size constructors also expose
 `optimal_size(...)`, which computes the same layout as `new` without allocating
 the backing array; the concurrent wrappers forward the same helper for their
-fixed-size layouts. The full API is documented in
-[docs/guide.md](docs/guide.md).
+fixed-size layouts. The full API, set-operation semantics, and complexity and
+memory bounds are documented in [docs/guide.md](docs/guide.md).
 
 ## Quick start
 
