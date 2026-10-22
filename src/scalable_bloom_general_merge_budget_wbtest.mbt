@@ -30,3 +30,14 @@ test "panic scalable bloom bit count rejects an oversized aggregate" {
   let receiver = oversized_grown_bloom_receiver()
   receiver.bit_count() |> ignore
 }
+
+///|
+test "panic scalable bloom intersection checks aggregate bit budget" {
+  let receiver = oversized_grown_bloom_receiver()
+  let other = ScalableBloomFilter::new(2, 0.01)
+  other.append_slice()
+  other.append_slice()
+  other.slices[0].insert("other")
+  other.inserted = 1
+  receiver.intersection(other) |> ignore
+}
