@@ -482,7 +482,7 @@ pub fn ScalableCountingBloomFilter::from_bytes(
   }
   let mut offset = slices_offset
   let mut total_inserted = 0L
-  let mut total_bits = 0L
+  let mut total_slots = 0L
   for index = 0; index < slice_count; index = index + 1 {
     guard offset <= data.length() - 4 else {
       abort("serialized scalable counting bloom slice is truncated")
@@ -512,8 +512,8 @@ pub fn ScalableCountingBloomFilter::from_bytes(
       slice.hash_count() == expected_hashes else {
       abort("scalable counting bloom slice does not match its layout")
     }
-    total_bits = total_bits + slice.slot_count().to_int64() * 16L
-    guard total_bits <= 2147483584L else {
+    total_slots = total_slots + slice.slot_count().to_int64()
+    guard total_slots <= SCALABLE_COUNTING_MAX_SLOTS else {
       abort("scalable counting bloom filter is too large")
     }
     total_inserted = total_inserted + slice.count().to_int64()

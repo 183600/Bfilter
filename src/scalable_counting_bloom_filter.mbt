@@ -21,6 +21,16 @@ pub struct ScalableCountingBloomFilter {
 const SCALABLE_COUNTING_GROWTH : Int32 = 2
 
 ///|
+/// Maximum number of counter slots a scalable counting filter can hold.
+///
+/// Counting filters store two bytes per slot. The bound leaves room for the
+/// serialization header and the length prefix of every slice, so any filter
+/// within it can encode its counter arrays without overflowing the signed
+/// 32-bit serialized length. The per-slice constructor still enforces its own
+/// limit.
+const SCALABLE_COUNTING_MAX_SLOTS : Int64 = 1_073_741_745L
+
+///|
 fn scalable_counting_slice_rate(target_rate : Double, index : Int32) -> Double {
   let rate = target_rate * @math.pow(0.5, (index + 1).to_double())
   if rate > 0.0 {
@@ -44,17 +54,18 @@ fn ScalableCountingBloomFilter::append_slice(
     }
     previous * SCALABLE_COUNTING_GROWTH
   }
-  let slice = CountingBloomFilter::new(
+  let (slot_count, hash_count) = counting_bloom_layout(
     capacity,
     scalable_counting_slice_rate(self.target_rate, index),
   )
-  let mut bit_count = slice.slot_count().to_int64() * 16L
+  let mut total_slots = slot_count.to_int64()
   for existing in self.slices {
-    bit_count = bit_count + existing.slot_count().to_int64() * 16L
+    total_slots = total_slots + existing.slot_count().to_int64()
   }
-  guard bit_count <= 2147483584L else {
+  guard total_slots <= SCALABLE_COUNTING_MAX_SLOTS else {
     abort("scalable counting bloom filter is too large")
   }
+  let slice = CountingBloomFilter::with_size(slot_count, hash_count)
   self.slices.push(slice)
   self.capacities.push(capacity)
 }
@@ -499,7 +510,7 @@ pub fn ScalableCountingBloomFilter::merge(
   for i = self_slice_count; i < other_slice_count; i = i + 1 {
     total_slots = total_slots + other.slices[i].slot_count().to_int64()
   }
-  guard total_slots * 16L <= 2147483584L else {
+  guard total_slots <= SCALABLE_COUNTING_MAX_SLOTS else {
     abort("scalable counting bloom filter is too large")
   }
   let slice_count = if self_slice_count > other_slice_count {
