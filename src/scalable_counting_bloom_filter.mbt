@@ -60,6 +60,12 @@ fn ScalableCountingBloomFilter::append_slice(
 }
 
 ///|
+/// Largest value a single backing 16-bit counter can hold.
+pub fn ScalableCountingBloomFilter::counter_max() -> Int32 {
+  CountingBloomFilter::counter_max()
+}
+
+///|
 /// Create a growing counting filter sized for an initial `expected_items` keys
 /// and the target `false_positive_rate`.
 ///

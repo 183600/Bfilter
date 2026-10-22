@@ -258,6 +258,12 @@ pub fn ConcurrentScalableCountingBloomFilter::slot_count(
 }
 
 ///|
+/// Largest value a single backing 16-bit counter can hold.
+pub fn ConcurrentScalableCountingBloomFilter::counter_max() -> Int32 {
+  ScalableCountingBloomFilter::counter_max()
+}
+
+///|
 /// Number of non-zero counter slots across all slices.
 pub fn ConcurrentScalableCountingBloomFilter::occupied_slot_count(
   self : ConcurrentScalableCountingBloomFilter,

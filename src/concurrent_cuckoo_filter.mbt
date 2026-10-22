@@ -254,6 +254,23 @@ pub fn ConcurrentCuckooFilter::capacity(self : ConcurrentCuckooFilter) -> Int32 
 }
 
 ///|
+/// Number of fingerprints that can still be inserted before reaching the total
+/// slot capacity, read while holding the lock.
+pub fn ConcurrentCuckooFilter::remaining_capacity(
+  self : ConcurrentCuckooFilter,
+) -> Int32 {
+  self.with_lock(filter => filter.remaining_capacity())
+}
+
+///|
+/// Whether every slot is occupied, read while holding the lock.
+pub fn ConcurrentCuckooFilter::is_full(
+  self : ConcurrentCuckooFilter,
+) -> Bool {
+  self.with_lock(filter => filter.is_full())
+}
+
+///|
 /// Fraction of slots currently holding a fingerprint.
 pub fn ConcurrentCuckooFilter::load_factor(
   self : ConcurrentCuckooFilter,

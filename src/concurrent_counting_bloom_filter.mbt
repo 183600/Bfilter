@@ -250,6 +250,12 @@ pub fn ConcurrentCountingBloomFilter::slot_count(
 }
 
 ///|
+/// Largest value a single underlying 16-bit counter can hold.
+pub fn ConcurrentCountingBloomFilter::counter_max() -> Int32 {
+  CountingBloomFilter::counter_max()
+}
+
+///|
 /// Number of counters updated per operation.
 pub fn ConcurrentCountingBloomFilter::hash_count(
   self : ConcurrentCountingBloomFilter,

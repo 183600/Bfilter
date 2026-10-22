@@ -105,6 +105,12 @@ fn counting_bloom_layout(
 }
 
 ///|
+/// Largest value a single 16-bit counter can hold.
+pub fn CountingBloomFilter::counter_max() -> Int32 {
+  0xFFFF
+}
+
+///|
 /// Create a counting filter sized for `expected_items` and the target
 /// `false_positive_rate`.
 ///

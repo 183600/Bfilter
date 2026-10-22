@@ -874,6 +874,27 @@ pub fn CuckooFilter::capacity(self : CuckooFilter) -> Int32 {
 }
 
 ///|
+/// Number of fingerprints that can still be inserted before reaching the total
+/// slot capacity.
+///
+/// A non-zero result does not guarantee that the next insertion succeeds,
+/// because cuckoo placement can fail before every slot is occupied. `insert`
+/// returns `false` in that case.
+pub fn CuckooFilter::remaining_capacity(self : CuckooFilter) -> Int32 {
+  self.capacity() - self.inserted
+}
+
+///|
+/// Whether every slot is occupied.
+///
+/// This is a capacity check, not a placement check: a filter with free slots
+/// can still reject an insertion when no augmenting path exists. Conversely, a
+/// full filter always rejects further insertions.
+pub fn CuckooFilter::is_full(self : CuckooFilter) -> Bool {
+  self.inserted >= self.capacity()
+}
+
+///|
 /// Fraction of slots currently holding a fingerprint, in `[0, 1]`.
 pub fn CuckooFilter::load_factor(self : CuckooFilter) -> Double {
   self.inserted.to_double() / self.capacity().to_double()

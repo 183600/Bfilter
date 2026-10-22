@@ -267,9 +267,12 @@ assert_true(filter.remove("task"))
 assert_false(filter.contains("task"))
 ```
 
-Counters saturate at 65535. Removing a key that was never inserted can return
-`true` on a false positive and disturb other entries, so only remove keys that
-are known to be present. `remove_all` returns `true` only if every removal
+Counters saturate at 65535. `CountingBloomFilter::counter_max()` exposes that
+limit (and the concurrent and scalable counting wrappers expose the same
+constant), which is useful when deciding whether a multiplicity query can still
+distinguish additional insertions. Removing a key that was never inserted can
+return `true` on a false positive and disturb other entries, so only remove keys
+that are known to be present. `remove_all` returns `true` only if every removal
 succeeded; it continues removing the remaining keys after a failure.
 
 `count_of(key)` estimates the current multiplicity of a key by taking the
@@ -371,7 +374,24 @@ assert_false(filter.contains("session-1"))
 
 `with_size(bucket_count, bucket_size)` exposes the physical layout. The bucket
 count is rounded up to a power of two, which is required for alternate-index
-calculation. `insert` returns `false` when the filter is full and restores all
+calculation. `capacity()` reports the total number of fingerprint slots,
+`remaining_capacity()` reports how many are still free, and `is_full()` is true
+once every slot is occupied:
+
+```moonbit
+let filter = @src.CuckooFilter::with_size(1, 1)
+assert_true(filter.insert("only"))
+assert_true(filter.is_full())
+assert_eq(filter.remaining_capacity(), 0)
+assert_false(filter.insert("another"))
+```
+
+A non-zero `remaining_capacity()` does not guarantee that the next insertion
+succeeds: cuckoo placement can fail before every slot is occupied, and `insert`
+returns `false` in that case. A full filter, however, always rejects further
+insertions.
+
+`insert` returns `false` when the filter is full and restores all
 evicted fingerprints before returning, so a failed insert cannot lose existing
 entries. Before reporting a filter as full, insertion also searches for an
 augmenting path that moves existing fingerprints to their alternate buckets;
@@ -463,7 +483,8 @@ assert_false(filter.contains("shared"))
 
 `ConcurrentCuckooFilter` wraps a `CuckooFilter` in the same way. `insert`,
 `remove`, and the batch variants keep their boolean result while acquiring the
-lock exactly once:
+lock exactly once, and `capacity()`, `remaining_capacity()`, and `is_full()`
+report the layout under the lock:
 
 ```moonbit
 let filter = @src.ConcurrentCuckooFilter::new(1000)
