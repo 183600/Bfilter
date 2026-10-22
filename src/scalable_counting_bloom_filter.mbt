@@ -622,10 +622,18 @@ pub fn ScalableCountingBloomFilter::intersection(
   }
   let locations : @hashmap.HashMap[(UInt64, UInt64), (Int32, Int32)] = @hashmap.HashMap([],
   )
-  for entry in self.locations.iter() {
-    let (id, (self_slice, self_occurrences)) = entry
-    match other.locations.get(id) {
-      Some((other_slice, other_occurrences)) => {
+  let scan_self = self.locations.length() <= other.locations.length()
+  let scanned = if scan_self { self.locations } else { other.locations }
+  let looked_up = if scan_self { other.locations } else { self.locations }
+  for entry in scanned.iter() {
+    let (id, (scan_slice, scan_occurrences)) = entry
+    match looked_up.get(id) {
+      Some((lookup_slice, lookup_occurrences)) => {
+        let (self_slice, self_occurrences, other_slice, other_occurrences) = if scan_self {
+          (scan_slice, scan_occurrences, lookup_slice, lookup_occurrences)
+        } else {
+          (lookup_slice, lookup_occurrences, scan_slice, scan_occurrences)
+        }
         let occurrences = if self_occurrences < other_occurrences {
           self_occurrences
         } else {
