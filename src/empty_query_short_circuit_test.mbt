@@ -41,6 +41,8 @@ test "empty filter queries do not hash their keys" {
   assert_false(cuckoo.remove(key))
   assert_false(scalable.contains(key))
   assert_false(scalable_counting.contains(key))
+  assert_eq(scalable_counting.count_of(key), 0)
+  assert_false(scalable_counting.remove(key))
   assert_eq(hash_probe_calls.val, 0)
 }
 
@@ -51,6 +53,7 @@ test "full cuckoo filter conditional insertion does not hash its key" {
   assert_true(filter.is_full())
   hash_probe_calls.val = 0
   assert_false(filter.insert_if_absent(HashProbe(2)))
+  assert_false(filter.insert(HashProbe(3)))
   assert_eq(hash_probe_calls.val, 0)
 }
 

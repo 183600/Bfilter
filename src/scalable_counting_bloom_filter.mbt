@@ -287,6 +287,12 @@ pub fn[K : Hash] ScalableCountingBloomFilter::count_of(
   self : ScalableCountingBloomFilter,
   key : K,
 ) -> Int32 {
+  // No key is tracked, so every multiplicity is zero without hashing the key.
+  // This also covers a count-only filter whose conservative insertion count
+  // lives in slice metadata rather than in the location table.
+  if self.locations.length() == 0 {
+    return 0
+  }
   match self.locations.get(key_hashes(key)) {
     Some((_, occurrences)) => occurrences
     None => 0
@@ -303,6 +309,11 @@ pub fn[K : Hash] ScalableCountingBloomFilter::remove(
   self : ScalableCountingBloomFilter,
   key : K,
 ) -> Bool {
+  // Removing a key that is not in the location table always fails, so skip
+  // hashing when the table is empty. Count-only slices are not removable.
+  if self.locations.length() == 0 {
+    return false
+  }
   let id = key_hashes(key)
   let (slice_index, occurrences) = match self.locations.get(id) {
     Some(location) => location
