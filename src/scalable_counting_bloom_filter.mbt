@@ -529,11 +529,7 @@ pub fn ScalableCountingBloomFilter::merge(
       occurrences.to_int64()
     total_inserted = total_inserted + occurrences.to_int64()
   }
-  let merged : @hashmap.HashMap[(UInt64, UInt64), (Int32, Int32)] = @hashmap.HashMap([],
-  )
-  for entry in self.locations.iter() {
-    merged.set(entry.0, entry.1)
-  }
+  let merged = self.locations.copy()
   for entry in other.locations.iter() {
     let (id, (other_slice, other_occurrences)) = entry
     match self.locations.get(id) {
