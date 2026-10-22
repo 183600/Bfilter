@@ -254,7 +254,9 @@ which reports only the counter arrays. `insert_if_absent`, the batch helpers,
 `copy`, `clear`, and the occupancy statistics mirror the other filters.
 `union` and `merge` rebuild counters from the tracked multiplicities: a key
 tracked by both filters keeps the larger multiplicity when both stored it in
-the same slice and the sum when they stored it in different slices.
+the same slice and the sum when they stored it in different slices. Combining a
+filter with itself therefore preserves each multiplicity instead of doubling
+it.
 `intersection` keeps the keys tracked by both filters with the smaller
 multiplicity, even when the inputs stored them in different slices.
 `is_subset_of` also consults the tracked multiplicities across slices, so a
@@ -622,9 +624,9 @@ let restored = @src.BloomFilter::from_bytes(data)
 assert_true(restored.contains("saved"))
 ```
 
-The same methods exist on `CountingBloomFilter`, `CompactCountingBloomFilter`,
-`CuckooFilter`, `ScalableBloomFilter`, and `ScalableCountingBloomFilter`. The
-concurrent wrappers also expose
+The same methods exist on `BlockedBloomFilter`, `CountingBloomFilter`,
+`CompactCountingBloomFilter`, `CuckooFilter`, `ScalableBloomFilter`, and
+`ScalableCountingBloomFilter`. The concurrent wrappers also expose
 `to_bytes()` and `from_bytes()`, copying the underlying filter while holding the
 lock. Hashing uses fixed seeds, so standard
 `Hash` implementations produce the same positions in a new process. The Cuckoo
