@@ -37,6 +37,10 @@ assert_true(filter.false_positive_rate() < 0.01)
 Storage is bit-packed: the filter uses approximately `bit_count / 8` bytes.
 `bit_count()` reports the rounded-up number of addressable bits, and
 `false_positive_rate()` estimates the current rate from the insertion count.
+When `bit_count()` is a power of two, a very wide `hash_count` stops after one
+double-hash cycle: every later probe repeats a bit that an earlier probe already
+set or tested. This keeps an otherwise valid but unusually wide configuration
+from scanning the full nominal hash count.
 
 Batch helpers insert or test multiple keys. `contains_all` requires every key,
 while `contains_any` stops at the first possible match and returns `false` for
@@ -144,9 +148,11 @@ assert_eq(filter.block_count(), filter.bit_count() / 512)
 
 `with_size(bit_count, hash_count)` rounds the bit count up to whole blocks, so
 `bit_count()` is always a multiple of 512. Block selection is derived from the
-key hash and the remaining probes use double hashing within that block. Blocks
-fill unevenly, which can raise the observed false-positive rate slightly above
-a classic Bloom filter with the same total bit count, but the standard
+key hash and the remaining probes use double hashing within that block. The
+odd probe step and the 512-bit block size mean the offset sequence repeats after
+at most 512 probes, so a wider `hash_count` is capped at one cycle. Blocks fill
+unevenly, which can raise the observed false-positive rate slightly above a
+classic Bloom filter with the same total bit count, but the standard
 `fill_ratio()`, `estimated_item_count()`, and `false_positive_rate()` estimates
 remain available. Filters can be combined when their rounded bit counts and
 hash counts match, exactly like `BloomFilter`.
@@ -254,7 +260,11 @@ multiplicity, even when the inputs stored them in different slices.
 `is_subset_of` also consults the tracked multiplicities across slices, so a
 shared key counts as contained even when the two filters placed it in different
 slices; `is_disjoint_from` still compares the slice counters because it must
-prove that no key can be reported by both.
+prove that no key can be reported by both. The cross-slice fallback covers keys
+inserted through the filters. Because slices at different indices use different
+hash layouts, it cannot rule out an untracked false-positive key that only the
+first filter reports; compare filters that grew in lockstep when a strict
+set-inclusion guarantee is required.
 `ConcurrentScalableCountingBloomFilter` adds one-mutex atomic operations,
 including `intersection`, and a `snapshot()` method.
 
@@ -540,14 +550,13 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   sized to `min(k, slot_count)` to avoid allocating temporary position arrays;
   the workspace is omitted from `memory_bytes()` and from serialized data, and
   very wide hash counts fall back to temporary arrays that are capped by the
-  slot count as well. When the hash count is much wider than the slot array,
-  `contains` and `count_of` stop once the double-hash sequence repeats, since
-  the remaining probes revisit counters already checked. This cycle shortcut
-  applies when the slot count is a power of two, where wrapping the 64-bit probe
-  state preserves the cycle; other slot counts keep scanning every probe so
-  later wraparound offsets cannot hide a counter. Set operations scan the packed
-  counter words, and merging into an empty receiver copies the packed words
-  directly.
+  slot count as well. When the slot count is a power of two and the double-hash
+  cycle has at most 16,384 positions, inserts, removals, and conditional
+  inserts enumerate that cycle once and assign each position its exact number of
+  occurrences; `contains` and `count_of` always stop at the cycle. Other slot
+  counts keep scanning every probe so later wraparound offsets cannot hide a
+  counter. Set operations scan the packed counter words, and merging into an
+  empty receiver copies the packed words directly.
 - `CuckooFilter` checks two buckets of `B` fingerprints per query, so a lookup
   is `O(B)` expected. An insert may evict fingerprints and, when random eviction
   does not find room, run a bounded breadth-first search for an augmenting path;

@@ -768,6 +768,12 @@ pub fn ScalableCountingBloomFilter::intersection(
 /// different slices by the two inputs, but `locations` still records its exact
 /// multiplicity. This makes a union of overlapping filters a subset of itself
 /// even when the inputs placed a shared key in different slices.
+///
+/// The cross-slice fallback is based on tracked keys. Slices at different
+/// indices use different hash layouts, so the fallback cannot certify that an
+/// untracked false-positive key reported only by `self` is also reported by
+/// `other`. Compare filters that grew in lockstep when a strict set-inclusion
+/// guarantee is required.
 pub fn ScalableCountingBloomFilter::is_subset_of(
   self : ScalableCountingBloomFilter,
   other : ScalableCountingBloomFilter,
