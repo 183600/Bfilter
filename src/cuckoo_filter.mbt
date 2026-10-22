@@ -210,9 +210,6 @@ fn CuckooFilter::insert_fingerprint_bfs_sparse(
     let base = bucket * self.bucket_size
     for slot = 0; slot < self.bucket_size; slot = slot + 1 {
       let occupant = self.buckets[base + slot]
-      if occupant == b'\x00' {
-        continue
-      }
       let alternate = self.alternate_index(bucket, occupant)
       if alternate == bucket || parent.contains(alternate) {
         continue
@@ -289,9 +286,6 @@ fn CuckooFilter::insert_fingerprint_bfs(
     let base = bucket * self.bucket_size
     for slot = 0; slot < self.bucket_size; slot = slot + 1 {
       let occupant = self.buckets[base + slot]
-      if occupant == b'\x00' {
-        continue
-      }
       let alternate = self.alternate_index(bucket, occupant)
       if alternate == bucket || visited[alternate] {
         continue
