@@ -461,7 +461,10 @@ fingerprint is already present or when the filter has no room for it.
 
 Filters with the same bucket layout can be combined. `union` copies the
 fingerprints of both inputs and returns `None` if the combined entries do not
-fit, leaving both inputs unchanged:
+fit, leaving both inputs unchanged. A `None` result can also occur when the
+fingerprints fit in the total capacity but no placement is reachable through
+their candidate buckets within the bounded eviction and augmenting-path search;
+`merge` returns `false` in the same situation without changing the receiver.
 
 ```moonbit
 let left = @src.CuckooFilter::with_size(64, 4)
@@ -615,6 +618,14 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
 - The `optimal_size` helpers compute layouts without allocating, and the
   concurrent wrappers forward them without taking the mutex. Batch operations on
   the concurrent wrappers take the lock once for the whole batch.
+
+Definitely empty filters avoid hashing the key for membership queries, and for
+the counting variants every selected counter is known to be zero. Cuckoo
+`contains`, `count_of`, and `remove` also return immediately once the last
+fingerprint has been removed, and a full Cuckoo filter rejects `insert` and
+`insert_if_absent` before hashing. A scalable counting filter with no tracked
+keys returns `0` from `count_of` and `false` from `remove` without hashing.
+Empty batches remain no-ops and never touch the backing storage.
 
 ## Occupancy and Storage
 
