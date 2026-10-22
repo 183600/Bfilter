@@ -268,8 +268,10 @@ pub fn[K : Hash] ScalableCountingBloomFilter::contains(
   key : K,
 ) -> Bool {
   // A filter with no outstanding insertions has no positive counter in any
-  // slice, so a query can answer without hashing the key.
-  if self.inserted == 0 {
+  // slice, so a query can answer without hashing the key. The same is true for
+  // a count-only filter: without tracked keys there are no positive counters,
+  // so every membership query is definitely a miss.
+  if self.inserted == 0 || self.locations.length() == 0 {
     return false
   }
   let id = key_hashes(key)

@@ -193,8 +193,10 @@ pub fn[K : Hash] ScalableBloomFilter::contains(
   key : K,
 ) -> Bool {
   // A filter with no outstanding insertions has no set bit in any slice, so a
-  // query can answer without hashing the key or walking the slice list.
-  if self.inserted == 0 {
+  // query can answer without hashing the key or walking the slice list. A
+  // whitebox-constructed filter can also carry a conservative insertion count
+  // without any slices; that state is equally empty.
+  if self.inserted == 0 || self.slices.length() == 0 {
     return false
   }
   let (h1, h2) = key_hashes(key)
