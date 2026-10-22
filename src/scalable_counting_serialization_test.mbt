@@ -268,3 +268,16 @@ test "panic scalable counting serialization rejects missing tracked occurrences"
   )
   |> ignore
 }
+
+///|
+test "scalable counting serialization stays byte stable across many tracked keys" {
+  let filter = @src.ScalableCountingBloomFilter::new(1, 0.5)
+  for i = 0; i < 4000; i = i + 1 {
+    filter.insert("stable-" + i.to_string())
+  }
+  let bytes = filter.to_bytes()
+  let restored = @src.ScalableCountingBloomFilter::from_bytes(bytes)
+  assert_eq(restored.to_bytes(), bytes)
+  assert_eq(restored.tracked_key_count(), 4000)
+  assert_eq(restored.count(), 4000)
+}

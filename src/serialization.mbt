@@ -390,8 +390,27 @@ pub fn ScalableCountingBloomFilter::to_bytes(
     SERIAL_HEADER_BYTES + 8,
     entry_count.reinterpret_as_uint(),
   )
-  let mut offset = SERIAL_HEADER_BYTES + 12
+  let entries : Array[((UInt64, UInt64), (Int32, Int32))] = []
   for entry in self.locations.iter() {
+    entries.push(entry)
+  }
+  entries.sort_by(fn(left, right) {
+    let ((left_h1, left_h2), _) = left
+    let ((right_h1, right_h2), _) = right
+    if left_h1 < right_h1 {
+      -1
+    } else if left_h1 > right_h1 {
+      1
+    } else if left_h2 < right_h2 {
+      -1
+    } else if left_h2 > right_h2 {
+      1
+    } else {
+      0
+    }
+  })
+  let mut offset = SERIAL_HEADER_BYTES + 12
+  for entry in entries {
     let ((h1, h2), (slice_index, occurrences)) = entry
     data.unsafe_write_uint64_le(offset, h1)
     data.unsafe_write_uint64_le(offset + 8, h2)
