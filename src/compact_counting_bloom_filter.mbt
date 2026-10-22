@@ -383,9 +383,9 @@ pub fn CompactCountingBloomFilter::merge(
       let b = (right >> shift) & COMPACT_COUNTER_MAX
       let value = if a > b { a } else { b }
       merged = merged | (value << shift)
-      merged_mass = merged_mass + value
     }
     self.counters[i] = merged
+    merged_mass = merged_mass + compact_word_mass(merged)
   }
   self.counter_mass = merged_mass
   self.inserted += other.inserted
@@ -443,9 +443,9 @@ pub fn CompactCountingBloomFilter::intersection(
       let b = (right >> shift) & COMPACT_COUNTER_MAX
       let value = if a < b { a } else { b }
       merged = merged | (value << shift)
-      merged_mass = merged_mass + value
     }
     result.counters[i] = merged
+    merged_mass = merged_mass + compact_word_mass(merged)
   }
   result.counter_mass = merged_mass
   result.inserted = self.inserted.min(other.inserted)

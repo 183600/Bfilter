@@ -477,9 +477,9 @@ pub fn CountingBloomFilter::merge(
       let b = (right >> shift) & 0xFFFFUL
       let value = if a > b { a } else { b }
       merged = merged | (value << shift)
-      merged_mass = merged_mass + value
     }
     self.counters[i] = merged
+    merged_mass = merged_mass + counting_word_mass(merged)
   }
   self.counter_mass = merged_mass
   self.inserted += other.inserted
@@ -534,9 +534,9 @@ pub fn CountingBloomFilter::intersection(
       let b = (right >> shift) & 0xFFFFUL
       let value = if a < b { a } else { b }
       merged = merged | (value << shift)
-      merged_mass = merged_mass + value
     }
     result.counters[i] = merged
+    merged_mass = merged_mass + counting_word_mass(merged)
   }
   result.counter_mass = merged_mass
   result.inserted = self.inserted.min(other.inserted)
