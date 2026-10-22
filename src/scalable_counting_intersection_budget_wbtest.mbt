@@ -49,3 +49,12 @@ test "scalable counting intersection ignores oversized extra slices" {
   assert_eq(common.slice_count(), 1)
   assert_eq(common.count(), 0)
 }
+
+///|
+test "merging an empty scalable counting filter leaves an oversized receiver untouched" {
+  let receiver = oversized_counting_slot_receiver()
+  receiver.merge(ScalableCountingBloomFilter::new(1, 0.01))
+  assert_eq(receiver.slice_count(), 1)
+  assert_eq(receiver.count(), 0)
+  assert_eq(receiver.tracked_key_count(), 0)
+}

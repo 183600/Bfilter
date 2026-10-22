@@ -617,6 +617,13 @@ pub fn ScalableCountingBloomFilter::merge(
       self.append_slice()
       self.slices[0].inserted = self.inserted
     }
+    // An empty source with no additional slices cannot change the receiver.
+    // Return before the aggregate budget check so merging an empty filter stays
+    // a no-op even when the receiver already holds an oversized hand-built
+    // layout, just like the empty-merge fast paths on the other filter types.
+    if other.slices.length() <= self.slices.length() {
+      return
+    }
     let mut total_slots = self.slot_count()
     for i = self.slices.length(); i < other.slices.length(); i = i + 1 {
       total_slots = total_slots + other.slices[i].slot_count().to_int64()
