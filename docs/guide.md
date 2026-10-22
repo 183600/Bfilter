@@ -43,8 +43,9 @@ set or tested. This keeps an otherwise valid but unusually wide configuration
 from scanning the full nominal hash count. Other bit counts are not purely
 periodic, so they still perform every configured probe; when such a filter is
 already completely full, insertions and queries short-circuit the walk because
-no remaining probe can change the result. Prefer a power-of-two bit count when
-planning an unusually wide `hash_count`.
+no remaining probe can change the result. A filter with no insertions has no set
+bits, so queries also return `false` without probing. Prefer a power-of-two bit
+count when planning an unusually wide `hash_count`.
 
 Batch helpers insert or test multiple keys. `contains_all` requires every key,
 while `contains_any` stops at the first possible match and returns `false` for
@@ -570,8 +571,13 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   the power-of-two cycle length comes from the lowest set bit of the probe step,
   so a wide hash count does not add a GCD loop to each query. Other slot counts
   keep scanning every probe so later wraparound offsets cannot hide a counter.
-  Set operations scan the packed counter words, and merging into an empty
-  receiver copies the packed words directly.
+  A filter with no positive counters answers `contains` as `false`, `count_of`
+  as `0`, and `remove` as `false` without walking the probe sequence, which also
+  covers wide non-power-of-two layouts where the cycle shortcut does not apply.
+  A wide layout whose every slot is positive answers `contains` as `true` and
+  makes `insert_if_absent` return `false` after one occupancy scan instead of a
+  full probe walk. Set operations scan the packed counter words, and merging
+  into an empty receiver copies the packed words directly.
 - `CuckooFilter` checks two buckets of `B` fingerprints per query, so a lookup
   is `O(B)` expected. An insert may evict fingerprints and, when random eviction
   does not find room, run a bounded breadth-first search for an augmenting path;

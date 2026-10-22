@@ -246,6 +246,12 @@ fn BloomFilter::contains_hashes(
   h1 : UInt64,
   h2 : UInt64,
 ) -> Bool {
+  // The insertion counter is zero only while no bit is set, so no key can be
+  // reported present. This avoids a wide probe walk on a non-power-of-two bit
+  // count, where the double-hash cycle shortcut does not apply.
+  if self.inserted == 0 {
+    return false
+  }
   // A full filter reports every key present; avoid probing a wide, non-cyclic
   // position sequence just to rediscover bits that are already set.
   if self.has_unbounded_probe_walk() && self.all_bits_set() {

@@ -659,6 +659,14 @@ fn CountingBloomFilter::insert_if_absent_hashes(
   h1 : UInt64,
   h2 : UInt64,
 ) -> Bool {
+  // Every selected counter is already positive on a full filter, so the
+  // conditional insertion is a false positive. Avoid enumerating a wide
+  // non-cyclic probe sequence before reaching that conclusion.
+  if self.hash_count > self.slot_count &&
+    self.hash_count > 64 &&
+    self.all_slots_positive() {
+    return false
+  }
   let positions = self.positions_for(h1, h2)
   for i = 0; i < positions.length; i = i + 1 {
     if self.counter_at(positions.positions[i]) == 0UL {
@@ -707,6 +715,10 @@ fn CountingBloomFilter::remove_hashes(
   h1 : UInt64,
   h2 : UInt64,
 ) -> Bool {
+  // No counter is positive, so at least one required decrement must fail.
+  if self.counter_mass == 0UL {
+    return false
+  }
   let positions = self.positions_for(h1, h2)
   for i = 0; i < positions.length; i = i + 1 {
     let pos = positions.positions[i]
@@ -735,11 +747,42 @@ fn CountingBloomFilter::remove_hashes(
 
 ///|
 /// Test a key whose two hash values have already been computed.
+///|
+/// Whether every addressable counter slot is positive.
+///
+/// A query cannot miss once every slot is positive: all of its probes land in
+/// positive counters. Checking the packed mask words is much cheaper than
+/// walking a very wide probe sequence on a non-power-of-two layout.
+fn CountingBloomFilter::all_slots_positive(
+  self : CountingBloomFilter,
+) -> Bool {
+  for i = 0; i < self.counters.length(); i = i + 1 {
+    if counting_nonzero_lanes(self.counters[i]) != COUNTING_LANE_SIGN {
+      return false
+    }
+  }
+  true
+}
+
+///|
 fn CountingBloomFilter::contains_hashes(
   self : CountingBloomFilter,
   h1 : UInt64,
   h2 : UInt64,
 ) -> Bool {
+  // No counter is positive, so no probe can succeed. This keeps a query on an
+  // empty filter cheap even when a non-power-of-two slot count disables the
+  // probe-cycle shortcut.
+  if self.counter_mass == 0UL {
+    return false
+  }
+  // A completely full filter reports every key present. Avoid walking a very
+  // wide, non-cyclic probe sequence just to rediscover positive counters.
+  if self.hash_count > self.slot_count &&
+    self.hash_count > 64 &&
+    self.all_slots_positive() {
+    return true
+  }
   let slot_count = self.slot_count.to_uint64()
   let probes = counting_effective_probes(self.hash_count, h2, slot_count)
   let mut state = h1
@@ -773,6 +816,11 @@ pub fn[K : Hash] CountingBloomFilter::count_of(
   self : CountingBloomFilter,
   key : K,
 ) -> Int32 {
+  // An empty filter has no positive counter, so the minimum is zero without
+  // probing a possibly very wide position sequence.
+  if self.counter_mass == 0UL {
+    return 0
+  }
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
   let probes = counting_effective_probes(self.hash_count, h2, slot_count)
