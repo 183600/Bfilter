@@ -225,6 +225,16 @@ pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::contains_any(
 }
 
 ///|
+/// Return an independent copy of the underlying filter.
+///
+/// This is equivalent to `snapshot()` and acquires the lock while copying.
+pub fn ConcurrentCompactCountingBloomFilter::copy(
+  self : ConcurrentCompactCountingBloomFilter,
+) -> CompactCountingBloomFilter {
+  self.with_lock(filter => filter.copy())
+}
+
+///|
 /// Return a consistent copy of the underlying filter.
 ///
 /// The copy is independent, so it can be queried or modified without holding
@@ -232,7 +242,7 @@ pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::contains_any(
 pub fn ConcurrentCompactCountingBloomFilter::snapshot(
   self : ConcurrentCompactCountingBloomFilter,
 ) -> CompactCountingBloomFilter {
-  self.with_lock(filter => filter.copy())
+  self.copy()
 }
 
 ///|

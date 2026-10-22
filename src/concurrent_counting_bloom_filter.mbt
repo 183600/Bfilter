@@ -217,6 +217,16 @@ pub fn[K : Hash] ConcurrentCountingBloomFilter::contains_any(
 }
 
 ///|
+/// Return an independent copy of the underlying filter.
+///
+/// This is equivalent to `snapshot()` and acquires the lock while copying.
+pub fn ConcurrentCountingBloomFilter::copy(
+  self : ConcurrentCountingBloomFilter,
+) -> CountingBloomFilter {
+  self.with_lock(filter => filter.copy())
+}
+
+///|
 /// Return a consistent copy of the underlying filter.
 ///
 /// The copy is independent, so it can be queried or modified without holding
@@ -224,7 +234,7 @@ pub fn[K : Hash] ConcurrentCountingBloomFilter::contains_any(
 pub fn ConcurrentCountingBloomFilter::snapshot(
   self : ConcurrentCountingBloomFilter,
 ) -> CountingBloomFilter {
-  self.with_lock(filter => filter.copy())
+  self.copy()
 }
 
 ///|

@@ -165,11 +165,21 @@ pub fn ConcurrentScalableBloomFilter::is_disjoint_from(
 }
 
 ///|
+/// Return an independent copy of the underlying filter, including every slice.
+///
+/// This is equivalent to `snapshot()` and acquires the lock while copying.
+pub fn ConcurrentScalableBloomFilter::copy(
+  self : ConcurrentScalableBloomFilter,
+) -> ScalableBloomFilter {
+  self.with_lock(filter => filter.copy())
+}
+
+///|
 /// Return a consistent copy of the underlying filter, including every slice.
 pub fn ConcurrentScalableBloomFilter::snapshot(
   self : ConcurrentScalableBloomFilter,
 ) -> ScalableBloomFilter {
-  self.with_lock(filter => filter.copy())
+  self.copy()
 }
 
 ///|

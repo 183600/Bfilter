@@ -116,6 +116,7 @@ pub fn ConcurrentBlockedBloomFilter::clear(Self) -> Unit
 pub fn[K : Hash] ConcurrentBlockedBloomFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentBlockedBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
 pub fn[K : Hash] ConcurrentBlockedBloomFilter::contains_any(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentBlockedBloomFilter::copy(Self) -> BlockedBloomFilter
 pub fn ConcurrentBlockedBloomFilter::count(Self) -> Int32
 pub fn ConcurrentBlockedBloomFilter::estimated_item_count(Self) -> Double
 pub fn ConcurrentBlockedBloomFilter::false_positive_rate(Self) -> Double
@@ -148,6 +149,7 @@ pub fn ConcurrentBloomFilter::clear(Self) -> Unit
 pub fn[K : Hash] ConcurrentBloomFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
 pub fn[K : Hash] ConcurrentBloomFilter::contains_any(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentBloomFilter::copy(Self) -> BloomFilter
 pub fn ConcurrentBloomFilter::count(Self) -> Int32
 pub fn ConcurrentBloomFilter::estimated_item_count(Self) -> Double
 pub fn ConcurrentBloomFilter::false_positive_rate(Self) -> Double
@@ -179,6 +181,7 @@ pub fn ConcurrentCompactCountingBloomFilter::clear(Self) -> Unit
 pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
 pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::contains_any(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentCompactCountingBloomFilter::copy(Self) -> CompactCountingBloomFilter
 pub fn ConcurrentCompactCountingBloomFilter::count(Self) -> Int32
 pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::count_of(Self, K) -> Int32
 pub fn ConcurrentCompactCountingBloomFilter::counter_max() -> Int32
@@ -215,6 +218,7 @@ pub fn ConcurrentCountingBloomFilter::clear(Self) -> Unit
 pub fn[K : Hash] ConcurrentCountingBloomFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCountingBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
 pub fn[K : Hash] ConcurrentCountingBloomFilter::contains_any(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentCountingBloomFilter::copy(Self) -> CountingBloomFilter
 pub fn ConcurrentCountingBloomFilter::count(Self) -> Int32
 pub fn[K : Hash] ConcurrentCountingBloomFilter::count_of(Self, K) -> Int32
 pub fn ConcurrentCountingBloomFilter::counter_max() -> Int32
@@ -254,6 +258,7 @@ pub fn ConcurrentCuckooFilter::clear(Self) -> Unit
 pub fn[K : Hash] ConcurrentCuckooFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCuckooFilter::contains_all(Self, ArrayView[K]) -> Bool
 pub fn[K : Hash] ConcurrentCuckooFilter::contains_any(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentCuckooFilter::copy(Self) -> CuckooFilter
 pub fn ConcurrentCuckooFilter::count(Self) -> Int32
 pub fn[K : Hash] ConcurrentCuckooFilter::count_of(Self, K) -> Int32
 pub fn ConcurrentCuckooFilter::false_positive_rate(Self) -> Double
@@ -289,6 +294,7 @@ pub fn ConcurrentScalableBloomFilter::clear(Self) -> Unit
 pub fn[K : Hash] ConcurrentScalableBloomFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentScalableBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
 pub fn[K : Hash] ConcurrentScalableBloomFilter::contains_any(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentScalableBloomFilter::copy(Self) -> ScalableBloomFilter
 pub fn ConcurrentScalableBloomFilter::count(Self) -> Int32
 pub fn ConcurrentScalableBloomFilter::estimated_item_count(Self) -> Double
 pub fn ConcurrentScalableBloomFilter::false_positive_rate(Self) -> Double
@@ -320,6 +326,7 @@ pub fn ConcurrentScalableCountingBloomFilter::clear(Self) -> Unit
 pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::contains(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::contains_all(Self, ArrayView[K]) -> Bool
 pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::contains_any(Self, ArrayView[K]) -> Bool
+pub fn ConcurrentScalableCountingBloomFilter::copy(Self) -> ScalableCountingBloomFilter
 pub fn ConcurrentScalableCountingBloomFilter::count(Self) -> Int32
 pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::count_of(Self, K) -> Int32
 pub fn ConcurrentScalableCountingBloomFilter::counter_max() -> Int32

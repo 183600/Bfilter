@@ -507,9 +507,9 @@ assert_true(filter.remove("session"))
 ```
 
 Each filter type also has `copy()`, which returns an independent filter. The
-concurrent wrappers expose `snapshot()`, which copies the underlying filter
-while holding the lock. A snapshot remains unchanged if other threads keep
-updating the original:
+concurrent wrappers expose both `copy()` and `snapshot()`, which copy the
+underlying filter while holding the lock. A copy remains unchanged if other
+threads keep updating the original:
 
 ```moonbit
 let filter = @src.ConcurrentBloomFilter::new(1000, 0.01)

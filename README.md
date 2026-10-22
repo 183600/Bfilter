@@ -121,8 +121,8 @@ scalable filter copies the source slices.
 
 `ConcurrentBloomFilter`, `ConcurrentCountingBloomFilter`,
 `ConcurrentCuckooFilter`, and the other `Concurrent*` wrappers serialize each
-operation with a mutex. Batch operations take the lock once, and `snapshot()`
-returns an independent copy while holding the lock.
+operation with a mutex. Batch operations take the lock once, and `copy()` /
+`snapshot()` return an independent copy while holding the lock.
 
 The mutex is a real OS mutex on native/LLVM targets. On JavaScript and Wasm it
 is a no-op because those runtimes execute a module on a single thread; the
