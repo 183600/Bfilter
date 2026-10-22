@@ -43,6 +43,20 @@ const COUNTING_LANE_SIGN : UInt64 = 0x8000800080008000UL
 const COUNTING_LANE_LOW : UInt64 = 0x7FFF7FFF7FFF7FFFUL
 
 ///|
+/// Largest multiple of `occurrences` that fits in a 16-bit counter.
+///
+/// When one counter is selected several times by the same key, capping at a
+/// multiple of that count keeps every removal able to subtract a full
+/// contribution instead of leaving a residue below the required amount.
+fn counting_position_limit(occurrences : UInt64) -> UInt64 {
+  if occurrences > 0xFFFFUL {
+    0xFFFFUL
+  } else {
+    0xFFFFUL - 0xFFFFUL % occurrences
+  }
+}
+
+///|
 /// Mark the high bit of every lane where `left` is at least `right`.
 ///
 /// Forcing the high bit of `left` and clearing it in `right` keeps the
@@ -215,8 +229,10 @@ fn unique_key_positions(
 /// it, capping at the largest multiple of that count that fits in 16 bits.
 ///
 /// Capping below 65535 when a position repeats keeps the counter removable:
-/// each removal subtracts exactly the same amount that each insertion added,
-/// so a saturated key eventually reaches zero instead of stranding a residue.
+/// each removal subtracts exactly the same amount that each insertion added.
+/// Every selected lane also advances by the same number of contributions, so
+/// lanes with different repeat counts saturate together instead of stranding a
+/// residue on the lanes that had more headroom.
 fn CountingBloomFilter::raise_positions(
   self : CountingBloomFilter,
   h1 : UInt64,
@@ -234,18 +250,53 @@ fn CountingBloomFilter::raise_positions_at(
   positions : Array[(Int32, Int32)],
   multiplicity : Int32,
 ) -> Unit {
+  // All counters of one key must advance together. Saturation is per position,
+  // so capping the lanes that still have room independently makes one lane run
+  // out of recorded insertions before the others. The later removals then stop
+  // early and leave positive residue on the remaining lanes forever. Find how
+  // many complete contributions fit in every selected lane and add the same
+  // number to all of them.
+  let mut common = multiplicity.to_uint64()
+  let mut any_zero = false
   for entry in positions {
     let (pos, occurrences) = entry
     let occurrences = occurrences.to_uint64()
-    let limit = if occurrences > 65535UL {
-      65535UL
-    } else {
-      65535UL - 65535UL % occurrences
+    let limit = counting_position_limit(occurrences)
+    let value = self.counter_at(pos)
+    if value == 0UL {
+      any_zero = true
     }
+    let available = if value > limit {
+      0UL
+    } else {
+      (limit - value) / occurrences
+    }
+    if available < common {
+      common = available
+    }
+  }
+  if common > 0UL {
+    for entry in positions {
+      let (pos, occurrences) = entry
+      let occurrences = occurrences.to_uint64()
+      let value = self.counter_at(pos)
+      self.set_counter(pos, value + common * occurrences)
+    }
+    return
+  }
+  if !any_zero {
+    return
+  }
+  // A zero lane means the key is not fully present yet. Add one complete
+  // contribution where possible so a conditional insertion cannot leave a
+  // false negative; lanes without room stay saturated.
+  for entry in positions {
+    let (pos, occurrences) = entry
+    let occurrences = occurrences.to_uint64()
+    let limit = counting_position_limit(occurrences)
     let value = self.counter_at(pos)
     if value < limit {
-      let added = multiplicity.to_uint64() * occurrences
-      let raised = value + added
+      let raised = value + occurrences
       self.set_counter(pos, if raised > limit { limit } else { raised })
     }
   }
