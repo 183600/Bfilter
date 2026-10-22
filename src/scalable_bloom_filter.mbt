@@ -42,17 +42,18 @@ fn ScalableBloomFilter::append_slice(self : ScalableBloomFilter) -> Unit {
     }
     previous * SCALABLE_GROWTH
   }
-  let slice = BloomFilter::new(
+  let (slice_bits, slice_hashes) = bloom_layout(
     capacity,
     scalable_slice_rate(self.target_rate, index),
   )
-  let mut bit_count = slice.bit_count().to_int64()
+  let mut bit_count = slice_bits.to_int64()
   for existing in self.slices {
     bit_count = bit_count + existing.bit_count().to_int64()
   }
   guard bit_count <= 2147483584L else {
     abort("scalable bloom filter is too large")
   }
+  let slice = BloomFilter::with_size(slice_bits, slice_hashes)
   self.slices.push(slice)
   self.capacities.push(capacity)
 }
