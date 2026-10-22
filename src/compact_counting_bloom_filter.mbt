@@ -239,6 +239,46 @@ fn CompactCountingBloomFilter::increment_positions(
 }
 
 ///|
+/// Apply a precomputed increment plan to every selected counter.
+///
+/// `common` is the number of complete contributions that fit in every selected
+/// lane. When no such contribution fits but at least one lane is still zero,
+/// the fallback advances each lane independently so a conditional insertion
+/// cannot leave a false negative.
+fn CompactCountingBloomFilter::apply_increment_positions_at(
+  self : CompactCountingBloomFilter,
+  positions : CountingPositionSet,
+  common : UInt64,
+  any_zero : Bool,
+) -> Unit {
+  if common > 0UL {
+    for i = 0; i < positions.length; i = i + 1 {
+      let pos = positions.positions[i]
+      let occurrences = positions.counts[i].to_uint64()
+      let value = self.counter_at(pos)
+      self.set_counter(pos, value + common * occurrences)
+    }
+    return
+  }
+  if !any_zero {
+    return
+  }
+  // A zero lane means the key is not fully present yet. Add one complete
+  // contribution where possible so a conditional insertion cannot leave a
+  // false negative; lanes without room stay saturated.
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
+    let limit = compact_position_limit(occurrences)
+    let value = self.counter_at(pos)
+    if value < limit {
+      let raised = value + occurrences
+      self.set_counter(pos, if raised > limit { limit } else { raised })
+    }
+  }
+}
+
+///|
 fn CompactCountingBloomFilter::increment_positions_at(
   self : CompactCountingBloomFilter,
   positions : CountingPositionSet,
@@ -268,31 +308,45 @@ fn CompactCountingBloomFilter::increment_positions_at(
       common = available
     }
   }
-  if common > 0UL {
-    for i = 0; i < positions.length; i = i + 1 {
-      let pos = positions.positions[i]
-      let occurrences = positions.counts[i].to_uint64()
-      let value = self.counter_at(pos)
-      self.set_counter(pos, value + common * occurrences)
-    }
-    return
-  }
-  if !any_zero {
-    return
-  }
-  // A zero lane means the key is not fully present yet. Add one complete
-  // contribution where possible so a conditional insertion cannot leave a
-  // false negative; lanes without room stay saturated.
+  self.apply_increment_positions_at(positions, common, any_zero)
+}
+
+///|
+/// Insert one complete contribution if at least one selected counter is zero.
+///
+/// The zero check and the raise plan share one scan, so a conditional insertion
+/// does not reread every selected nibble after deciding that it can proceed.
+fn CompactCountingBloomFilter::insert_absent_at(
+  self : CompactCountingBloomFilter,
+  positions : CountingPositionSet,
+) -> Bool {
+  let mut common = 1UL
+  let mut any_zero = false
   for i = 0; i < positions.length; i = i + 1 {
     let pos = positions.positions[i]
     let occurrences = positions.counts[i].to_uint64()
     let limit = compact_position_limit(occurrences)
     let value = self.counter_at(pos)
-    if value < limit {
-      let raised = value + occurrences
-      self.set_counter(pos, if raised > limit { limit } else { raised })
+    if value == 0UL {
+      any_zero = true
+    }
+    let available = if value > limit {
+      0UL
+    } else {
+      (limit - value) / occurrences
+    }
+    if available < common {
+      common = available
     }
   }
+  if !any_zero {
+    return false
+  }
+  guard self.inserted < 2147483647 else {
+    abort("compact counting bloom filter insertion count overflow")
+  }
+  self.apply_increment_positions_at(positions, common, true)
+  true
 }
 
 ///|
@@ -333,17 +387,12 @@ pub fn[K : Hash] CompactCountingBloomFilter::insert_if_absent(
     return false
   }
   let positions = self.positions_for(h1, h2)
-  for i = 0; i < positions.length; i = i + 1 {
-    if self.counter_at(positions.positions[i]) == 0UL {
-      guard self.inserted < 2147483647 else {
-        abort("compact counting bloom filter insertion count overflow")
-      }
-      self.increment_positions_at(positions)
-      self.inserted += 1
-      return true
-    }
+  if self.insert_absent_at(positions) {
+    self.inserted += 1
+    true
+  } else {
+    false
   }
-  false
 }
 
 ///|

@@ -602,6 +602,48 @@ fn CountingBloomFilter::raise_positions_for_new_merge(
 }
 
 ///|
+/// Apply a precomputed raise plan to every selected counter.
+///
+/// `common` is the number of complete contributions that fit in every selected
+/// lane. When no such contribution fits but at least one lane is still zero,
+/// the fallback advances each lane independently so a conditional insertion
+/// cannot leave a tracked occurrence that no later removal can drain.
+fn CountingBloomFilter::apply_raise_positions_at(
+  self : CountingBloomFilter,
+  positions : CountingPositionSet,
+  common : UInt64,
+  any_zero : Bool,
+  wanted : UInt64,
+) -> Unit {
+  if common > 0UL {
+    for i = 0; i < positions.length; i = i + 1 {
+      let pos = positions.positions[i]
+      let occurrences = positions.counts[i].to_uint64()
+      let value = self.counter_at(pos)
+      self.set_counter(pos, value + common * occurrences)
+    }
+    return
+  }
+  if !any_zero {
+    return
+  }
+  // A zero lane means the key is not fully present yet. Add as many complete
+  // contributions as the lane can hold, up to the requested multiplicity, so a
+  // merge or conditional insertion cannot leave a tracked occurrence that no
+  // later removal can drain. Lanes without room stay saturated.
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
+    let limit = counting_position_limit(occurrences)
+    let value = self.counter_at(pos)
+    if value < limit {
+      let raised = value + wanted * occurrences
+      self.set_counter(pos, if raised > limit { limit } else { raised })
+    }
+  }
+}
+
+///|
 fn CountingBloomFilter::raise_positions_at(
   self : CountingBloomFilter,
   positions : CountingPositionSet,
@@ -633,32 +675,47 @@ fn CountingBloomFilter::raise_positions_at(
       common = available
     }
   }
-  if common > 0UL {
-    for i = 0; i < positions.length; i = i + 1 {
-      let pos = positions.positions[i]
-      let occurrences = positions.counts[i].to_uint64()
-      let value = self.counter_at(pos)
-      self.set_counter(pos, value + common * occurrences)
-    }
-    return
-  }
-  if !any_zero {
-    return
-  }
-  // A zero lane means the key is not fully present yet. Add as many complete
-  // contributions as the lane can hold, up to the requested multiplicity, so a
-  // merge or conditional insertion cannot leave a tracked occurrence that no
-  // later removal can drain. Lanes without room stay saturated.
+  self.apply_raise_positions_at(positions, common, any_zero, wanted)
+}
+
+///|
+/// Insert one complete contribution if at least one selected counter is zero.
+///
+/// The zero check and the raise plan share one scan. The caller checks the full
+/// filter shortcut first, so this helper can safely report a false positive for
+/// an all-positive layout without walking the probe sequence twice.
+fn CountingBloomFilter::insert_absent_at(
+  self : CountingBloomFilter,
+  positions : CountingPositionSet,
+) -> Bool {
+  let wanted = 1UL
+  let mut common = wanted
+  let mut any_zero = false
   for i = 0; i < positions.length; i = i + 1 {
     let pos = positions.positions[i]
     let occurrences = positions.counts[i].to_uint64()
     let limit = counting_position_limit(occurrences)
     let value = self.counter_at(pos)
-    if value < limit {
-      let raised = value + wanted * occurrences
-      self.set_counter(pos, if raised > limit { limit } else { raised })
+    if value == 0UL {
+      any_zero = true
+    }
+    let available = if value > limit {
+      0UL
+    } else {
+      (limit - value) / occurrences
+    }
+    if available < common {
+      common = available
     }
   }
+  if !any_zero {
+    return false
+  }
+  guard self.inserted < 2147483647 else {
+    abort("counting bloom filter insertion count overflow")
+  }
+  self.apply_raise_positions_at(positions, common, true, wanted)
+  true
 }
 
 ///|
@@ -714,17 +771,12 @@ fn CountingBloomFilter::insert_if_absent_hashes(
     return false
   }
   let positions = self.positions_for(h1, h2)
-  for i = 0; i < positions.length; i = i + 1 {
-    if self.counter_at(positions.positions[i]) == 0UL {
-      guard self.inserted < 2147483647 else {
-        abort("counting bloom filter insertion count overflow")
-      }
-      self.raise_positions_at(positions, 1)
-      self.inserted += 1
-      return true
-    }
+  if self.insert_absent_at(positions) {
+    self.inserted += 1
+    true
+  } else {
+    false
   }
-  false
 }
 
 ///|
