@@ -107,8 +107,11 @@ Empty operands are handled without scanning the backing arrays: `intersection`
 returns an empty filter with the shared layout, `is_subset_of` is immediately
 true when `self` is empty, and `is_disjoint_from` is immediately true when
 either input is empty. The same shortcuts apply to the blocked, counting, and
-compact counting variants. Merging a non-empty filter into an empty receiver
-copies its bits or counters instead of combining them with zeroed storage.
+compact counting variants. The scalable variants keep the shortcut as well:
+their `is_subset_of` and `is_disjoint_from` checks return without scanning the
+slice storage when the relevant insertion count is zero. Merging a non-empty
+filter into an empty receiver copies its bits or counters instead of combining
+them with zeroed storage.
 
 `merge` performs the same combination as `union` in place, avoiding a new
 allocation. The concurrent wrappers expose `merge`, `union`, `intersection`,
