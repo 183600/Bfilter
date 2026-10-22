@@ -1,0 +1,88 @@
+///|
+fn merge_residue_key_with_repeats(
+  filter : ScalableCountingBloomFilter,
+) -> String {
+  for i = 0; i < 10000; i = i + 1 {
+    let key = "merge-residue-" + i.to_string()
+    let id = key_hashes(key)
+    let slice = filter.slices[0]
+    let positions = unique_key_positions_fast(
+      id.0,
+      id.1,
+      slice.hash_count,
+      slice.slot_count.to_uint64(),
+    )
+    let mut minimum = 100000
+    let mut maximum = 0
+    for j = 0; j < positions.length; j = j + 1 {
+      if positions.counts[j] < minimum {
+        minimum = positions.counts[j]
+      }
+      if positions.counts[j] > maximum {
+        maximum = positions.counts[j]
+      }
+    }
+    if minimum != maximum && maximum >= 2 {
+      return key
+    }
+  }
+  abort("no key with repeated probe positions")
+}
+
+///|
+/// A merged key with repeated probe positions has lanes with different removable
+/// caps. Rebuilding such a key lane by lane can saturate one lane before the
+/// others, so removal stops with positive residue that no later removal of the
+/// key can drain. The rebuilt slice must advance all lanes together instead.
+test "scalable counting merge drains multiplied keys without residue" {
+  let target = ScalableCountingBloomFilter::new(1, 1.0e-8)
+  target.insert("target-key")
+  let baseline = target.copy()
+  let source = ScalableCountingBloomFilter::new(1, 1.0e-8)
+  let key = merge_residue_key_with_repeats(source)
+  for i = 0; i < 40000; i = i + 1 {
+    source.insert(key)
+  }
+  let id = key_hashes(key)
+  let source_slice = source.slices[0]
+  let positions = unique_key_positions_fast(
+    id.0,
+    id.1,
+    source_slice.hash_count,
+    source_slice.slot_count.to_uint64(),
+  )
+  let mut removable = 100000UL
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
+    let limit = counting_position_limit(occurrences)
+    let base = baseline.slices[0].counter_at(pos)
+    let available = if base > limit {
+      0UL
+    } else {
+      (limit - base) / occurrences
+    }
+    if available < removable {
+      removable = available
+    }
+  }
+  assert_true(removable > 0UL)
+  target.merge(source)
+  assert_eq(target.count_of(key), 40000)
+  let mut removed = 0
+  while target.remove(key) {
+    removed = removed + 1
+  }
+  assert_eq(removed.to_uint64(), removable)
+  assert_eq(target.count_of(key), 40000 - removable.to_int())
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    assert_eq(
+      target.slices[0].counter_at(pos),
+      baseline.slices[0].counter_at(pos),
+    )
+  }
+  let restored = ScalableCountingBloomFilter::from_bytes(target.to_bytes())
+  assert_eq(restored.count(), target.count())
+  assert_eq(restored.count_of(key), target.count_of(key))
+}

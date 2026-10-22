@@ -557,6 +557,51 @@ fn CountingBloomFilter::raise_positions_for_merge(
 }
 
 ///|
+/// Add a key that is entering a rebuilt merge slice for the first time.
+///
+/// When the slice still has room for every selected lane, advance all of them by
+/// the same number of complete contributions. Advancing lanes independently
+/// caps positions with different repeat counts at different multiplicities, so
+/// a later removal stops when the first lane drains and leaves positive residue
+/// that no removal of the key can reach. Add the largest common multiplicity
+/// that fits first; only fall back to independent raises when an existing
+/// saturated lane leaves no complete contribution available at all.
+fn CountingBloomFilter::raise_positions_for_new_merge(
+  self : CountingBloomFilter,
+  h1 : UInt64,
+  h2 : UInt64,
+  multiplicity : Int32,
+) -> Unit {
+  let positions = self.positions_for(h1, h2)
+  let wanted = multiplicity.to_uint64()
+  let mut common = wanted
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
+    let limit = counting_position_limit(occurrences)
+    let value = self.counter_at(pos)
+    let available = if value > limit {
+      0UL
+    } else {
+      (limit - value) / occurrences
+    }
+    if available < common {
+      common = available
+    }
+  }
+  if common > 0UL {
+    for i = 0; i < positions.length; i = i + 1 {
+      let pos = positions.positions[i]
+      let occurrences = positions.counts[i].to_uint64()
+      let value = self.counter_at(pos)
+      self.set_counter(pos, value + common * occurrences)
+    }
+  } else {
+    self.raise_positions_independently_at(positions, multiplicity)
+  }
+}
+
+///|
 fn CountingBloomFilter::raise_positions_at(
   self : CountingBloomFilter,
   positions : CountingPositionSet,
