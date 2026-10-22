@@ -376,6 +376,11 @@ pub fn ScalableBloomFilter::merge(
   other : ScalableBloomFilter,
 ) -> Unit {
   self.ensure_same_policy(other)
+  // Merging an empty filter whose slices are already covered by the receiver
+  // cannot change any bit or append a slice. Skip the per-slice OR scans.
+  if other.inserted == 0 && other.slices.length() <= self.slices.length() {
+    return
+  }
   guard self.inserted <= 2147483647 - other.inserted else {
     abort("scalable bloom filter insertion count overflow")
   }
