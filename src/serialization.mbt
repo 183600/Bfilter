@@ -316,6 +316,23 @@ pub fn CuckooFilter::from_bytes(data : Bytes) -> CuckooFilter {
 /// target false-positive rate. Each slice is appended as a length-prefixed
 /// Bloom filter produced by `BloomFilter::to_bytes`.
 pub fn ScalableBloomFilter::to_bytes(self : ScalableBloomFilter) -> Bytes {
+  // A zero-slice filter is a supported transient state for growth and set
+  // operations, but the wire format requires at least one slice. Normalize it
+  // to a single empty slice (carrying any conservative insertion count) before
+  // encoding, so `to_bytes` never emits data that `from_bytes` rejects.
+  if self.slices.length() == 0 {
+    let normalized : ScalableBloomFilter = {
+      slices: [],
+      capacities: [],
+      initial_capacity: self.initial_capacity,
+      target_rate: self.target_rate,
+      inserted: 0,
+    }
+    normalized.append_slice()
+    normalized.slices[0].inserted = self.inserted
+    normalized.inserted = self.inserted
+    return normalized.to_bytes()
+  }
   guard self.total_bits() <= 2147483584L else {
     abort("scalable bloom filter is too large")
   }
@@ -442,6 +459,23 @@ pub fn ScalableBloomFilter::from_bytes(data : Bytes) -> ScalableBloomFilter {
 pub fn ScalableCountingBloomFilter::to_bytes(
   self : ScalableCountingBloomFilter,
 ) -> Bytes {
+  // The wire format requires at least one slice. A zero-slice filter is a
+  // supported transient state, so encode it as one empty slice with the same
+  // conservative insertion count instead of producing unreadable bytes.
+  if self.slices.length() == 0 {
+    let normalized : ScalableCountingBloomFilter = {
+      slices: [],
+      capacities: [],
+      locations: @hashmap.HashMap([]),
+      initial_capacity: self.initial_capacity,
+      target_rate: self.target_rate,
+      inserted: 0,
+    }
+    normalized.append_slice()
+    normalized.slices[0].inserted = self.inserted
+    normalized.inserted = self.inserted
+    return normalized.to_bytes()
+  }
   guard self.slot_count() <= SCALABLE_COUNTING_MAX_SLOTS else {
     abort("scalable counting bloom filter is too large")
   }

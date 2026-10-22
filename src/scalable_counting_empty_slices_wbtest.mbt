@@ -112,3 +112,38 @@ test "inserting into a mixed count-only slice keeps the filter serializable" {
   assert_eq(round_trip.count(), 3)
   assert_eq(round_trip.count_of("fresh"), 0)
 }
+
+///|
+test "zero-slice scalable filters serialize and restore" {
+  let bloom : ScalableBloomFilter = {
+    slices: [],
+    capacities: [],
+    initial_capacity: 2,
+    target_rate: 0.01,
+    inserted: 5,
+  }
+  let bloom_bytes = bloom.to_bytes()
+  let restored_bloom = ScalableBloomFilter::from_bytes(bloom_bytes)
+  assert_eq(restored_bloom.slice_count(), 1)
+  assert_eq(restored_bloom.count(), 5)
+  assert_eq(restored_bloom.set_bit_count(), 0)
+  assert_eq(restored_bloom.to_bytes(), bloom_bytes)
+
+  let counting : ScalableCountingBloomFilter = {
+    slices: [],
+    capacities: [],
+    locations: @hashmap.HashMap([]),
+    initial_capacity: 2,
+    target_rate: 0.01,
+    inserted: 5,
+  }
+  let counting_bytes = counting.to_bytes()
+  let restored_counting = ScalableCountingBloomFilter::from_bytes(
+    counting_bytes,
+  )
+  assert_eq(restored_counting.slice_count(), 1)
+  assert_eq(restored_counting.count(), 5)
+  assert_eq(restored_counting.tracked_key_count(), 0)
+  assert_eq(restored_counting.occupied_slot_count(), 0L)
+  assert_eq(restored_counting.to_bytes(), counting_bytes)
+}
