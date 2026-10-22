@@ -176,6 +176,7 @@ pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::contains_all(Self, ArrayV
 pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::contains_any(Self, ArrayView[K]) -> Bool
 pub fn ConcurrentCompactCountingBloomFilter::count(Self) -> Int32
 pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::count_of(Self, K) -> Int32
+pub fn ConcurrentCompactCountingBloomFilter::counter_max() -> Int32
 pub fn ConcurrentCompactCountingBloomFilter::estimated_item_count(Self) -> Double
 pub fn ConcurrentCompactCountingBloomFilter::false_positive_rate(Self) -> Double
 pub fn ConcurrentCompactCountingBloomFilter::fill_ratio(Self) -> Double

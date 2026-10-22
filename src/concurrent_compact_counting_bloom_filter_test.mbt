@@ -17,6 +17,22 @@ test "concurrent compact counting filter supports basic operations" {
 }
 
 ///|
+test "concurrent compact counting filter exposes the counter limit" {
+  assert_eq(
+    @src.ConcurrentCompactCountingBloomFilter::counter_max(),
+    @src.CompactCountingBloomFilter::counter_max(),
+  )
+  let filter = @src.ConcurrentCompactCountingBloomFilter::new(100, 0.01)
+  for i = 0; i < 20; i = i + 1 {
+    filter.insert("saturated")
+  }
+  assert_eq(
+    filter.count_of("saturated"),
+    @src.ConcurrentCompactCountingBloomFilter::counter_max(),
+  )
+}
+
+///|
 test "concurrent compact counting filter batch and set operations" {
   let filter = @src.ConcurrentCompactCountingBloomFilter::with_size(1024, 3)
   let other = @src.CompactCountingBloomFilter::with_size(1024, 3)

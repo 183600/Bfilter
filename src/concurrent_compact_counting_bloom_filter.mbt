@@ -11,6 +11,12 @@ pub struct ConcurrentCompactCountingBloomFilter {
 }
 
 ///|
+/// Largest value a single packed counter can hold.
+pub fn ConcurrentCompactCountingBloomFilter::counter_max() -> Int32 {
+  CompactCountingBloomFilter::counter_max()
+}
+
+///|
 /// Create a thread-safe compact counting filter sized for `expected_items` and
 /// the requested false-positive rate.
 pub fn ConcurrentCompactCountingBloomFilter::new(
