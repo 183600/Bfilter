@@ -279,13 +279,28 @@ pub fn ScalableBloomFilter::capacity(self : ScalableBloomFilter) -> Int64 {
 }
 
 ///|
-/// Number of addressable bits across all slices.
-pub fn ScalableBloomFilter::bit_count(self : ScalableBloomFilter) -> Int32 {
-  let mut total = 0
+/// Sum the addressable bit counts of every slice without narrowing to `Int32`.
+///
+/// A filter built through the public API keeps the aggregate within the
+/// supported bit budget, but a hand-built receiver can exceed it. Summing in
+/// `Int64` keeps the merge budget guards from wrapping before they can reject
+/// such a state.
+fn ScalableBloomFilter::total_bits(self : ScalableBloomFilter) -> Int64 {
+  let mut total = 0L
   for slice in self.slices {
-    total = total + slice.bit_count()
+    total = total + slice.bit_count().to_int64()
   }
   total
+}
+
+///|
+/// Number of addressable bits across all slices.
+pub fn ScalableBloomFilter::bit_count(self : ScalableBloomFilter) -> Int32 {
+  let total = self.total_bits()
+  guard total <= 2147483584L else {
+    abort("scalable bloom filter is too large")
+  }
+  total.to_int()
 }
 
 ///|
@@ -426,7 +441,7 @@ pub fn ScalableBloomFilter::merge(
   guard self.inserted <= 2147483647 - other.inserted else {
     abort("scalable bloom filter insertion count overflow")
   }
-  let mut total_bits = self.bit_count().to_int64()
+  let mut total_bits = self.total_bits()
   for i = self.slices.length(); i < other.slices.length(); i = i + 1 {
     total_bits = total_bits + other.slices[i].bit_count().to_int64()
   }
@@ -486,6 +501,13 @@ pub fn ScalableBloomFilter::intersection(
   let inserted = self.inserted.min(other.inserted)
   if slice_total < inserted {
     slices[0].inserted = slices[0].inserted + (inserted - slice_total)
+  }
+  let mut total_bits = 0L
+  for slice in slices {
+    total_bits = total_bits + slice.bit_count().to_int64()
+  }
+  guard total_bits <= 2147483584L else {
+    abort("scalable bloom filter is too large")
   }
   {
     slices,
