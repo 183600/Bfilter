@@ -30,6 +30,42 @@ fn merge_residue_key_with_repeats(
 }
 
 ///|
+fn merge_residue_key_with_repeats_avoiding(
+  filter : ScalableCountingBloomFilter,
+  blocked : FixedArray[Bool],
+) -> String {
+  for i = 0; i < 10000; i = i + 1 {
+    let key = "merge-residue-" + i.to_string()
+    let id = key_hashes(key)
+    let slice = filter.slices[0]
+    let positions = unique_key_positions_fast(
+      id.0,
+      id.1,
+      slice.hash_count,
+      slice.slot_count.to_uint64(),
+    )
+    let mut usable = true
+    let mut minimum = 100000
+    let mut maximum = 0
+    for j = 0; j < positions.length; j = j + 1 {
+      if blocked[positions.positions[j]] {
+        usable = false
+      }
+      if positions.counts[j] < minimum {
+        minimum = positions.counts[j]
+      }
+      if positions.counts[j] > maximum {
+        maximum = positions.counts[j]
+      }
+    }
+    if usable && minimum != maximum && maximum >= 2 {
+      return key
+    }
+  }
+  abort("no disjoint key with repeated probe positions")
+}
+
+///|
 /// A merged key with repeated probe positions has lanes with different removable
 /// caps. Rebuilding such a key lane by lane can saturate one lane before the
 /// others, so removal stops with positive residue that no later removal of the
@@ -38,8 +74,22 @@ test "scalable counting merge drains multiplied keys without residue" {
   let target = ScalableCountingBloomFilter::new(1, 1.0e-8)
   target.insert("target-key")
   let baseline = target.copy()
+  let blocked : FixedArray[Bool] = FixedArray::make(
+    target.slices[0].slot_count,
+    false,
+  )
+  let target_id = key_hashes("target-key")
+  let target_positions = unique_key_positions_fast(
+    target_id.0,
+    target_id.1,
+    target.slices[0].hash_count,
+    target.slices[0].slot_count.to_uint64(),
+  )
+  for i = 0; i < target_positions.length; i = i + 1 {
+    blocked[target_positions.positions[i]] = true
+  }
   let source = ScalableCountingBloomFilter::new(1, 1.0e-8)
-  let key = merge_residue_key_with_repeats(source)
+  let key = merge_residue_key_with_repeats_avoiding(source, blocked)
   for i = 0; i < 40000; i = i + 1 {
     source.insert(key)
   }
