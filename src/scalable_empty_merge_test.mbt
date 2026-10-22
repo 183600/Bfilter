@@ -64,6 +64,7 @@ test "merging an empty grown scalable counting filter preserves saturated counte
   assert_true(empty.is_empty())
   assert_eq(empty.tracked_key_count(), 0)
   let empty_slices = empty.slice_count()
+  let union_base = filter.copy()
 
   filter.merge(empty)
   assert_eq(filter.slice_count(), empty_slices)
@@ -75,6 +76,22 @@ test "merging an empty grown scalable counting filter preserves saturated counte
   assert_false(filter.remove("hot"))
   assert_false(filter.insert_if_absent("hot"))
   assert_eq(filter.count_of("hot"), 4_465)
+
+  let combined = union_base.union(empty)
+  assert_eq(combined.slice_count(), empty_slices)
+  assert_eq(combined.count(), count)
+  assert_eq(combined.tracked_key_count(), tracked)
+  assert_eq(combined.occupied_slot_count(), occupied)
+  assert_false(combined.contains("hot"))
+  assert_eq(combined.count_of("hot"), 4_465)
+  assert_false(combined.remove("hot"))
+  assert_false(combined.insert_if_absent("hot"))
+  let combined_restored = @src.ScalableCountingBloomFilter::from_bytes(
+    combined.to_bytes(),
+  )
+  assert_eq(combined_restored.count(), count)
+  assert_false(combined_restored.contains("hot"))
+  assert_eq(combined_restored.count_of("hot"), 4_465)
 
   assert_true(filter.insert_if_absent("fresh"))
   assert_eq(filter.count_of("fresh"), 1)
