@@ -376,7 +376,8 @@ fn CountingBloomFilter::raise_positions_at(
   // early and leave positive residue on the remaining lanes forever. Find how
   // many complete contributions fit in every selected lane and add the same
   // number to all of them.
-  let mut common = multiplicity.to_uint64()
+  let wanted = multiplicity.to_uint64()
+  let mut common = wanted
   let mut any_zero = false
   for i = 0; i < positions.length; i = i + 1 {
     let pos = positions.positions[i]
@@ -407,16 +408,17 @@ fn CountingBloomFilter::raise_positions_at(
   if !any_zero {
     return
   }
-  // A zero lane means the key is not fully present yet. Add one complete
-  // contribution where possible so a conditional insertion cannot leave a
-  // false negative; lanes without room stay saturated.
+  // A zero lane means the key is not fully present yet. Add as many complete
+  // contributions as the lane can hold, up to the requested multiplicity, so a
+  // merge or conditional insertion cannot leave a tracked occurrence that no
+  // later removal can drain. Lanes without room stay saturated.
   for i = 0; i < positions.length; i = i + 1 {
     let pos = positions.positions[i]
     let occurrences = positions.counts[i].to_uint64()
     let limit = counting_position_limit(occurrences)
     let value = self.counter_at(pos)
     if value < limit {
-      let raised = value + occurrences
+      let raised = value + wanted * occurrences
       self.set_counter(pos, if raised > limit { limit } else { raised })
     }
   }
