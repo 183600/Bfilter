@@ -626,13 +626,14 @@ fn CuckooFilter::min_bucket_fingerprints(
     let base = bucket * result.bucket_size
     for slot = 0; slot < result.bucket_size; slot = slot + 1 {
       let fingerprint = self.buckets[base + slot]
-      if fingerprint == b'\x00' ||
-        self.bucket_fingerprint_count_prefix(bucket, slot, fingerprint) > 0 {
+      if fingerprint == b'\x00' {
         continue
       }
       let alternate = self.alternate_index(bucket, fingerprint)
       let canonical = bucket.min(alternate)
       let pair = (canonical, fingerprint)
+      // A fingerprint repeated in this bucket maps to the same candidate pair,
+      // so the visited set already skips it without rescanning earlier slots.
       if visited.contains(pair) {
         continue
       }
@@ -667,26 +668,6 @@ fn CuckooFilter::min_bucket_fingerprints(
   }
   result.inserted = stored
   result
-}
-
-///|
-/// Count occurrences of `fingerprint` in `bucket` before `limit`.
-///
-/// Used to visit each distinct fingerprint in a bucket only once.
-fn CuckooFilter::bucket_fingerprint_count_prefix(
-  self : CuckooFilter,
-  bucket : Int32,
-  limit : Int32,
-  fingerprint : Byte,
-) -> Int32 {
-  let base = bucket * self.bucket_size
-  let mut count = 0
-  for slot = 0; slot < limit; slot = slot + 1 {
-    if self.buckets[base + slot] == fingerprint {
-      count = count + 1
-    }
-  }
-  count
 }
 
 ///|
@@ -759,13 +740,26 @@ pub fn CuckooFilter::is_subset_of(
   if self.inserted > other.inserted {
     return false
   }
+  let seen = FixedArray::make(4, 0UL)
   for bucket = 0; bucket < self.bucket_count; bucket = bucket + 1 {
+    seen[0] = 0UL
+    seen[1] = 0UL
+    seen[2] = 0UL
+    seen[3] = 0UL
     let base = bucket * self.bucket_size
     for slot = 0; slot < self.bucket_size; slot = slot + 1 {
       let fingerprint = self.buckets[base + slot]
-      if fingerprint != b'\x00' &&
-        self.bucket_fingerprint_count_prefix(bucket, slot, fingerprint) == 0 &&
-        self.pair_fingerprint_count(bucket, fingerprint) >
+      if fingerprint == b'\x00' {
+        continue
+      }
+      let value = fingerprint.to_int()
+      let word = value / 64
+      let mask = 1UL << (value % 64)
+      if (seen[word] & mask) != 0UL {
+        continue
+      }
+      seen[word] = seen[word] | mask
+      if self.pair_fingerprint_count(bucket, fingerprint) >
         other.pair_fingerprint_count(bucket, fingerprint) {
         return false
       }
@@ -793,13 +787,26 @@ pub fn CuckooFilter::is_disjoint_from(
   if self.inserted == 0 || other.inserted == 0 {
     return true
   }
+  let seen = FixedArray::make(4, 0UL)
   for bucket = 0; bucket < self.bucket_count; bucket = bucket + 1 {
+    seen[0] = 0UL
+    seen[1] = 0UL
+    seen[2] = 0UL
+    seen[3] = 0UL
     let base = bucket * self.bucket_size
     for slot = 0; slot < self.bucket_size; slot = slot + 1 {
       let fingerprint = self.buckets[base + slot]
-      if fingerprint != b'\x00' &&
-        self.bucket_fingerprint_count_prefix(bucket, slot, fingerprint) == 0 &&
-        other.pair_fingerprint_count(bucket, fingerprint) > 0 {
+      if fingerprint == b'\x00' {
+        continue
+      }
+      let value = fingerprint.to_int()
+      let word = value / 64
+      let mask = 1UL << (value % 64)
+      if (seen[word] & mask) != 0UL {
+        continue
+      }
+      seen[word] = seen[word] | mask
+      if other.pair_fingerprint_count(bucket, fingerprint) > 0 {
         return false
       }
     }

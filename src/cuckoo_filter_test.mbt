@@ -165,3 +165,25 @@ test "cuckoo failed insert preserves eviction state" {
   assert_eq(filter.count(), 15)
   assert_eq(filter.to_bytes(), before)
 }
+
+///|
+test "cuckoo set operations handle duplicate fingerprints in wide buckets" {
+  let filter = @src.CuckooFilter::with_size(8, 16)
+  for i = 0; i < 30; i = i + 1 {
+    assert_true(filter.insert("duplicate"))
+  }
+  let mirror = filter.copy()
+  assert_eq(mirror.count(), filter.count())
+  assert_true(filter.is_subset_of(mirror))
+  assert_true(mirror.is_subset_of(filter))
+  assert_false(filter.is_disjoint_from(mirror))
+  assert_false(mirror.is_disjoint_from(filter))
+  let common = filter.intersection(mirror)
+  assert_eq(common.count(), filter.count())
+  assert_true(common.contains("duplicate"))
+  assert_true(common.is_subset_of(filter))
+  assert_true(common.is_subset_of(mirror))
+  let restored = @src.CuckooFilter::from_bytes(common.to_bytes())
+  assert_eq(restored.to_bytes(), common.to_bytes())
+  assert_true(restored.contains("duplicate"))
+}
