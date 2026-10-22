@@ -10,13 +10,26 @@ test "scalable counting accepts counter layouts beyond the old bit budget" {
 }
 
 ///|
-test "scalable counting size budget leaves room for slice headers" {
-  assert_eq(SCALABLE_COUNTING_MAX_SLOTS, 1_073_741_745L)
+test "scalable counting size budget leaves room for every slice header" {
+  assert_eq(SCALABLE_COUNTING_MAX_SLOTS, 1_073_741_435L)
   assert_true(
     SERIAL_HEADER_BYTES.to_int64() +
     12L +
-    31L * 4L +
+    31L * (SERIAL_HEADER_BYTES.to_int64() + 4L) +
     SCALABLE_COUNTING_MAX_SLOTS * 2L <=
     2_147_483_647L,
   )
+}
+
+///|
+test "scalable counting maximum slot budget fits the largest slice layout" {
+  // Slot counts are multiples of 16, so the usable maximum is the largest
+  // multiple that fits the budget. Include the inner counting-filter header of
+  // every slice, not just the length prefix.
+  let max_slots = SCALABLE_COUNTING_MAX_SLOTS / 16L * 16L
+  let serialized_size = SERIAL_HEADER_BYTES.to_int64() +
+    12L +
+    31L * (SERIAL_HEADER_BYTES.to_int64() + 4L) +
+    max_slots * 2L
+  assert_true(serialized_size <= 2_147_483_647L)
 }

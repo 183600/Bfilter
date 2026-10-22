@@ -23,12 +23,14 @@ const SCALABLE_COUNTING_GROWTH : Int32 = 2
 ///|
 /// Maximum number of counter slots a scalable counting filter can hold.
 ///
-/// Counting filters store two bytes per slot. The bound leaves room for the
-/// serialization header and the length prefix of every slice, so any filter
-/// within it can encode its counter arrays without overflowing the signed
-/// 32-bit serialized length. The per-slice constructor still enforces its own
-/// limit.
-const SCALABLE_COUNTING_MAX_SLOTS : Int64 = 1_073_741_745L
+/// Counting filters store two bytes per slot. Growth doubles the capacity from
+/// a positive initial capacity, so a filter can hold at most 31 slices before
+/// the next capacity would overflow. The bound leaves room for the outer
+/// serialization header, the length prefix and the 20-byte counter-filter
+/// header of every slice, so any filter within it can encode its counter arrays
+/// without overflowing the signed 32-bit serialized length. The per-slice
+/// constructor still enforces its own limit.
+const SCALABLE_COUNTING_MAX_SLOTS : Int64 = 1_073_741_435L
 
 ///|
 fn scalable_counting_slice_rate(target_rate : Double, index : Int32) -> Double {
