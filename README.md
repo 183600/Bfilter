@@ -113,8 +113,9 @@ assert_true(left.is_subset_of(union))
 `is_subset_of` are available on the Bloom family; the Cuckoo filter has its own
 set-operation semantics documented in the guide. Mismatched configurations
 panic rather than silently producing a wrong result. Empty operands
-short-circuit without scanning the backing array, and merging into an empty
-scalable filter copies the source slices directly.
+short-circuit without scanning the backing array. Merging a non-empty filter
+into an empty receiver copies its storage directly, and merging into an empty
+scalable filter copies the source slices.
 
 ## Concurrency
 

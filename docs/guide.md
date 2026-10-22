@@ -95,7 +95,8 @@ Empty operands are handled without scanning the backing arrays: `intersection`
 returns an empty filter with the shared layout, `is_subset_of` is immediately
 true when `self` is empty, and `is_disjoint_from` is immediately true when
 either input is empty. The same shortcuts apply to the blocked, counting, and
-compact counting variants.
+compact counting variants. Merging a non-empty filter into an empty receiver
+copies its bits or counters instead of combining them with zeroed storage.
 
 `merge` performs the same combination as `union` in place, avoiding a new
 allocation. The concurrent wrappers expose `merge`, `union`, `intersection`,
@@ -531,7 +532,11 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   of `k`. Set operations scan the `m / 64` backing words.
 - `CountingBloomFilter` and `CompactCountingBloomFilter` update `k` counters,
   deduplicating positions selected more than once, and store 16 bits or 4 bits
-  per slot respectively. Set operations scan the packed counter words.
+  per slot respectively. Inserts and removals reuse a small per-filter probe
+  workspace to avoid allocating temporary position arrays; the workspace is
+  omitted from `memory_bytes()` and from serialized data, and very wide hash
+  counts fall back to temporary arrays. Set operations scan the packed counter
+  words, and merging into an empty receiver copies the packed words directly.
 - `CuckooFilter` checks two buckets of `B` fingerprints per query, so a lookup
   is `O(B)` expected. An insert may evict fingerprints and, when random eviction
   does not find room, run a bounded breadth-first search for an augmenting path;
