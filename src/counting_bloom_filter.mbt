@@ -470,6 +470,10 @@ pub fn CountingBloomFilter::merge(
       merged_mass = merged_mass + counting_word_mass(right)
       continue
     }
+    if left == right {
+      merged_mass = merged_mass + counting_word_mass(left)
+      continue
+    }
     let mut merged = 0UL
     for lane = 0; lane < 4; lane = lane + 1 {
       let shift = lane * 16

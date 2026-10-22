@@ -376,6 +376,10 @@ pub fn CompactCountingBloomFilter::merge(
       merged_mass = merged_mass + compact_word_mass(right)
       continue
     }
+    if left == right {
+      merged_mass = merged_mass + compact_word_mass(left)
+      continue
+    }
     let mut merged = 0UL
     for lane = 0; lane < COMPACT_SLOTS_PER_WORD; lane = lane + 1 {
       let shift = lane * 4
