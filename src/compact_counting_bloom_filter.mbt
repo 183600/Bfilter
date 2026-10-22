@@ -534,6 +534,16 @@ pub fn CompactCountingBloomFilter::intersection(
   other : CompactCountingBloomFilter,
 ) -> CompactCountingBloomFilter {
   self.ensure_compatible(other)
+  // A filter with no insertions and no counter mass is truly empty, so the
+  // intersection has no positive counters regardless of the other filter. Keep
+  // the shared layout but skip the packed-counter scan.
+  if (self.inserted == 0 && self.counter_mass == 0UL) ||
+    (other.inserted == 0 && other.counter_mass == 0UL) {
+    return CompactCountingBloomFilter::with_size(
+      self.slot_count,
+      self.hash_count,
+    )
+  }
   let result = CompactCountingBloomFilter::with_size(
     self.slot_count,
     self.hash_count,
@@ -571,6 +581,10 @@ pub fn CompactCountingBloomFilter::is_subset_of(
   other : CompactCountingBloomFilter,
 ) -> Bool {
   self.ensure_compatible(other)
+  // The truly empty filter is a subset of every filter.
+  if self.inserted == 0 && self.counter_mass == 0UL {
+    return true
+  }
   for i = 0; i < self.counters.length(); i = i + 1 {
     let left = self.counters[i]
     let right = other.counters[i]
@@ -596,6 +610,11 @@ pub fn CompactCountingBloomFilter::is_disjoint_from(
   other : CompactCountingBloomFilter,
 ) -> Bool {
   self.ensure_compatible(other)
+  // An empty filter has no positive counter that could overlap.
+  if (self.inserted == 0 && self.counter_mass == 0UL) ||
+    (other.inserted == 0 && other.counter_mass == 0UL) {
+    return true
+  }
   for i = 0; i < self.counters.length(); i = i + 1 {
     let left = compact_nonzero_lanes(self.counters[i])
     let right = compact_nonzero_lanes(other.counters[i])

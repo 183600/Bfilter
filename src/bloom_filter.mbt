@@ -323,6 +323,11 @@ pub fn BloomFilter::intersection(
   other : BloomFilter,
 ) -> BloomFilter {
   self.ensure_compatible(other)
+  // An empty operand has no set bits, so the intersection is empty regardless
+  // of the other filter. The result still keeps the shared layout.
+  if self.inserted == 0 || other.inserted == 0 {
+    return BloomFilter::with_size(self.bit_count, self.hash_count)
+  }
   let result = BloomFilter::with_size(self.bit_count, self.hash_count)
   for i = 0; i < result.words.length(); i = i + 1 {
     result.words[i] = self.words[i] & other.words[i]
@@ -341,6 +346,10 @@ pub fn BloomFilter::is_subset_of(
   other : BloomFilter,
 ) -> Bool {
   self.ensure_compatible(other)
+  // The empty filter is a subset of every filter.
+  if self.inserted == 0 {
+    return true
+  }
   for i = 0; i < self.words.length(); i = i + 1 {
     if (self.words[i] & other.words[i]) != self.words[i] {
       return false
@@ -361,6 +370,10 @@ pub fn BloomFilter::is_disjoint_from(
   other : BloomFilter,
 ) -> Bool {
   self.ensure_compatible(other)
+  // An empty filter cannot share a set bit with anything.
+  if self.inserted == 0 || other.inserted == 0 {
+    return true
+  }
   for i = 0; i < self.words.length(); i = i + 1 {
     if (self.words[i] & other.words[i]) != 0UL {
       return false
