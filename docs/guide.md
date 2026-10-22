@@ -251,6 +251,10 @@ tracked by both filters keeps the larger multiplicity when both stored it in
 the same slice and the sum when they stored it in different slices.
 `intersection` keeps the keys tracked by both filters with the smaller
 multiplicity, even when the inputs stored them in different slices.
+`is_subset_of` also consults the tracked multiplicities across slices, so a
+shared key counts as contained even when the two filters placed it in different
+slices; `is_disjoint_from` still compares the slice counters because it must
+prove that no key can be reported by both.
 `ConcurrentScalableCountingBloomFilter` adds one-mutex atomic operations,
 including `intersection`, and a `snapshot()` method.
 

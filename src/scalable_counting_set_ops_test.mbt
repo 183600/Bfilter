@@ -99,6 +99,41 @@ test "scalable counting filter subset follows slice layouts" {
 }
 
 ///|
+test "scalable counting subset follows tracked keys across slices" {
+  let left = @src.ScalableCountingBloomFilter::new(1, 0.01)
+  left.insert("shared")
+  for i = 0; i < 20; i = i + 1 {
+    left.insert("left-" + i.to_string())
+  }
+  let right = @src.ScalableCountingBloomFilter::new(1, 0.01)
+  for i = 0; i < 20; i = i + 1 {
+    right.insert("right-" + i.to_string())
+  }
+  right.insert("shared")
+  assert_true(left.slice_count() > 1)
+  assert_true(right.slice_count() > 1)
+
+  let combined = left.union(right)
+  assert_true(left.is_subset_of(combined))
+  assert_true(right.is_subset_of(combined))
+  assert_true(combined.contains("shared"))
+  assert_eq(combined.count_of("shared"), 2)
+
+  let merged = left.copy()
+  merged.merge(right)
+  assert_true(left.is_subset_of(merged))
+  assert_true(right.is_subset_of(merged))
+  assert_eq(merged.count_of("shared"), 2)
+
+  let restored = @src.ScalableCountingBloomFilter::from_bytes(
+    combined.to_bytes(),
+  )
+  assert_true(left.is_subset_of(restored))
+  assert_true(right.is_subset_of(restored))
+  assert_eq(restored.count_of("shared"), 2)
+}
+
+///|
 test "scalable counting filters detect definite disjointness" {
   let left = @src.ScalableCountingBloomFilter::new(1 << 20, 0.001)
   let right = @src.ScalableCountingBloomFilter::new(1 << 20, 0.001)

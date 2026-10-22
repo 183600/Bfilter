@@ -761,24 +761,43 @@ pub fn ScalableCountingBloomFilter::intersection(
 /// Whether every key reported present by `self` is also reported present by
 /// `other`.
 ///
-/// Both filters must share the same initial capacity and target rate. Slice `i`
-/// of `self` is compared only against slice `i` of `other` because slices with
-/// different indices use different layouts; a slice of `self` beyond the last
-/// slice of `other` must be empty. A `true` result is therefore sufficient but
-/// not necessary for membership containment: a key missed by its own slice in
-/// `other` could still be covered by another slice.
+/// Both filters must share the same initial capacity and target rate. Counters
+/// are first compared slice by slice, which is conservative because slices at
+/// different indices use different layouts. When that check fails, the tracked
+/// multiplicities decide the result instead: the same key can be stored in
+/// different slices by the two inputs, but `locations` still records its exact
+/// multiplicity. This makes a union of overlapping filters a subset of itself
+/// even when the inputs placed a shared key in different slices.
 pub fn ScalableCountingBloomFilter::is_subset_of(
   self : ScalableCountingBloomFilter,
   other : ScalableCountingBloomFilter,
 ) -> Bool {
   self.ensure_same_policy(other)
+  let mut counters_are_subset = true
   for i = 0; i < self.slices.length(); i = i + 1 {
     if i < other.slices.length() {
       if !self.slices[i].is_subset_of(other.slices[i]) {
-        return false
+        counters_are_subset = false
+        break
       }
     } else if self.slices[i].has_positive_counter() {
-      return false
+      counters_are_subset = false
+      break
+    }
+  }
+  if counters_are_subset {
+    return true
+  }
+  // A shared key may have moved to a different slice in the other filter, so
+  // compare the tracked multiplicities across slices before reporting a miss.
+  for entry in self.locations.iter() {
+    let (id, (_, occurrences)) = entry
+    match other.locations.get(id) {
+      Some((_, other_occurrences)) =>
+        if other_occurrences < occurrences {
+          return false
+        }
+      None => return false
     }
   }
   true
