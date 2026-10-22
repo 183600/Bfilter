@@ -131,3 +131,20 @@ test "panic cuckoo merge rejects different bucket layouts" {
   let other = @src.CuckooFilter::with_size(16, 2)
   filter.merge(other) |> ignore
 }
+
+///|
+test "cuckoo serialization preserves eviction state for later inserts" {
+  let filter = @src.CuckooFilter::with_size(4, 2)
+  let keys = [
+    559187, 354192, 64393, 338638, 263727, 750268, 509445,
+  ]
+  for key in keys {
+    assert_true(filter.insert(key))
+  }
+  let restored = @src.CuckooFilter::from_bytes(filter.to_bytes())
+  assert_eq(restored.count(), filter.count())
+  assert_true(filter.insert(228423))
+  assert_true(restored.insert(228423))
+  assert_eq(restored.count(), filter.count())
+  assert_eq(restored.to_bytes(), filter.to_bytes())
+}

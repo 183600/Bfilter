@@ -231,10 +231,18 @@ pub fn CountingBloomFilter::from_bytes(data : Bytes) -> CountingBloomFilter {
 }
 
 ///|
+/// Trailing bytes that preserve the deterministic eviction state of a cuckoo
+/// filter across a serialization round trip.
+const CUCKOO_STATE_BYTES : Int32 = 8
+
+///|
 /// Encode the cuckoo filter as a portable byte sequence.
 pub fn CuckooFilter::to_bytes(self : CuckooFilter) -> Bytes {
   let capacity = self.bucket_count * self.bucket_size
-  let data = FixedArray::make(SERIAL_HEADER_BYTES + capacity, b'\x00')
+  let data = FixedArray::make(
+    SERIAL_HEADER_BYTES + capacity + CUCKOO_STATE_BYTES,
+    b'\x00',
+  )
   serial_write_header(
     data,
     SERIAL_CUCKOO,
@@ -245,6 +253,10 @@ pub fn CuckooFilter::to_bytes(self : CuckooFilter) -> Bytes {
   for i = 0; i < capacity; i = i + 1 {
     data[SERIAL_HEADER_BYTES + i] = self.buckets[i]
   }
+  data.unsafe_write_uint64_le(
+    SERIAL_HEADER_BYTES + capacity,
+    self.random_state,
+  )
   Bytes::from_array(data.exact_view())
 }
 
@@ -260,7 +272,7 @@ pub fn CuckooFilter::from_bytes(data : Bytes) -> CuckooFilter {
     (bucket_count & (bucket_count - 1)) == 0 else {
     abort("invalid cuckoo bucket count")
   }
-  guard bucket_size > 0 && bucket_size <= 2147483627 / bucket_count else {
+  guard bucket_size > 0 && bucket_size <= 2147483619 / bucket_count else {
     abort("invalid cuckoo bucket size")
   }
   let capacity = bucket_count * bucket_size
@@ -269,7 +281,9 @@ pub fn CuckooFilter::from_bytes(data : Bytes) -> CuckooFilter {
   }
   serial_check_length(
     data,
-    SERIAL_HEADER_BYTES.to_int64() + capacity.to_int64(),
+    SERIAL_HEADER_BYTES.to_int64() +
+    capacity.to_int64() +
+    CUCKOO_STATE_BYTES.to_int64(),
   )
   let buckets = FixedArray::make(capacity, b'\x00')
   let mut stored = 0
@@ -283,8 +297,10 @@ pub fn CuckooFilter::from_bytes(data : Bytes) -> CuckooFilter {
   guard stored == inserted else {
     abort("cuckoo insertion count does not match stored fingerprints")
   }
-  let seed = (bucket_count.to_uint64() << 32) | bucket_size.to_uint64() | 1UL
-  { buckets, bucket_count, bucket_size, inserted, random_state: mix64(seed), }
+  let random_state = data.unsafe_read_uint64_le(
+    SERIAL_HEADER_BYTES + capacity,
+  )
+  { buckets, bucket_count, bucket_size, inserted, random_state, }
 }
 
 ///|

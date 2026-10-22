@@ -622,7 +622,9 @@ The same methods exist on `CountingBloomFilter`, `CompactCountingBloomFilter`,
 concurrent wrappers also expose
 `to_bytes()` and `from_bytes()`, copying the underlying filter while holding the
 lock. Hashing uses fixed seeds, so standard
-`Hash` implementations produce the same positions in a new process.
+`Hash` implementations produce the same positions in a new process. The Cuckoo
+encoding also preserves its deterministic eviction state, so insertions after a
+round trip follow the same placement trajectory as the original filter.
 `from_bytes` panics on truncated data, a different filter type, an unsupported
 version, or an invalid configuration.
 
