@@ -285,6 +285,15 @@ pub fn BloomFilter::merge(self : BloomFilter, other : BloomFilter) -> Unit {
   if other.inserted == 0 {
     return
   }
+  // An empty receiver has no bits to preserve, so copy the source words instead
+  // of OR-ing them into zeroed storage.
+  if self.inserted == 0 {
+    for i = 0; i < self.words.length(); i = i + 1 {
+      self.words[i] = other.words[i]
+    }
+    self.inserted = other.inserted
+    return
+  }
   guard self.inserted <= 2147483647 - other.inserted else {
     abort("bloom filter insertion count overflow")
   }

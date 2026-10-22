@@ -105,3 +105,27 @@ test "merging a non-empty compact counting filter into an empty receiver copies 
   assert_eq(receiver.count_of("alpha"), 2)
   assert_eq(source.to_bytes(), source_bytes)
 }
+
+///|
+test "merging a non-empty bloom filter into an empty receiver copies bits" {
+  let source = @src.BloomFilter::with_size(1024, 4)
+  source.insert_all(["alpha", "beta"])
+  let source_bytes = source.to_bytes()
+  let receiver = @src.BloomFilter::with_size(1024, 4)
+  receiver.merge(source)
+  assert_eq(receiver.to_bytes(), source_bytes)
+  assert_true(receiver.contains_all(["alpha", "beta"]))
+  assert_eq(source.to_bytes(), source_bytes)
+}
+
+///|
+test "merging a non-empty blocked filter into an empty receiver copies bits" {
+  let source = @src.BlockedBloomFilter::with_size(1024, 4)
+  source.insert_all(["alpha", "beta"])
+  let source_bytes = source.to_bytes()
+  let receiver = @src.BlockedBloomFilter::with_size(1024, 4)
+  receiver.merge(source)
+  assert_eq(receiver.to_bytes(), source_bytes)
+  assert_true(receiver.contains_all(["alpha", "beta"]))
+  assert_eq(source.to_bytes(), source_bytes)
+}
