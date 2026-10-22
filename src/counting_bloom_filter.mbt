@@ -255,6 +255,14 @@ fn unique_key_positions_into(
   positions : FixedArray[Int32],
   counts : FixedArray[Int32],
 ) -> Int32 {
+  if hash_count > 64 {
+    let period = counting_short_cycle_period(h2, slot_count)
+    if period > 0 && period < hash_count {
+      return unique_positions_cycle_into(
+        h1, h2, hash_count, slot_count, period, positions, counts,
+      )
+    }
+  }
   let mut length = 0
   let mut state = h1
   if hash_count <= 64 {
@@ -294,6 +302,66 @@ fn unique_key_positions_into(
     }
   }
   length
+}
+
+///|
+/// Largest power-of-two cycle that insert and removal paths enumerate directly.
+const COUNTING_CYCLE_ENUM_LIMIT : Int32 = 16384
+
+///|
+/// Length of a short power-of-two double-hash cycle, or zero when the sequence
+/// should be walked probe by probe.
+///
+/// Enumerating one cycle lets a very wide hash count assign each distinct
+/// position its exact occurrence count without visiting every hash function.
+/// Non-power-of-two slot counts keep the full walk because a 64-bit wrap can
+/// move later probes outside the first cycle.
+fn counting_short_cycle_period(h2 : UInt64, slot_count : UInt64) -> Int32 {
+  if slot_count == 0UL || (slot_count & (slot_count - 1UL)) != 0UL {
+    return 0
+  }
+  let step = h2 % slot_count
+  let divisor = if step == 0UL {
+    slot_count
+  } else {
+    counting_gcd(step, slot_count)
+  }
+  let period = slot_count / divisor
+  if period > COUNTING_CYCLE_ENUM_LIMIT.to_uint64() {
+    0
+  } else {
+    period.to_int()
+  }
+}
+
+///|
+/// Fill the distinct positions of one short double-hash cycle.
+///
+/// Every position occurs `hash_count / period` times, and the first
+/// `hash_count % period` positions in sequence order occur once more.
+fn unique_positions_cycle_into(
+  h1 : UInt64,
+  h2 : UInt64,
+  hash_count : Int32,
+  slot_count : UInt64,
+  period : Int32,
+  positions : FixedArray[Int32],
+  counts : FixedArray[Int32],
+) -> Int32 {
+  let slots = slot_count.to_int()
+  let step = (h2 % slot_count).to_int()
+  let mut position = (h1 % slot_count).to_int()
+  let quotient = hash_count / period
+  let remainder = hash_count % period
+  for i = 0; i < period; i = i + 1 {
+    positions[i] = position
+    counts[i] = quotient + (if i < remainder { 1 } else { 0 })
+    position = position + step
+    if position >= slots {
+      position = position - slots
+    }
+  }
+  period
 }
 
 ///|
