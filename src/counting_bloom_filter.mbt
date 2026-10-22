@@ -660,10 +660,11 @@ fn CountingBloomFilter::insert_if_absent_hashes(
   h2 : UInt64,
 ) -> Bool {
   // Every selected counter is already positive on a full filter, so the
-  // conditional insertion is a false positive. Avoid enumerating a wide
-  // non-cyclic probe sequence before reaching that conclusion.
-  if self.hash_count > self.slot_count &&
-    self.hash_count > 64 &&
+  // conditional insertion is a false positive. Avoid enumerating a wide probe
+  // sequence before reaching that conclusion.
+  let slot_count = self.slot_count.to_uint64()
+  let probes = counting_effective_probes(self.hash_count, h2, slot_count)
+  if counting_should_check_full(probes, self.counters.length()) &&
     self.all_slots_positive() {
     return false
   }
@@ -746,7 +747,19 @@ fn CountingBloomFilter::remove_hashes(
 }
 
 ///|
-/// Test a key whose two hash values have already been computed.
+/// Whether a full-filter scan is cheaper than walking `probes` positions.
+///
+/// Counting filters check four 16-bit lanes at a time, so a probe walk wider
+/// than the packed counter words is replaced by one occupancy scan. Ordinary
+/// layouts keep their handful of probes; the scan only runs when it can avoid a
+/// longer walk.
+fn counting_should_check_full(
+  probes : Int32,
+  word_count : Int32,
+) -> Bool {
+  probes > 64 && probes > word_count
+}
+
 ///|
 /// Whether every addressable counter slot is positive.
 ///
@@ -776,15 +789,15 @@ fn CountingBloomFilter::contains_hashes(
   if self.counter_mass == 0UL {
     return false
   }
-  // A completely full filter reports every key present. Avoid walking a very
-  // wide, non-cyclic probe sequence just to rediscover positive counters.
-  if self.hash_count > self.slot_count &&
-    self.hash_count > 64 &&
+  let slot_count = self.slot_count.to_uint64()
+  let probes = counting_effective_probes(self.hash_count, h2, slot_count)
+  // A completely full filter reports every key present. Avoid walking a probe
+  // sequence that is wider than the packed counter words just to rediscover
+  // positive counters.
+  if counting_should_check_full(probes, self.counters.length()) &&
     self.all_slots_positive() {
     return true
   }
-  let slot_count = self.slot_count.to_uint64()
-  let probes = counting_effective_probes(self.hash_count, h2, slot_count)
   let mut state = h1
   for i = 0; i < probes; i = i + 1 {
     if self.counter_at((state % slot_count).to_int()) == 0UL {

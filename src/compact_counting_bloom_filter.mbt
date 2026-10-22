@@ -322,15 +322,16 @@ pub fn[K : Hash] CompactCountingBloomFilter::insert_if_absent(
   self : CompactCountingBloomFilter,
   key : K,
 ) -> Bool {
+  let (h1, h2) = key_hashes(key)
   // Every selected counter is already positive on a full filter, so the
-  // conditional insertion is a false positive. Avoid enumerating a wide
-  // non-cyclic probe sequence before reaching that conclusion.
-  if self.hash_count > self.slot_count &&
-    self.hash_count > 64 &&
+  // conditional insertion is a false positive. Avoid enumerating a wide probe
+  // sequence before reaching that conclusion.
+  let slot_count = self.slot_count.to_uint64()
+  let probes = counting_effective_probes(self.hash_count, h2, slot_count)
+  if counting_should_check_full(probes, self.counters.length()) &&
     self.all_slots_positive() {
     return false
   }
-  let (h1, h2) = key_hashes(key)
   let positions = self.positions_for(h1, h2)
   for i = 0; i < positions.length; i = i + 1 {
     if self.counter_at(positions.positions[i]) == 0UL {
@@ -421,16 +422,16 @@ pub fn[K : Hash] CompactCountingBloomFilter::contains(
   if self.counter_mass == 0UL {
     return false
   }
-  // A completely full filter reports every key present. Avoid walking a very
-  // wide, non-cyclic probe sequence just to rediscover positive counters.
-  if self.hash_count > self.slot_count &&
-    self.hash_count > 64 &&
-    self.all_slots_positive() {
-    return true
-  }
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
   let probes = counting_effective_probes(self.hash_count, h2, slot_count)
+  // A completely full filter reports every key present. Avoid walking a probe
+  // sequence that is wider than the packed counter words just to rediscover
+  // positive counters.
+  if counting_should_check_full(probes, self.counters.length()) &&
+    self.all_slots_positive() {
+    return true
+  }
   let mut state = h1
   for i = 0; i < probes; i = i + 1 {
     if self.counter_at((state % slot_count).to_int()) == 0UL {

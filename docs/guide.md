@@ -596,8 +596,10 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   covers wide non-power-of-two layouts where the cycle shortcut does not apply.
   A wide layout whose every slot is positive answers `contains` as `true` and
   makes `insert_if_absent` return `false` after one occupancy scan instead of a
-  full probe walk. Set operations scan the packed counter words, and merging
-  into an empty receiver copies the packed words directly.
+  full probe walk. The scan is selected when the effective probe count exceeds
+  both 64 and the number of packed counter words, so a short cycle keeps the
+  probe path. Set operations scan the packed counter words, and merging into an
+  empty receiver copies the packed words directly.
 - `CuckooFilter` checks two buckets of `B` fingerprints per query, so a lookup
   is `O(B)` expected. An insert may evict fingerprints and, when random eviction
   does not find room, run a bounded breadth-first search for an augmenting path;
