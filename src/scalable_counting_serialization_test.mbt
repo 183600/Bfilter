@@ -281,3 +281,24 @@ test "scalable counting serialization stays byte stable across many tracked keys
   assert_eq(restored.tracked_key_count(), 4000)
   assert_eq(restored.count(), 4000)
 }
+
+///|
+test "scalable counting serialization is independent of insertion order" {
+  let keys : Array[String] = Array::makei(200, i => "ordered-" + i.to_string())
+  let forward = @src.ScalableCountingBloomFilter::new(4096, 0.01)
+  let backward = @src.ScalableCountingBloomFilter::new(4096, 0.01)
+  for key in keys {
+    forward.insert(key)
+  }
+  for i = keys.length() - 1; i >= 0; i = i - 1 {
+    backward.insert(keys[i])
+  }
+  assert_eq(forward.slice_count(), 1)
+  assert_eq(backward.slice_count(), 1)
+  assert_eq(forward.to_bytes(), backward.to_bytes())
+  let restored = @src.ScalableCountingBloomFilter::from_bytes(
+    backward.to_bytes(),
+  )
+  assert_eq(restored.to_bytes(), forward.to_bytes())
+  assert_eq(restored.tracked_key_count(), keys.length())
+}
