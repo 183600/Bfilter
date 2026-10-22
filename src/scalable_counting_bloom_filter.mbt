@@ -741,6 +741,15 @@ pub fn ScalableCountingBloomFilter::intersection(
   let self_slice_count = self.slices.length()
   let other_slice_count = other.slices.length()
   let slice_count = self_slice_count.min(other_slice_count)
+  // A filter can reach this state through whitebox construction with an empty
+  // slice list. There is no shared slice layout to intersect, so return a fresh
+  // filter with the same growth policy instead of an unusable zero-slice result.
+  if slice_count == 0 {
+    return ScalableCountingBloomFilter::new(
+      self.initial_capacity,
+      self.target_rate,
+    )
+  }
   let mut result_slots = 0L
   for i = 0; i < slice_count; i = i + 1 {
     result_slots = result_slots + self.slices[i].slot_count().to_int64()
