@@ -170,11 +170,7 @@ pub fn CountingBloomFilter::from_bytes(data : Bytes) -> CountingBloomFilter {
   guard counter_mass <= hash_count.to_uint64() * inserted.to_uint64() else {
     abort("counting insertion count is too small for positive counters")
   }
-  let probe_length = if hash_count <= COUNTING_PROBE_SCRATCH_LIMIT {
-    hash_count
-  } else {
-    0
-  }
+  let probe_length = counting_probe_length(hash_count, slot_count)
   {
     counters,
     slot_count,
@@ -638,11 +634,7 @@ pub fn CompactCountingBloomFilter::from_bytes(
   guard counter_mass <= hash_count.to_uint64() * inserted.to_uint64() else {
     abort("compact counting insertion count is too small for positive counters")
   }
-  let probe_length = if hash_count <= COUNTING_PROBE_SCRATCH_LIMIT {
-    hash_count
-  } else {
-    0
-  }
+  let probe_length = counting_probe_length(hash_count, slot_count)
   {
     counters,
     slot_count,

@@ -81,3 +81,34 @@ test "wide counting layouts skip probe scratch but remain fully usable" {
   assert_true(compact.remove("wide"))
   assert_false(compact.contains("wide"))
 }
+
+///|
+test "counting probe workspaces shrink to the reachable slot count" {
+  let counting = CountingBloomFilter::with_size(16, 1024)
+  assert_eq(counting.probe_positions.length(), 16)
+  counting.insert("key")
+  assert_true(counting.count_of("key") > 0)
+  assert_true(counting.remove("key"))
+  assert_false(counting.contains("key"))
+  assert_eq(counting.probe_positions.length(), 16)
+
+  let compact = CompactCountingBloomFilter::with_size(16, 1024)
+  assert_eq(compact.probe_positions.length(), 16)
+  compact.insert("key")
+  assert_true(compact.count_of("key") > 0)
+  assert_true(compact.remove("key"))
+  assert_false(compact.contains("key"))
+
+  // A temporary set for a wide hash count is capped by the slots a key can
+  // select instead of by the number of probes.
+  let (h1, h2) = key_hashes("wide")
+  let set = unique_key_positions_fast(h1, h2, 1_048_576, 64UL)
+  assert_eq(set.positions.length(), 64)
+  assert_true(set.length > 0)
+  assert_true(set.length <= 64)
+  let mut occurrences = 0
+  for i = 0; i < set.length; i = i + 1 {
+    occurrences = occurrences + set.counts[i]
+  }
+  assert_eq(occurrences, 1_048_576)
+}

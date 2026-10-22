@@ -154,11 +154,7 @@ pub fn CompactCountingBloomFilter::with_size(
   }
   guard hash_count > 0 else { abort("hash_count must be positive") }
   let rounded = (slot_count + 15) / 16 * 16
-  let probe_length = if hash_count <= COUNTING_PROBE_SCRATCH_LIMIT {
-    hash_count
-  } else {
-    0
-  }
+  let probe_length = counting_probe_length(hash_count, rounded)
   {
     counters: FixedArray::make(rounded / COMPACT_SLOTS_PER_WORD, 0UL),
     slot_count: rounded,
@@ -207,7 +203,7 @@ fn CompactCountingBloomFilter::positions_for(
   h1 : UInt64,
   h2 : UInt64,
 ) -> CountingPositionSet {
-  if self.probe_positions.length() == self.hash_count {
+  if self.probe_positions.length() > 0 {
     let length = unique_key_positions_into(
       h1,
       h2,

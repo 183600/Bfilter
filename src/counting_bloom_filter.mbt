@@ -162,11 +162,7 @@ pub fn CountingBloomFilter::with_size(
   }
   guard hash_count > 0 else { abort("hash_count must be positive") }
   let rounded = (slot_count + 15) / 16 * 16
-  let probe_length = if hash_count <= COUNTING_PROBE_SCRATCH_LIMIT {
-    hash_count
-  } else {
-    0
-  }
+  let probe_length = counting_probe_length(hash_count, rounded)
   {
     counters: FixedArray::make(rounded / 4, 0UL),
     slot_count: rounded,
@@ -206,9 +202,9 @@ fn CountingBloomFilter::set_counter(
 ///|
 /// The distinct slots selected by one key and how often each is selected.
 ///
-/// Both arrays are sized to the filter's hash count and only their first
-/// `length` entries are meaningful. Keeping the pairs in two packed arrays
-/// avoids allocating one tuple per probe on every insert or removal.
+/// Both arrays hold at most `min(hash_count, slot_count)` entries and only
+/// their first `length` entries are meaningful. Keeping the pairs in two packed
+/// arrays avoids allocating one tuple per probe on every insert or removal.
 priv struct CountingPositionSet {
   positions : FixedArray[Int32]
   counts : FixedArray[Int32]
@@ -224,6 +220,23 @@ priv struct CountingPositionSet {
 const COUNTING_PROBE_SCRATCH_LIMIT : Int32 = 1024
 
 ///|
+/// Length of the reusable probe workspace for a filter layout.
+///
+/// A key can select at most one distinct position per slot, so a small slot
+/// count caps the number of meaningful entries even when the hash count is
+/// wide. Layouts with an unusually wide hash count still skip the permanent
+/// workspace and allocate a temporary set for each operation.
+fn counting_probe_length(hash_count : Int32, slot_count : Int32) -> Int32 {
+  if hash_count > COUNTING_PROBE_SCRATCH_LIMIT {
+    0
+  } else if hash_count < slot_count {
+    hash_count
+  } else {
+    slot_count
+  }
+}
+
+///|
 /// Compute each distinct slot selected by a key together with the number of
 /// hash functions that select it.
 ///
@@ -232,7 +245,8 @@ const COUNTING_PROBE_SCRATCH_LIMIT : Int32 = 1024
 /// detection stays linear instead of rescanning every previously seen position.
 ///
 /// The caller supplies the result arrays so hot paths can reuse a per-filter
-/// workspace. Their length must be at least `hash_count`.
+/// workspace. Their length must be at least `min(hash_count, slot_count)`,
+/// because a key cannot select more distinct slots than the filter holds.
 fn unique_key_positions_into(
   h1 : UInt64,
   h2 : UInt64,
@@ -291,8 +305,13 @@ fn unique_key_positions_fast(
   hash_count : Int32,
   slot_count : UInt64,
 ) -> CountingPositionSet {
-  let positions = FixedArray::make(hash_count, 0)
-  let counts = FixedArray::make(hash_count, 0)
+  let capacity = if slot_count < hash_count.to_uint64() {
+    slot_count.to_int()
+  } else {
+    hash_count
+  }
+  let positions = FixedArray::make(capacity, 0)
+  let counts = FixedArray::make(capacity, 0)
   let length = unique_key_positions_into(
     h1, h2, hash_count, slot_count, positions, counts,
   )
@@ -307,7 +326,7 @@ fn CountingBloomFilter::positions_for(
   h1 : UInt64,
   h2 : UInt64,
 ) -> CountingPositionSet {
-  if self.probe_positions.length() == self.hash_count {
+  if self.probe_positions.length() > 0 {
     let length = unique_key_positions_into(
       h1,
       h2,

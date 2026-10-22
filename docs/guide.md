@@ -532,11 +532,12 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   of `k`. Set operations scan the `m / 64` backing words.
 - `CountingBloomFilter` and `CompactCountingBloomFilter` update `k` counters,
   deduplicating positions selected more than once, and store 16 bits or 4 bits
-  per slot respectively. Inserts and removals reuse a small per-filter probe
-  workspace to avoid allocating temporary position arrays; the workspace is
-  omitted from `memory_bytes()` and from serialized data, and very wide hash
-  counts fall back to temporary arrays. Set operations scan the packed counter
-  words, and merging into an empty receiver copies the packed words directly.
+  per slot respectively. Inserts and removals reuse a per-filter probe workspace
+  sized to `min(k, slot_count)` to avoid allocating temporary position arrays;
+  the workspace is omitted from `memory_bytes()` and from serialized data, and
+  very wide hash counts fall back to temporary arrays that are capped by the
+  slot count as well. Set operations scan the packed counter words, and merging
+  into an empty receiver copies the packed words directly.
 - `CuckooFilter` checks two buckets of `B` fingerprints per query, so a lookup
   is `O(B)` expected. An insert may evict fingerprints and, when random eviction
   does not find room, run a bounded breadth-first search for an augmenting path;
