@@ -11,6 +11,11 @@ pub struct CountingBloomFilter {
   priv hash_count : Int32
   priv mut inserted : Int32
   priv mut counter_mass : UInt64
+  // Reusable probe buffers make inserts and removals allocation-free without
+  // changing the observable state. They stay empty for very wide layouts so a
+  // large nominal hash count does not reserve scratch memory up front.
+  priv probe_positions : FixedArray[Int32]
+  priv probe_counts : FixedArray[Int32]
 }
 
 ///|
@@ -157,12 +162,19 @@ pub fn CountingBloomFilter::with_size(
   }
   guard hash_count > 0 else { abort("hash_count must be positive") }
   let rounded = (slot_count + 15) / 16 * 16
+  let probe_length = if hash_count <= COUNTING_PROBE_SCRATCH_LIMIT {
+    hash_count
+  } else {
+    0
+  }
   {
     counters: FixedArray::make(rounded / 4, 0UL),
     slot_count: rounded,
     hash_count,
     inserted: 0,
     counter_mass: 0UL,
+    probe_positions: FixedArray::make(probe_length, 0),
+    probe_counts: FixedArray::make(probe_length, 0),
   }
 }
 
@@ -204,20 +216,31 @@ priv struct CountingPositionSet {
 }
 
 ///|
+/// Largest hash count that receives reusable probe buffers.
+///
+/// The buffers are only a workspace and do not affect the serialized layout.
+/// Capping them keeps a filter with an unusually wide, but still valid, hash
+/// count from reserving permanent scratch memory it may never need.
+const COUNTING_PROBE_SCRATCH_LIMIT : Int32 = 1024
+
+///|
 /// Compute each distinct slot selected by a key together with the number of
 /// hash functions that select it.
 ///
 /// Small filters deduplicate in place with a quadratic scan over at most 64
 /// probes; filters with many hash functions switch to a hash map so duplicate
 /// detection stays linear instead of rescanning every previously seen position.
-fn unique_key_positions_fast(
+///
+/// The caller supplies the result arrays so hot paths can reuse a per-filter
+/// workspace. Their length must be at least `hash_count`.
+fn unique_key_positions_into(
   h1 : UInt64,
   h2 : UInt64,
   hash_count : Int32,
   slot_count : UInt64,
-) -> CountingPositionSet {
-  let positions = FixedArray::make(hash_count, 0)
-  let counts = FixedArray::make(hash_count, 0)
+  positions : FixedArray[Int32],
+  counts : FixedArray[Int32],
+) -> Int32 {
   let mut length = 0
   let mut state = h1
   if hash_count <= 64 {
@@ -256,7 +279,49 @@ fn unique_key_positions_fast(
       length = length + 1
     }
   }
+  length
+}
+
+///|
+/// Compute each distinct slot selected by a key together with the number of
+/// hash functions that select it, allocating fresh result arrays.
+fn unique_key_positions_fast(
+  h1 : UInt64,
+  h2 : UInt64,
+  hash_count : Int32,
+  slot_count : UInt64,
+) -> CountingPositionSet {
+  let positions = FixedArray::make(hash_count, 0)
+  let counts = FixedArray::make(hash_count, 0)
+  let length = unique_key_positions_into(
+    h1, h2, hash_count, slot_count, positions, counts,
+  )
   { positions, counts, length, }
+}
+
+///|
+/// Compute the selected slots for `self`, reusing its probe workspace when one
+/// is available.
+fn CountingBloomFilter::positions_for(
+  self : CountingBloomFilter,
+  h1 : UInt64,
+  h2 : UInt64,
+) -> CountingPositionSet {
+  if self.probe_positions.length() == self.hash_count {
+    let length = unique_key_positions_into(
+      h1,
+      h2,
+      self.hash_count,
+      self.slot_count.to_uint64(),
+      self.probe_positions,
+      self.probe_counts,
+    )
+    { positions: self.probe_positions, counts: self.probe_counts, length }
+  } else {
+    unique_key_positions_fast(
+      h1, h2, self.hash_count, self.slot_count.to_uint64(),
+    )
+  }
 }
 
 ///|
@@ -295,8 +360,7 @@ fn CountingBloomFilter::raise_positions(
   h2 : UInt64,
   multiplicity : Int32,
 ) -> Unit {
-  let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions_fast(h1, h2, self.hash_count, slot_count)
+  let positions = self.positions_for(h1, h2)
   self.raise_positions_at(positions, multiplicity)
 }
 
@@ -401,8 +465,7 @@ fn CountingBloomFilter::insert_if_absent_hashes(
   h1 : UInt64,
   h2 : UInt64,
 ) -> Bool {
-  let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions_fast(h1, h2, self.hash_count, slot_count)
+  let positions = self.positions_for(h1, h2)
   for i = 0; i < positions.length; i = i + 1 {
     if self.counter_at(positions.positions[i]) == 0UL {
       guard self.inserted < 2147483647 else {
@@ -450,8 +513,7 @@ fn CountingBloomFilter::remove_hashes(
   h1 : UInt64,
   h2 : UInt64,
 ) -> Bool {
-  let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions_fast(h1, h2, self.hash_count, slot_count)
+  let positions = self.positions_for(h1, h2)
   for i = 0; i < positions.length; i = i + 1 {
     let pos = positions.positions[i]
     let occurrences = positions.counts[i].to_uint64()
@@ -795,6 +857,8 @@ pub fn CountingBloomFilter::copy(
     hash_count: self.hash_count,
     inserted: self.inserted,
     counter_mass: self.counter_mass,
+    probe_positions: FixedArray::make(self.probe_positions.length(), 0),
+    probe_counts: FixedArray::make(self.probe_counts.length(), 0),
   }
 }
 

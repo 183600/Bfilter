@@ -15,6 +15,10 @@ pub struct CompactCountingBloomFilter {
   priv hash_count : Int32
   priv mut inserted : Int32
   priv mut counter_mass : UInt64
+  // Reusable probe buffers keep inserts and removals allocation-free. They are
+  // left empty for layouts with an unusually wide hash count.
+  priv probe_positions : FixedArray[Int32]
+  priv probe_counts : FixedArray[Int32]
 }
 
 ///|
@@ -150,12 +154,19 @@ pub fn CompactCountingBloomFilter::with_size(
   }
   guard hash_count > 0 else { abort("hash_count must be positive") }
   let rounded = (slot_count + 15) / 16 * 16
+  let probe_length = if hash_count <= COUNTING_PROBE_SCRATCH_LIMIT {
+    hash_count
+  } else {
+    0
+  }
   {
     counters: FixedArray::make(rounded / COMPACT_SLOTS_PER_WORD, 0UL),
     slot_count: rounded,
     hash_count,
     inserted: 0,
     counter_mass: 0UL,
+    probe_positions: FixedArray::make(probe_length, 0),
+    probe_counts: FixedArray::make(probe_length, 0),
   }
 }
 
@@ -189,6 +200,31 @@ fn CompactCountingBloomFilter::set_counter(
 }
 
 ///|
+/// Compute the selected slots for `self`, reusing its probe workspace when one
+/// is available.
+fn CompactCountingBloomFilter::positions_for(
+  self : CompactCountingBloomFilter,
+  h1 : UInt64,
+  h2 : UInt64,
+) -> CountingPositionSet {
+  if self.probe_positions.length() == self.hash_count {
+    let length = unique_key_positions_into(
+      h1,
+      h2,
+      self.hash_count,
+      self.slot_count.to_uint64(),
+      self.probe_positions,
+      self.probe_counts,
+    )
+    { positions: self.probe_positions, counts: self.probe_counts, length }
+  } else {
+    unique_key_positions_fast(
+      h1, h2, self.hash_count, self.slot_count.to_uint64(),
+    )
+  }
+}
+
+///|
 /// Raise every selected counter by the number of hash functions that select
 /// it, capping at the largest multiple of that count that fits in four bits.
 ///
@@ -202,8 +238,7 @@ fn CompactCountingBloomFilter::increment_positions(
   h1 : UInt64,
   h2 : UInt64,
 ) -> Unit {
-  let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions_fast(h1, h2, self.hash_count, slot_count)
+  let positions = self.positions_for(h1, h2)
   self.increment_positions_at(positions)
 }
 
@@ -292,8 +327,7 @@ pub fn[K : Hash] CompactCountingBloomFilter::insert_if_absent(
   key : K,
 ) -> Bool {
   let (h1, h2) = key_hashes(key)
-  let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions_fast(h1, h2, self.hash_count, slot_count)
+  let positions = self.positions_for(h1, h2)
   for i = 0; i < positions.length; i = i + 1 {
     if self.counter_at(positions.positions[i]) == 0UL {
       guard self.inserted < 2147483647 else {
@@ -320,8 +354,7 @@ pub fn[K : Hash] CompactCountingBloomFilter::remove(
   key : K,
 ) -> Bool {
   let (h1, h2) = key_hashes(key)
-  let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions_fast(h1, h2, self.hash_count, slot_count)
+  let positions = self.positions_for(h1, h2)
   for i = 0; i < positions.length; i = i + 1 {
     let pos = positions.positions[i]
     let occurrences = positions.counts[i].to_uint64()
@@ -668,6 +701,8 @@ pub fn CompactCountingBloomFilter::copy(
     hash_count: self.hash_count,
     inserted: self.inserted,
     counter_mass: self.counter_mass,
+    probe_positions: FixedArray::make(self.probe_positions.length(), 0),
+    probe_counts: FixedArray::make(self.probe_counts.length(), 0),
   }
 }
 
