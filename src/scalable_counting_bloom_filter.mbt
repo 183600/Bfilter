@@ -597,6 +597,14 @@ pub fn ScalableCountingBloomFilter::merge(
   // empty filter grew further, append the empty slices its layout calls for.
   if other.locations.length() == 0 &&
     (other.inserted == 0 || other.occupied_slot_count() == 0L) {
+    // A zero-slice receiver can still carry a conservative count. Preserve it
+    // in a real slice before matching the source's slice count, so the merged
+    // filter keeps its insertion count consistent with its slices and remains
+    // serializable.
+    if self.slices.length() == 0 && self.inserted > 0 {
+      self.append_slice()
+      self.slices[0].inserted = self.inserted
+    }
     let mut total_slots = self.slot_count()
     for i = self.slices.length(); i < other.slices.length(); i = i + 1 {
       total_slots = total_slots + other.slices[i].slot_count().to_int64()

@@ -55,3 +55,29 @@ test "scalable counting statistics handle a filter with no slices" {
     empty.is_disjoint_from(ScalableCountingBloomFilter::new(2, 0.01)),
   )
 }
+
+///|
+test "zero-slice counting receiver keeps its count when merging an empty grown filter" {
+  let counted : ScalableCountingBloomFilter = {
+    slices: [],
+    capacities: [],
+    locations: @hashmap.HashMap([]),
+    initial_capacity: 2,
+    target_rate: 0.01,
+    inserted: 5,
+  }
+  let grown = ScalableCountingBloomFilter::new(2, 0.01)
+  grown.append_slice()
+  grown.append_slice()
+  assert_eq(grown.count(), 0)
+  let merged = counted.copy()
+  merged.merge(grown)
+  assert_eq(merged.count(), 5)
+  assert_eq(merged.slice_count(), grown.slice_count())
+  assert_eq(merged.tracked_key_count(), 0)
+  let bytes = merged.to_bytes()
+  let restored = ScalableCountingBloomFilter::from_bytes(bytes)
+  assert_eq(restored.count(), 5)
+  assert_eq(restored.slice_count(), merged.slice_count())
+  assert_eq(restored.to_bytes(), bytes)
+}
