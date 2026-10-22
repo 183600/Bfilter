@@ -97,10 +97,17 @@ pub fn ScalableCountingBloomFilter::optimal_size(
   guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
     abort("false_positive_rate must be between 0 and 1")
   }
-  counting_bloom_layout(
+  let (slot_count, hash_count) = counting_bloom_layout(
     expected_items,
     scalable_counting_slice_rate(false_positive_rate, 0),
   )
+  // The constructor rejects the first slice before allocating it when it would
+  // already exceed the aggregate slot budget. Mirror that guard here so the
+  // planner never advertises a layout that cannot be constructed.
+  guard slot_count.to_int64() <= SCALABLE_COUNTING_MAX_SLOTS else {
+    abort("scalable counting bloom filter is too large")
+  }
+  (slot_count, hash_count)
 }
 
 ///|

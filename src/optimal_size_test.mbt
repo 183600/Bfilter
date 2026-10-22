@@ -203,6 +203,19 @@ test "panic scalable counting optimal size rejects invalid arguments" {
 }
 
 ///|
+test "panic scalable counting optimal size rejects an aggregate-oversized first slice" {
+  // The per-slice layout fits, but this first slice alone exceeds the aggregate
+  // slot budget that `ScalableCountingBloomFilter::new` enforces before it
+  // allocates the slice. The planner must reject the same arguments.
+  @src.ScalableCountingBloomFilter::optimal_size(112_022_450, 0.02) |> ignore
+}
+
+///|
+test "panic scalable counting constructor rejects an aggregate-oversized first slice" {
+  @src.ScalableCountingBloomFilter::new(112_022_450, 0.02) |> ignore
+}
+
+///|
 test "panic concurrent scalable optimal size rejects invalid arguments" {
   @src.ConcurrentScalableBloomFilter::optimal_size(0, 0.01) |> ignore
 }
