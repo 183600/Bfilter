@@ -545,18 +545,6 @@ fn CountingBloomFilter::raise_positions_independently_at(
 }
 
 ///|
-/// Add the occurrences of a key that a merge contributes to an existing slice.
-fn CountingBloomFilter::raise_positions_for_merge(
-  self : CountingBloomFilter,
-  h1 : UInt64,
-  h2 : UInt64,
-  multiplicity : Int32,
-) -> Unit {
-  let positions = self.positions_for(h1, h2)
-  self.raise_positions_independently_at(positions, multiplicity)
-}
-
-///|
 /// Add a key that is entering a rebuilt merge slice for the first time.
 ///
 /// When the slice still has room for every selected lane, advance all of them by

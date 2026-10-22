@@ -700,8 +700,6 @@ pub fn ScalableCountingBloomFilter::merge(
   }
   let slices : Array[CountingBloomFilter] = []
   let capacities : Array[Int32] = []
-  let slice_inserted : Array[Int64] = Array::make(slice_count, 0L)
-  let mut total_inserted = 0L
   for i = 0; i < slice_count; i = i + 1 {
     let source = if i < self_slice_count {
       self.slices[i]
@@ -719,13 +717,9 @@ pub fn ScalableCountingBloomFilter::merge(
       capacities.push(other.capacities[i])
     }
   }
-  for entry in self.locations.iter() {
-    let (id, (slice_index, occurrences)) = entry
-    slices[slice_index].raise_positions_for_new_merge(id.0, id.1, occurrences)
-    slice_inserted[slice_index] = slice_inserted[slice_index] +
-      occurrences.to_int64()
-    total_inserted = total_inserted + occurrences.to_int64()
-  }
+  // Resolve each key's final multiplicity before touching the blank slices.
+  // Raising a key in two pieces (self, then the extra multiplicity from other)
+  // can overfill some repeated positions beyond what a later removal can drain.
   let merged = self.locations.copy()
   for entry in other.locations.iter() {
     let (id, (other_slice, other_occurrences)) = entry
@@ -737,38 +731,24 @@ pub fn ScalableCountingBloomFilter::merge(
           } else {
             other_occurrences
           }
-          let extra = occurrences - self_occurrences
-          slices[other_slice].raise_positions_for_merge(id.0, id.1, extra)
-          slice_inserted[other_slice] = slice_inserted[other_slice] +
-            extra.to_int64()
-          total_inserted = total_inserted + extra.to_int64()
           merged.set(id, (other_slice, occurrences))
         } else {
           guard self_occurrences <= 2147483647 - other_occurrences else {
             abort("scalable counting bloom filter occurrence count overflow")
           }
-          slices[self_slice].raise_positions_for_merge(
-            id.0,
-            id.1,
-            other_occurrences,
-          )
-          slice_inserted[self_slice] = slice_inserted[self_slice] +
-            other_occurrences.to_int64()
-          total_inserted = total_inserted + other_occurrences.to_int64()
           merged.set(id, (self_slice, self_occurrences + other_occurrences))
         }
-      None => {
-        slices[other_slice].raise_positions_for_new_merge(
-          id.0,
-          id.1,
-          other_occurrences,
-        )
-        slice_inserted[other_slice] = slice_inserted[other_slice] +
-          other_occurrences.to_int64()
-        total_inserted = total_inserted + other_occurrences.to_int64()
-        merged.set(id, (other_slice, other_occurrences))
-      }
+      None => merged.set(id, (other_slice, other_occurrences))
     }
+  }
+  let slice_inserted : Array[Int64] = Array::make(slice_count, 0L)
+  let mut total_inserted = 0L
+  for entry in merged.iter() {
+    let (id, (slice_index, occurrences)) = entry
+    slices[slice_index].raise_positions_for_new_merge(id.0, id.1, occurrences)
+    slice_inserted[slice_index] = slice_inserted[slice_index] +
+      occurrences.to_int64()
+    total_inserted = total_inserted + occurrences.to_int64()
   }
   guard total_inserted <= 2147483647L else {
     abort("scalable counting bloom filter insertion count overflow")

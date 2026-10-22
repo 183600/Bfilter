@@ -129,3 +129,48 @@ test "scalable counting intersection drains multiplied keys without residue" {
   assert_eq(restored.count(), common.count())
   assert_eq(restored.count_of(key), common.count_of(key))
 }
+
+///|
+/// When both inputs track the same key in the same slice, the merged counter
+/// must represent the larger multiplicity once. Raising the receiver's copies
+/// and then the source's extra copies separately can overfill repeated
+/// positions beyond their removable cap.
+test "scalable counting same-slice merge drains multiplied key without residue" {
+  let target = ScalableCountingBloomFilter::new(1, 1.0e-8)
+  let source = ScalableCountingBloomFilter::new(1, 1.0e-8)
+  let key = merge_residue_key_with_repeats(target)
+  target.insert(key)
+  for i = 0; i < 40000; i = i + 1 {
+    source.insert(key)
+  }
+  let id = key_hashes(key)
+  let positions = unique_key_positions_fast(
+    id.0,
+    id.1,
+    target.slices[0].hash_count,
+    target.slices[0].slot_count.to_uint64(),
+  )
+  let mut removable = 100000UL
+  for i = 0; i < positions.length; i = i + 1 {
+    let occurrences = positions.counts[i].to_uint64()
+    let available = counting_position_limit(occurrences) / occurrences
+    if available < removable {
+      removable = available
+    }
+  }
+  assert_true(removable > 0UL)
+  target.merge(source)
+  assert_eq(target.count_of(key), 40000)
+  let mut removed = 0
+  while target.remove(key) {
+    removed = removed + 1
+  }
+  assert_eq(removed.to_uint64(), removable)
+  assert_eq(target.count_of(key), 40000 - removable.to_int())
+  for i = 0; i < positions.length; i = i + 1 {
+    assert_eq(target.slices[0].counter_at(positions.positions[i]), 0UL)
+  }
+  let restored = ScalableCountingBloomFilter::from_bytes(target.to_bytes())
+  assert_eq(restored.count(), target.count())
+  assert_eq(restored.count_of(key), target.count_of(key))
+}
