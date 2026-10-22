@@ -461,10 +461,18 @@ pub fn ScalableCountingBloomFilter::occupied_slot_count(
 
 ///|
 /// Fraction of counter slots currently non-zero, in `[0, 1]`.
+///
+/// A hand-built filter with no slices has no counter slots, so the ratio is `0`
+/// rather than `0 / 0`.
 pub fn ScalableCountingBloomFilter::fill_ratio(
   self : ScalableCountingBloomFilter,
 ) -> Double {
-  self.occupied_slot_count().to_double() / self.slot_count().to_double()
+  let slots = self.slot_count()
+  if slots == 0L {
+    0.0
+  } else {
+    self.occupied_slot_count().to_double() / slots.to_double()
+  }
 }
 
 ///|

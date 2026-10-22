@@ -334,8 +334,16 @@ pub fn ScalableBloomFilter::set_bit_count(self : ScalableBloomFilter) -> Int32 {
 
 ///|
 /// Fraction of addressable bits currently set to one, in `[0, 1]`.
+///
+/// A hand-built filter with no slices has no addressable bits, so the ratio is
+/// `0` rather than `0 / 0`.
 pub fn ScalableBloomFilter::fill_ratio(self : ScalableBloomFilter) -> Double {
-  self.set_bit_count().to_double() / self.bit_count().to_double()
+  let bits = self.bit_count()
+  if bits == 0 {
+    0.0
+  } else {
+    self.set_bit_count().to_double() / bits.to_double()
+  }
 }
 
 ///|
