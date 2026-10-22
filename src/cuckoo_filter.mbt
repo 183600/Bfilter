@@ -549,9 +549,15 @@ fn CuckooFilter::retry_union(
 ) -> CuckooFilter? {
   for attempt = 0; attempt < 16; attempt = attempt + 1 {
     let result = first.copy()
-    result.random_state = mix64(
+    let mut state = mix64(
       result.random_state ^ ((attempt.to_uint64() + 1UL) * 0x2545F4914F6CDD1DUL),
     )
+    // Zero is a fixed point of the xorshift generator and serialization
+    // rejects it, so keep the retry state usable if mixing lands on zero.
+    if state == 0UL {
+      state = 1UL
+    }
+    result.random_state = state
     if result.insert_fingerprints_from(second) {
       return Some(result)
     }
