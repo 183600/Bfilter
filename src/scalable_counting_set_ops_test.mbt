@@ -119,6 +119,11 @@ test "scalable counting subset follows tracked keys across slices" {
   assert_true(combined.contains("shared"))
   assert_eq(combined.count_of("shared"), 2)
 
+  let common = left.intersection(right)
+  assert_true(common.is_subset_of(left))
+  assert_true(common.is_subset_of(right))
+  assert_eq(common.count_of("shared"), 1)
+
   let merged = left.copy()
   merged.merge(right)
   assert_true(left.is_subset_of(merged))
