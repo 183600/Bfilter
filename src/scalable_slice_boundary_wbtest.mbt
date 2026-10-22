@@ -114,3 +114,33 @@ test "scalable bloom disjointness skips empty slices between non-empty ones" {
   assert_false(left.is_disjoint_from(right))
   assert_false(right.is_disjoint_from(left))
 }
+
+///|
+test "scalable slice rates clamp underflow to the smallest positive double" {
+  let smallest = 0x0000000000000001L.reinterpret_as_double()
+  let target = @double.min_positive / 1.0e15
+  assert_eq(scalable_slice_rate(target, 3), smallest)
+  assert_eq(scalable_counting_slice_rate(target, 3), smallest)
+  assert_true(scalable_slice_rate(target, 2) > 0.0)
+  assert_true(scalable_counting_slice_rate(target, 2) > 0.0)
+}
+
+///|
+test "merging a non-empty bloom filter into an empty grown receiver keeps slices" {
+  let receiver = ScalableBloomFilter::new(2, 0.01)
+  receiver.append_slice()
+  receiver.append_slice()
+  assert_eq(receiver.slice_count(), 3)
+  assert_true(receiver.is_empty())
+  let source = ScalableBloomFilter::new(2, 0.01)
+  source.insert("source")
+  receiver.merge(source)
+  assert_eq(receiver.slice_count(), 3)
+  assert_eq(receiver.count(), 1)
+  assert_true(receiver.contains("source"))
+  assert_eq(receiver.slices[1].set_bit_count(), 0)
+  assert_eq(receiver.slices[2].set_bit_count(), 0)
+  let restored = ScalableBloomFilter::from_bytes(receiver.to_bytes())
+  assert_eq(restored.slice_count(), 3)
+  assert_true(restored.contains("source"))
+}

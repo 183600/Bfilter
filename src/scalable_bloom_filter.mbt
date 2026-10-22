@@ -23,7 +23,10 @@ fn scalable_slice_rate(target_rate : Double, index : Int32) -> Double {
   if rate > 0.0 {
     rate
   } else {
-    target_rate
+    // Halving a tiny target can underflow to zero. Keep every slice positive by
+    // clamping to the smallest representable double instead of loosening the
+    // later slices back to the original target rate.
+    0x0000000000000001L.reinterpret_as_double()
   }
 }
 
