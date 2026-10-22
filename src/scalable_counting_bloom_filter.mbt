@@ -869,7 +869,11 @@ pub fn ScalableCountingBloomFilter::intersection(
         } else {
           other_slice
         }
-        slices[slice_index].raise_positions_for_merge(id.0, id.1, occurrences)
+        slices[slice_index].raise_positions_for_new_merge(
+          id.0,
+          id.1,
+          occurrences,
+        )
         slice_inserted[slice_index] = slice_inserted[slice_index] + occurrences
         locations.set(id, (slice_index, occurrences))
       }
