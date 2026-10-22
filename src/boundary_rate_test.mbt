@@ -117,3 +117,26 @@ test "scalable filters support subnormal rates while growing" {
   assert_true(counting_restored.remove("key-0"))
   assert_eq(counting_restored.count_of("key-0"), 1)
 }
+
+///|
+test "scalable optimal size clamps a subnormal first-slice rate" {
+  // Halving the smallest subnormal underflows to zero, so the first slice falls
+  // back to the smallest positive rate. The planner must use the same fallback
+  // as the constructor instead of rejecting the requested rate.
+  let rate = 0x0000000000000001L.reinterpret_as_double()
+  let bloom_layout = @src.ScalableBloomFilter::optimal_size(1, rate)
+  let bloom = @src.ScalableBloomFilter::new(1, rate)
+  assert_eq(bloom.slice_count(), 1)
+  assert_eq(bloom_layout.0, bloom.bit_count())
+  assert_eq(bloom_layout, @src.BloomFilter::optimal_size(1, rate))
+
+  let counting_layout = @src.ScalableCountingBloomFilter::optimal_size(1, rate)
+  let counting = @src.ScalableCountingBloomFilter::new(1, rate)
+  assert_eq(counting.slice_count(), 1)
+  assert_eq(counting_layout.0.to_int64(), counting.slot_count())
+  assert_eq(
+    counting_layout,
+    @src.CountingBloomFilter::optimal_size(1, rate),
+  )
+}
+
