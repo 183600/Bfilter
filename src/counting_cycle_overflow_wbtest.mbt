@@ -60,4 +60,9 @@ test "counting queries still stop at a cycle for power-of-two slots" {
   // retain the full probe count unless the step is zero.
   assert_eq(counting_effective_probes(100, 1UL, 48UL), 100)
   assert_eq(counting_effective_probes(100, 0UL, 48UL), 1)
+  // A nonzero step that is a multiple of the slot count still only looks
+  // constant until the 64-bit state wraps. Wrapping subtracts 2^64, which is
+  // not a multiple of 48, so later probes can land on other slots.
+  assert_eq(counting_effective_probes(100, 48UL, 48UL), 100)
+  assert_eq(counting_effective_probes(100, 96UL, 48UL), 100)
 }
