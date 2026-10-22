@@ -173,53 +173,90 @@ fn CountingBloomFilter::set_counter(
 }
 
 ///|
+/// The distinct slots selected by one key and how often each is selected.
+///
+/// Both arrays are sized to the filter's hash count and only their first
+/// `length` entries are meaningful. Keeping the pairs in two packed arrays
+/// avoids allocating one tuple per probe on every insert or removal.
+priv struct CountingPositionSet {
+  positions : FixedArray[Int32]
+  counts : FixedArray[Int32]
+  length : Int32
+}
+
+///|
 /// Compute each distinct slot selected by a key together with the number of
 /// hash functions that select it.
 ///
-/// Small filters accumulate counts in a compact array with a quadratic scan;
-/// filters with many hash functions switch to a hash map so duplicate detection
-/// stays linear instead of rescanning every previously seen position.
+/// Small filters deduplicate in place with a quadratic scan over at most 64
+/// probes; filters with many hash functions switch to a hash map so duplicate
+/// detection stays linear instead of rescanning every previously seen position.
+fn unique_key_positions_fast(
+  h1 : UInt64,
+  h2 : UInt64,
+  hash_count : Int32,
+  slot_count : UInt64,
+) -> CountingPositionSet {
+  let positions = FixedArray::make(hash_count, 0)
+  let counts = FixedArray::make(hash_count, 0)
+  let mut length = 0
+  let mut state = h1
+  if hash_count <= 64 {
+    for i = 0; i < hash_count; i = i + 1 {
+      let position = (state % slot_count).to_int()
+      let mut found = -1
+      for j = 0; j < length; j = j + 1 {
+        if positions[j] == position {
+          found = j
+          break
+        }
+      }
+      if found >= 0 {
+        counts[found] = counts[found] + 1
+      } else {
+        positions[length] = position
+        counts[length] = 1
+        length = length + 1
+      }
+      state = state + h2
+    }
+  } else {
+    let occurrences : @hashmap.HashMap[Int32, Int32] = @hashmap.HashMap([])
+    for i = 0; i < hash_count; i = i + 1 {
+      let position = (state % slot_count).to_int()
+      match occurrences.get(position) {
+        Some(count) => occurrences.set(position, count + 1)
+        None => occurrences.set(position, 1)
+      }
+      state = state + h2
+    }
+    for entry in occurrences.iter() {
+      let (position, count) = entry
+      positions[length] = position
+      counts[length] = count
+      length = length + 1
+    }
+  }
+  { positions, counts, length }
+}
+
+///|
+/// Compute each distinct slot selected by a key together with the number of
+/// hash functions that select it.
+///
+/// Whitebox tests use the tuple view; the filter hot paths use
+/// `unique_key_positions_fast` directly to avoid the per-probe tuple array.
+#warnings("-unused_value")
 fn unique_key_positions(
   h1 : UInt64,
   h2 : UInt64,
   hash_count : Int32,
   slot_count : UInt64,
 ) -> Array[(Int32, Int32)] {
+  let set = unique_key_positions_fast(h1, h2, hash_count, slot_count)
   let unique : Array[(Int32, Int32)] = []
-  let mut state = h1
-  if hash_count <= 64 {
-    let positions : Array[Int32] = Array::make(hash_count, 0)
-    for i = 0; i < hash_count; i = i + 1 {
-      positions[i] = (state % slot_count).to_int()
-      state = state + h2
-    }
-    for i = 0; i < hash_count; i = i + 1 {
-      let position = positions[i]
-      let mut found = false
-      for j = 0; j < unique.length(); j = j + 1 {
-        if unique[j].0 == position {
-          unique[j] = (position, unique[j].1 + 1)
-          found = true
-          break
-        }
-      }
-      if !found {
-        unique.push((position, 1))
-      }
-    }
-  } else {
-    let counts : @hashmap.HashMap[Int32, Int32] = @hashmap.HashMap([])
-    for i = 0; i < hash_count; i = i + 1 {
-      let position = (state % slot_count).to_int()
-      match counts.get(position) {
-        Some(occurrences) => counts.set(position, occurrences + 1)
-        None => counts.set(position, 1)
-      }
-      state = state + h2
-    }
-    for entry in counts.iter() {
-      unique.push(entry)
-    }
+  for i = 0; i < set.length; i = i + 1 {
+    unique.push((set.positions[i], set.counts[i]))
   }
   unique
 }
@@ -240,14 +277,16 @@ fn CountingBloomFilter::raise_positions(
   multiplicity : Int32,
 ) -> Unit {
   let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions(h1, h2, self.hash_count, slot_count)
+  let positions = unique_key_positions_fast(
+    h1, h2, self.hash_count, slot_count,
+  )
   self.raise_positions_at(positions, multiplicity)
 }
 
 ///|
 fn CountingBloomFilter::raise_positions_at(
   self : CountingBloomFilter,
-  positions : Array[(Int32, Int32)],
+  positions : CountingPositionSet,
   multiplicity : Int32,
 ) -> Unit {
   // All counters of one key must advance together. Saturation is per position,
@@ -258,9 +297,9 @@ fn CountingBloomFilter::raise_positions_at(
   // number to all of them.
   let mut common = multiplicity.to_uint64()
   let mut any_zero = false
-  for entry in positions {
-    let (pos, occurrences) = entry
-    let occurrences = occurrences.to_uint64()
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
     let limit = counting_position_limit(occurrences)
     let value = self.counter_at(pos)
     if value == 0UL {
@@ -276,9 +315,9 @@ fn CountingBloomFilter::raise_positions_at(
     }
   }
   if common > 0UL {
-    for entry in positions {
-      let (pos, occurrences) = entry
-      let occurrences = occurrences.to_uint64()
+    for i = 0; i < positions.length; i = i + 1 {
+      let pos = positions.positions[i]
+      let occurrences = positions.counts[i].to_uint64()
       let value = self.counter_at(pos)
       self.set_counter(pos, value + common * occurrences)
     }
@@ -290,9 +329,9 @@ fn CountingBloomFilter::raise_positions_at(
   // A zero lane means the key is not fully present yet. Add one complete
   // contribution where possible so a conditional insertion cannot leave a
   // false negative; lanes without room stay saturated.
-  for entry in positions {
-    let (pos, occurrences) = entry
-    let occurrences = occurrences.to_uint64()
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
     let limit = counting_position_limit(occurrences)
     let value = self.counter_at(pos)
     if value < limit {
@@ -346,9 +385,11 @@ fn CountingBloomFilter::insert_if_absent_hashes(
   h2 : UInt64,
 ) -> Bool {
   let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions(h1, h2, self.hash_count, slot_count)
-  for entry in positions {
-    if self.counter_at(entry.0) == 0UL {
+  let positions = unique_key_positions_fast(
+    h1, h2, self.hash_count, slot_count,
+  )
+  for i = 0; i < positions.length; i = i + 1 {
+    if self.counter_at(positions.positions[i]) == 0UL {
       guard self.inserted < 2147483647 else {
         abort("counting bloom filter insertion count overflow")
       }
@@ -395,21 +436,20 @@ fn CountingBloomFilter::remove_hashes(
   h2 : UInt64,
 ) -> Bool {
   let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions(h1, h2, self.hash_count, slot_count)
-  for entry in positions {
-    let (pos, occurrences) = entry
-    let required = if occurrences.to_uint64() > 0xFFFFUL {
-      0xFFFFUL
-    } else {
-      occurrences.to_uint64()
-    }
+  let positions = unique_key_positions_fast(
+    h1, h2, self.hash_count, slot_count,
+  )
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
+    let required = if occurrences > 0xFFFFUL { 0xFFFFUL } else { occurrences }
     if self.counter_at(pos) < required {
       return false
     }
   }
-  for entry in positions {
-    let (pos, occurrences) = entry
-    let occurrences = occurrences.to_uint64()
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
     let value = self.counter_at(pos)
     let decrement = if value < occurrences { value } else { occurrences }
     self.set_counter(pos, value - decrement)

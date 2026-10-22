@@ -194,14 +194,16 @@ fn CompactCountingBloomFilter::increment_positions(
   h2 : UInt64,
 ) -> Unit {
   let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions(h1, h2, self.hash_count, slot_count)
+  let positions = unique_key_positions_fast(
+    h1, h2, self.hash_count, slot_count,
+  )
   self.increment_positions_at(positions)
 }
 
 ///|
 fn CompactCountingBloomFilter::increment_positions_at(
   self : CompactCountingBloomFilter,
-  positions : Array[(Int32, Int32)],
+  positions : CountingPositionSet,
 ) -> Unit {
   // All counters of one key must advance together. Saturation is per position,
   // so capping the lanes that still have room independently makes one lane run
@@ -211,9 +213,9 @@ fn CompactCountingBloomFilter::increment_positions_at(
   // number to all of them.
   let mut common = 1UL
   let mut any_zero = false
-  for entry in positions {
-    let (pos, occurrences) = entry
-    let occurrences = occurrences.to_uint64()
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
     let limit = compact_position_limit(occurrences)
     let value = self.counter_at(pos)
     if value == 0UL {
@@ -229,9 +231,9 @@ fn CompactCountingBloomFilter::increment_positions_at(
     }
   }
   if common > 0UL {
-    for entry in positions {
-      let (pos, occurrences) = entry
-      let occurrences = occurrences.to_uint64()
+    for i = 0; i < positions.length; i = i + 1 {
+      let pos = positions.positions[i]
+      let occurrences = positions.counts[i].to_uint64()
       let value = self.counter_at(pos)
       self.set_counter(pos, value + common * occurrences)
     }
@@ -243,9 +245,9 @@ fn CompactCountingBloomFilter::increment_positions_at(
   // A zero lane means the key is not fully present yet. Add one complete
   // contribution where possible so a conditional insertion cannot leave a
   // false negative; lanes without room stay saturated.
-  for entry in positions {
-    let (pos, occurrences) = entry
-    let occurrences = occurrences.to_uint64()
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
     let limit = compact_position_limit(occurrences)
     let value = self.counter_at(pos)
     if value < limit {
@@ -284,9 +286,11 @@ pub fn[K : Hash] CompactCountingBloomFilter::insert_if_absent(
 ) -> Bool {
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions(h1, h2, self.hash_count, slot_count)
-  for entry in positions {
-    if self.counter_at(entry.0) == 0UL {
+  let positions = unique_key_positions_fast(
+    h1, h2, self.hash_count, slot_count,
+  )
+  for i = 0; i < positions.length; i = i + 1 {
+    if self.counter_at(positions.positions[i]) == 0UL {
       guard self.inserted < 2147483647 else {
         abort("compact counting bloom filter insertion count overflow")
       }
@@ -312,21 +316,24 @@ pub fn[K : Hash] CompactCountingBloomFilter::remove(
 ) -> Bool {
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions(h1, h2, self.hash_count, slot_count)
-  for entry in positions {
-    let (pos, occurrences) = entry
-    let required = if occurrences.to_uint64() > COMPACT_COUNTER_MAX {
+  let positions = unique_key_positions_fast(
+    h1, h2, self.hash_count, slot_count,
+  )
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
+    let required = if occurrences > COMPACT_COUNTER_MAX {
       COMPACT_COUNTER_MAX
     } else {
-      occurrences.to_uint64()
+      occurrences
     }
     if self.counter_at(pos) < required {
       return false
     }
   }
-  for entry in positions {
-    let (pos, occurrences) = entry
-    let occurrences = occurrences.to_uint64()
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
     let value = self.counter_at(pos)
     let decrement = if value < occurrences { value } else { occurrences }
     self.set_counter(pos, value - decrement)
