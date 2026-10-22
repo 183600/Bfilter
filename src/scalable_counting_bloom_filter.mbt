@@ -913,6 +913,12 @@ pub fn ScalableCountingBloomFilter::is_subset_of(
   other : ScalableCountingBloomFilter,
 ) -> Bool {
   self.ensure_same_policy(other)
+  // An empty filter has no positive counter in any slice, so it is a subset of
+  // every filter. This avoids scanning every slice's counters just to discover
+  // that they are all zero.
+  if self.inserted == 0 {
+    return true
+  }
   let mut counters_are_subset = true
   for i = 0; i < self.slices.length(); i = i + 1 {
     if i < other.slices.length() {
@@ -965,6 +971,11 @@ pub fn ScalableCountingBloomFilter::is_disjoint_from(
   other : ScalableCountingBloomFilter,
 ) -> Bool {
   self.ensure_same_policy(other)
+  // An empty filter has no positive counter in any slice, so no key can be
+  // reported by both inputs. Skip the per-slice occupancy scans in that case.
+  if self.inserted == 0 || other.inserted == 0 {
+    return true
+  }
   let self_slices = self.slices
   let other_slices = other.slices
   let self_nonempty : Array[Bool] = Array::make(self_slices.length(), false)
