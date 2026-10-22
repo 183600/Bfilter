@@ -338,18 +338,22 @@ fn CuckooFilter::insert_fingerprint(
   if self.inserted >= self.capacity() {
     return false
   }
-  let index2 = self.alternate_index(index1, fingerprint)
   let empty1 = self.find_empty(index1)
   if empty1 >= 0 {
     self.buckets[index1 * self.bucket_size + empty1] = fingerprint
     self.inserted += 1
     return true
   }
-  let empty2 = self.find_empty(index2)
-  if empty2 >= 0 {
-    self.buckets[index2 * self.bucket_size + empty2] = fingerprint
-    self.inserted += 1
-    return true
+  // Only hash the fingerprint for the alternate bucket once the primary bucket
+  // is known to be full.
+  let index2 = self.alternate_index(index1, fingerprint)
+  if index2 != index1 {
+    let empty2 = self.find_empty(index2)
+    if empty2 >= 0 {
+      self.buckets[index2 * self.bucket_size + empty2] = fingerprint
+      self.inserted += 1
+      return true
+    }
   }
   let evictions : Array[(Int32, Int32, Byte)] = []
   let mut index = index1
@@ -404,13 +408,14 @@ pub fn[K : Hash] CuckooFilter::insert_if_absent(
   key : K,
 ) -> Bool {
   let (index1, fingerprint) = self.key_info(key)
-  let index2 = self.alternate_index(index1, fingerprint)
-  if self.bucket_contains(index1, fingerprint) ||
-    self.bucket_contains(index2, fingerprint) {
-    false
-  } else {
-    self.insert_fingerprint(index1, fingerprint)
+  if self.bucket_contains(index1, fingerprint) {
+    return false
   }
+  let index2 = self.alternate_index(index1, fingerprint)
+  if index2 != index1 && self.bucket_contains(index2, fingerprint) {
+    return false
+  }
+  self.insert_fingerprint(index1, fingerprint)
 }
 
 ///|
@@ -419,9 +424,11 @@ pub fn[K : Hash] CuckooFilter::insert_if_absent(
 /// successfully inserted keys.
 pub fn[K : Hash] CuckooFilter::contains(self : CuckooFilter, key : K) -> Bool {
   let (index1, fingerprint) = self.key_info(key)
+  if self.bucket_contains(index1, fingerprint) {
+    return true
+  }
   let index2 = self.alternate_index(index1, fingerprint)
-  self.bucket_contains(index1, fingerprint) ||
-  self.bucket_contains(index2, fingerprint)
+  index2 != index1 && self.bucket_contains(index2, fingerprint)
 }
 
 ///|
@@ -444,9 +451,14 @@ pub fn[K : Hash] CuckooFilter::count_of(self : CuckooFilter, key : K) -> Int32 {
 /// entry.
 pub fn[K : Hash] CuckooFilter::remove(self : CuckooFilter, key : K) -> Bool {
   let (index1, fingerprint) = self.key_info(key)
-  let index2 = self.alternate_index(index1, fingerprint)
-  if self.bucket_remove(index1, fingerprint) ||
-    self.bucket_remove(index2, fingerprint) {
+  let mut removed = self.bucket_remove(index1, fingerprint)
+  if !removed {
+    let index2 = self.alternate_index(index1, fingerprint)
+    if index2 != index1 {
+      removed = self.bucket_remove(index2, fingerprint)
+    }
+  }
+  if removed {
     if self.inserted > 0 {
       self.inserted -= 1
     }
