@@ -790,11 +790,14 @@ pub fn ScalableCountingBloomFilter::is_subset_of(
   }
   // A shared key may have moved to a different slice in the other filter, so
   // compare the tracked multiplicities across slices before reporting a miss.
+  // A key that `self` still reports must also be reported by `other`; tracked
+  // metadata alone is not enough when the other counters have drained.
   for entry in self.locations.iter() {
     let (id, (_, occurrences)) = entry
     match other.locations.get(id) {
       Some((_, other_occurrences)) =>
-        if other_occurrences < occurrences {
+        if other_occurrences < occurrences ||
+          (self.contains_hashes(id) && !other.contains_hashes(id)) {
           return false
         }
       None => return false
