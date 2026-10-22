@@ -126,6 +126,38 @@ test "cuckoo filter subset compares duplicate multiplicities" {
 }
 
 ///|
+test "cuckoo filter subset and disjointness short-circuit empty filters" {
+  let empty = @src.CuckooFilter::with_size(64, 4)
+  let full = @src.CuckooFilter::with_size(64, 4)
+  assert_true(full.insert_all(["a", "b", "c"]))
+  assert_true(empty.is_subset_of(full))
+  assert_false(full.is_subset_of(empty))
+  assert_true(empty.is_disjoint_from(full))
+  assert_true(full.is_disjoint_from(empty))
+  assert_true(empty.is_disjoint_from(empty))
+}
+
+///|
+test "cuckoo filter subset and disjointness handle duplicate copies" {
+  let left = @src.CuckooFilter::with_size(8, 4)
+  let right = @src.CuckooFilter::with_size(8, 4)
+  for i = 0; i < 4; i = i + 1 {
+    assert_true(left.insert("shared"))
+    assert_true(right.insert("shared"))
+  }
+  assert_true(left.is_subset_of(right))
+  assert_true(right.is_subset_of(left))
+  assert_false(left.is_disjoint_from(right))
+  assert_true(right.remove("shared"))
+  assert_false(left.is_subset_of(right))
+  assert_false(left.is_disjoint_from(right))
+  for i = 0; i < 3; i = i + 1 {
+    assert_true(right.remove("shared"))
+  }
+  assert_true(left.is_disjoint_from(right))
+}
+
+///|
 test "panic cuckoo filter subset rejects incompatible layouts" {
   let left = @src.CuckooFilter::with_size(8, 4)
   let right = @src.CuckooFilter::with_size(16, 4)

@@ -711,11 +711,18 @@ pub fn CuckooFilter::is_subset_of(
     self.bucket_size == other.bucket_size else {
     abort("cuckoo filters must have the same bucket count and size")
   }
+  if self.inserted == 0 {
+    return true
+  }
+  if self.inserted > other.inserted {
+    return false
+  }
   for bucket = 0; bucket < self.bucket_count; bucket = bucket + 1 {
     let base = bucket * self.bucket_size
     for slot = 0; slot < self.bucket_size; slot = slot + 1 {
       let fingerprint = self.buckets[base + slot]
       if fingerprint != b'\x00' &&
+        self.bucket_fingerprint_count_prefix(bucket, slot, fingerprint) == 0 &&
         self.pair_fingerprint_count(bucket, fingerprint) >
         other.pair_fingerprint_count(bucket, fingerprint) {
         return false
@@ -741,11 +748,15 @@ pub fn CuckooFilter::is_disjoint_from(
     self.bucket_size == other.bucket_size else {
     abort("cuckoo filters must have the same bucket count and size")
   }
+  if self.inserted == 0 || other.inserted == 0 {
+    return true
+  }
   for bucket = 0; bucket < self.bucket_count; bucket = bucket + 1 {
     let base = bucket * self.bucket_size
     for slot = 0; slot < self.bucket_size; slot = slot + 1 {
       let fingerprint = self.buckets[base + slot]
       if fingerprint != b'\x00' &&
+        self.bucket_fingerprint_count_prefix(bucket, slot, fingerprint) == 0 &&
         other.pair_fingerprint_count(bucket, fingerprint) > 0 {
         return false
       }
