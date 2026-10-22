@@ -40,7 +40,11 @@ Storage is bit-packed: the filter uses approximately `bit_count / 8` bytes.
 When `bit_count()` is a power of two, a very wide `hash_count` stops after one
 double-hash cycle: every later probe repeats a bit that an earlier probe already
 set or tested. This keeps an otherwise valid but unusually wide configuration
-from scanning the full nominal hash count.
+from scanning the full nominal hash count. Other bit counts are not purely
+periodic, so they still perform every configured probe; when such a filter is
+already completely full, insertions and queries short-circuit the walk because
+no remaining probe can change the result. Prefer a power-of-two bit count when
+planning an unusually wide `hash_count`.
 
 Batch helpers insert or test multiple keys. `contains_all` requires every key,
 while `contains_any` stops at the first possible match and returns `false` for
