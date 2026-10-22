@@ -33,6 +33,7 @@ pub fn BlockedBloomFilter::is_subset_of(Self, Self) -> Bool
 pub fn BlockedBloomFilter::memory_bytes(Self) -> Int64
 pub fn BlockedBloomFilter::merge(Self, Self) -> Unit
 pub fn BlockedBloomFilter::new(Int32, Double) -> Self
+pub fn BlockedBloomFilter::optimal_size(Int32, Double) -> (Int32, Int32)
 pub fn BlockedBloomFilter::set_bit_count(Self) -> Int32
 pub fn BlockedBloomFilter::to_bytes(Self) -> Bytes
 pub fn BlockedBloomFilter::union(Self, Self) -> Self
@@ -64,6 +65,7 @@ pub fn BloomFilter::is_subset_of(Self, Self) -> Bool
 pub fn BloomFilter::memory_bytes(Self) -> Int64
 pub fn BloomFilter::merge(Self, Self) -> Unit
 pub fn BloomFilter::new(Int32, Double) -> Self
+pub fn BloomFilter::optimal_size(Int32, Double) -> (Int32, Int32)
 pub fn BloomFilter::set_bit_count(Self) -> Int32
 pub fn BloomFilter::to_bytes(Self) -> Bytes
 pub fn BloomFilter::union(Self, Self) -> Self
@@ -97,6 +99,7 @@ pub fn CompactCountingBloomFilter::memory_bytes(Self) -> Int64
 pub fn CompactCountingBloomFilter::merge(Self, Self) -> Unit
 pub fn CompactCountingBloomFilter::new(Int32, Double) -> Self
 pub fn CompactCountingBloomFilter::occupied_slot_count(Self) -> Int32
+pub fn CompactCountingBloomFilter::optimal_size(Int32, Double) -> (Int32, Int32)
 pub fn[K : Hash] CompactCountingBloomFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] CompactCountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
 pub fn CompactCountingBloomFilter::slot_count(Self) -> Int32
@@ -369,6 +372,7 @@ pub fn CountingBloomFilter::memory_bytes(Self) -> Int64
 pub fn CountingBloomFilter::merge(Self, Self) -> Unit
 pub fn CountingBloomFilter::new(Int32, Double) -> Self
 pub fn CountingBloomFilter::occupied_slot_count(Self) -> Int32
+pub fn CountingBloomFilter::optimal_size(Int32, Double) -> (Int32, Int32)
 pub fn[K : Hash] CountingBloomFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] CountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
 pub fn CountingBloomFilter::slot_count(Self) -> Int32
@@ -404,6 +408,7 @@ pub fn CuckooFilter::load_factor(Self) -> Double
 pub fn CuckooFilter::memory_bytes(Self) -> Int64
 pub fn CuckooFilter::merge(Self, Self) -> Bool
 pub fn CuckooFilter::new(Int32) -> Self
+pub fn CuckooFilter::optimal_size(Int32) -> (Int32, Int32)
 pub fn CuckooFilter::remaining_capacity(Self) -> Int32
 pub fn[K : Hash] CuckooFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] CuckooFilter::remove_all(Self, ArrayView[K]) -> Bool

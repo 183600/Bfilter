@@ -559,6 +559,31 @@ lock. Hashing uses fixed seeds, so standard
 `from_bytes` panics on truncated data, a different filter type, an unsupported
 version, or an invalid configuration.
 
+## Sizing Before Allocation
+
+`BloomFilter::new`, `BlockedBloomFilter::new`, `CountingBloomFilter::new`, and
+`CompactCountingBloomFilter::new` derive a layout from a capacity and false
+positive rate. When only the resulting size is needed, the matching
+`optimal_size` function computes the same layout without allocating the backing
+array:
+
+```moonbit
+let (bits, hashes) = @src.BloomFilter::optimal_size(10_000, 0.01)
+let filter = @src.BloomFilter::new(10_000, 0.01)
+assert_eq(bits, filter.bit_count())
+assert_eq(hashes, filter.hash_count())
+assert_eq(bits.to_int64() / 8L, filter.memory_bytes())
+```
+
+The counting and compact counting variants return
+`(slot_count, hash_count)`, with the slot count rounded up to a multiple of 16.
+Both variants share the same layout, so their `optimal_size` results are
+identical. `BlockedBloomFilter::optimal_size` returns a bit count rounded up to
+a whole 512-bit block, and `CuckooFilter::optimal_size(expected_items)` returns
+the power-of-two `(bucket_count, bucket_size)` pair used by `CuckooFilter::new`.
+All of these functions panic for the same invalid arguments as the constructor
+they mirror.
+
 ## Configuration and Errors
 
 Constructors panic on invalid arguments:

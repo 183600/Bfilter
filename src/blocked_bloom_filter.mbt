@@ -43,6 +43,23 @@ fn blocked_bloom_layout(
 }
 
 ///|
+/// Compute the bit and hash counts that `BlockedBloomFilter::new` would use.
+///
+/// The returned bit count is already rounded up to a whole 512-bit block, so it
+/// matches `bit_count()` on a filter built with the same arguments. Panics for
+/// the same invalid arguments as `BlockedBloomFilter::new`.
+pub fn BlockedBloomFilter::optimal_size(
+  expected_items : Int32,
+  false_positive_rate : Double,
+) -> (Int32, Int32) {
+  guard expected_items > 0 else { abort("expected_items must be positive") }
+  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
+    abort("false_positive_rate must be between 0 and 1")
+  }
+  blocked_bloom_layout(expected_items, false_positive_rate)
+}
+
+///|
 /// Create a blocked filter sized for `expected_items` with the target
 /// `false_positive_rate`.
 ///
@@ -54,11 +71,7 @@ pub fn BlockedBloomFilter::new(
   expected_items : Int32,
   false_positive_rate : Double,
 ) -> BlockedBloomFilter {
-  guard expected_items > 0 else { abort("expected_items must be positive") }
-  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
-    abort("false_positive_rate must be between 0 and 1")
-  }
-  let (bit_count, hash_count) = blocked_bloom_layout(
+  let (bit_count, hash_count) = BlockedBloomFilter::optimal_size(
     expected_items, false_positive_rate,
   )
   BlockedBloomFilter::with_size(bit_count, hash_count)

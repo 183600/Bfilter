@@ -102,6 +102,25 @@ fn compact_lane_min(left : UInt64, right : UInt64) -> UInt64 {
 }
 
 ///|
+/// Compute the slot and hash counts that `CompactCountingBloomFilter::new`
+/// would use.
+///
+/// Compact and regular counting filters share the same slot layout, so this
+/// returns exactly the same pair as `CountingBloomFilter::optimal_size`. The
+/// slot count is rounded up to a multiple of 16. Panics for the same invalid
+/// arguments as `CompactCountingBloomFilter::new`.
+pub fn CompactCountingBloomFilter::optimal_size(
+  expected_items : Int32,
+  false_positive_rate : Double,
+) -> (Int32, Int32) {
+  guard expected_items > 0 else { abort("expected_items must be positive") }
+  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
+    abort("false_positive_rate must be between 0 and 1")
+  }
+  counting_bloom_layout(expected_items, false_positive_rate)
+}
+
+///|
 /// Create a compact counting filter sized for `expected_items` and the target
 /// `false_positive_rate`.
 ///
@@ -111,19 +130,9 @@ pub fn CompactCountingBloomFilter::new(
   expected_items : Int32,
   false_positive_rate : Double,
 ) -> CompactCountingBloomFilter {
-  guard expected_items > 0 else { abort("expected_items must be positive") }
-  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
-    abort("false_positive_rate must be between 0 and 1")
-  }
-  let n = expected_items.to_double()
-  let ln2 = 0.6931471805599453
-  let bits = -(n * @math.ln(false_positive_rate)) / (ln2 * ln2)
-  guard bits <= 2147483584.0 else { abort("bloom filter size is too large") }
-  let slot_count = (bits.ceil().to_int() + 15) / 16 * 16
-  guard slot_count <= 1073741808 else {
-    abort("compact counting bloom filter size is too large")
-  }
-  let hash_count = (bits / n * ln2).round().to_int().max(1)
+  let (slot_count, hash_count) = CompactCountingBloomFilter::optimal_size(
+    expected_items, false_positive_rate,
+  )
   CompactCountingBloomFilter::with_size(slot_count, hash_count)
 }
 

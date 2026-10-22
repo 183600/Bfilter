@@ -111,6 +111,23 @@ pub fn CountingBloomFilter::counter_max() -> Int32 {
 }
 
 ///|
+/// Compute the slot and hash counts that `CountingBloomFilter::new` would use.
+///
+/// The returned slot count is already rounded up to a multiple of 16, so it
+/// matches `slot_count()` on a filter built with the same arguments. Panics for
+/// the same invalid arguments as `CountingBloomFilter::new`.
+pub fn CountingBloomFilter::optimal_size(
+  expected_items : Int32,
+  false_positive_rate : Double,
+) -> (Int32, Int32) {
+  guard expected_items > 0 else { abort("expected_items must be positive") }
+  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
+    abort("false_positive_rate must be between 0 and 1")
+  }
+  counting_bloom_layout(expected_items, false_positive_rate)
+}
+
+///|
 /// Create a counting filter sized for `expected_items` and the target
 /// `false_positive_rate`.
 ///
@@ -120,11 +137,7 @@ pub fn CountingBloomFilter::new(
   expected_items : Int32,
   false_positive_rate : Double,
 ) -> CountingBloomFilter {
-  guard expected_items > 0 else { abort("expected_items must be positive") }
-  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
-    abort("false_positive_rate must be between 0 and 1")
-  }
-  let (slot_count, hash_count) = counting_bloom_layout(
+  let (slot_count, hash_count) = CountingBloomFilter::optimal_size(
     expected_items, false_positive_rate,
   )
   CountingBloomFilter::with_size(slot_count, hash_count)

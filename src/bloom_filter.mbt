@@ -48,6 +48,24 @@ fn bloom_layout(
 }
 
 ///|
+/// Compute the bit and hash counts that `BloomFilter::new` would use.
+///
+/// This is useful for planning memory before allocating a filter. The returned
+/// bit count is already rounded up to a whole 64-bit word, so it matches
+/// `bit_count()` on a filter built with the same arguments. Panics for the same
+/// invalid arguments as `BloomFilter::new`.
+pub fn BloomFilter::optimal_size(
+  expected_items : Int32,
+  false_positive_rate : Double,
+) -> (Int32, Int32) {
+  guard expected_items > 0 else { abort("expected_items must be positive") }
+  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
+    abort("false_positive_rate must be between 0 and 1")
+  }
+  bloom_layout(expected_items, false_positive_rate)
+}
+
+///|
 /// Create a filter sized for `expected_items` with the target
 /// `false_positive_rate`.
 ///
@@ -58,11 +76,7 @@ pub fn BloomFilter::new(
   expected_items : Int32,
   false_positive_rate : Double,
 ) -> BloomFilter {
-  guard expected_items > 0 else { abort("expected_items must be positive") }
-  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
-    abort("false_positive_rate must be between 0 and 1")
-  }
-  let (bit_count, hash_count) = bloom_layout(
+  let (bit_count, hash_count) = BloomFilter::optimal_size(
     expected_items, false_positive_rate,
   )
   BloomFilter::with_size(bit_count, hash_count)
