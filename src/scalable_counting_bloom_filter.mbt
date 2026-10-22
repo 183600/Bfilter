@@ -831,7 +831,7 @@ pub fn ScalableCountingBloomFilter::intersection(
   }
   let slices : Array[CountingBloomFilter] = []
   let capacities : Array[Int32] = []
-  let slice_inserted : Array[Int32] = Array::make(slice_count, 0)
+  let slice_inserted : Array[Int64] = Array::make(slice_count, 0L)
   for i = 0; i < slice_count; i = i + 1 {
     let source = self.slices[i]
     slices.push(
@@ -872,16 +872,22 @@ pub fn ScalableCountingBloomFilter::intersection(
           id.1,
           occurrences,
         )
-        slice_inserted[slice_index] = slice_inserted[slice_index] + occurrences
+        slice_inserted[slice_index] = slice_inserted[slice_index] +
+          occurrences.to_int64()
         locations.set(id, (slice_index, occurrences))
       }
       None => ()
     }
   }
-  let mut inserted = 0
+  let mut inserted = 0L
   for i = 0; i < slice_count; i = i + 1 {
-    slices[i].inserted = slice_inserted[i]
     inserted = inserted + slice_inserted[i]
+  }
+  guard inserted <= 2147483647L else {
+    abort("scalable counting bloom filter insertion count overflow")
+  }
+  for i = 0; i < slice_count; i = i + 1 {
+    slices[i].inserted = slice_inserted[i].to_int()
   }
   {
     slices,
@@ -889,7 +895,7 @@ pub fn ScalableCountingBloomFilter::intersection(
     locations,
     initial_capacity: self.initial_capacity,
     target_rate: self.target_rate,
-    inserted,
+    inserted: inserted.to_int(),
   }
 }
 

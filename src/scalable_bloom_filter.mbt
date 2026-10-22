@@ -597,13 +597,17 @@ pub fn ScalableBloomFilter::intersection(
   }
   let slices : Array[BloomFilter] = []
   let capacities : Array[Int32] = []
-  let mut slice_total = 0
+  let mut slice_total = 0L
   for i = 0; i < slice_count; i = i + 1 {
     let slice = self.slices[i].intersection(other.slices[i])
-    slice_total = slice_total + slice.count()
+    slice_total = slice_total + slice.count().to_int64()
     slices.push(slice)
     capacities.push(self.capacities[i])
   }
+  guard slice_total <= 2147483647L else {
+    abort("scalable bloom filter insertion count overflow")
+  }
+  let slice_total = slice_total.to_int()
   let inserted = self.inserted.min(other.inserted)
   if slice_total < inserted {
     slices[0].inserted = slices[0].inserted + (inserted - slice_total)
