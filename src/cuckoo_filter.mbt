@@ -550,6 +550,12 @@ pub fn CuckooFilter::union(
   if self.inserted > self.capacity() - other.inserted {
     return None
   }
+  if self.inserted == 0 {
+    return Some(other.copy())
+  }
+  if other.inserted == 0 {
+    return Some(self.copy())
+  }
   match self.try_union_with(other) {
     Some(result) => Some(result)
     None =>

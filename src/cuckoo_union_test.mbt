@@ -20,6 +20,31 @@ test "cuckoo filter union contains keys from both inputs" {
 }
 
 ///|
+test "cuckoo filter union with an empty input keeps stored fingerprints" {
+  let empty = @src.CuckooFilter::with_size(64, 4)
+  let filled = @src.CuckooFilter::with_size(64, 4)
+  assert_true(filled.insert_all(["a", "b", "c"]))
+  let forward = match empty.union(filled) {
+    Some(filter) => filter
+    None => abort("union unexpectedly ran out of space")
+  }
+  assert_eq(forward.count(), filled.count())
+  assert_true(forward.contains_all(["a", "b", "c"]))
+  assert_eq(forward.to_bytes(), filled.to_bytes())
+  let backward = match filled.union(empty) {
+    Some(filter) => filter
+    None => abort("union unexpectedly ran out of space")
+  }
+  assert_eq(backward.count(), filled.count())
+  assert_eq(backward.to_bytes(), filled.to_bytes())
+  let both = match empty.union(empty) {
+    Some(filter) => filter
+    None => abort("union unexpectedly ran out of space")
+  }
+  assert_true(both.is_empty())
+}
+
+///|
 test "cuckoo filter union reports when the result cannot fit" {
   let left = @src.CuckooFilter::with_size(1, 1)
   let right = @src.CuckooFilter::with_size(1, 1)
