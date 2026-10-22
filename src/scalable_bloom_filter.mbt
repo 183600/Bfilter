@@ -488,11 +488,14 @@ pub fn ScalableBloomFilter::intersection(
   other : ScalableBloomFilter,
 ) -> ScalableBloomFilter {
   self.ensure_same_policy(other)
-  guard self.total_bits() <= 2147483584L &&
-    other.total_bits() <= 2147483584L else {
+  let slice_count = self.slices.length().min(other.slices.length())
+  let mut result_bits = 0L
+  for i = 0; i < slice_count; i = i + 1 {
+    result_bits = result_bits + self.slices[i].bit_count().to_int64()
+  }
+  guard result_bits <= 2147483584L else {
     abort("scalable bloom filter is too large")
   }
-  let slice_count = self.slices.length().min(other.slices.length())
   let slices : Array[BloomFilter] = []
   let capacities : Array[Int32] = []
   let mut slice_total = 0

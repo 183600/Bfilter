@@ -716,13 +716,16 @@ pub fn ScalableCountingBloomFilter::intersection(
   other : ScalableCountingBloomFilter,
 ) -> ScalableCountingBloomFilter {
   self.ensure_same_policy(other)
-  guard self.slot_count() <= SCALABLE_COUNTING_MAX_SLOTS &&
-    other.slot_count() <= SCALABLE_COUNTING_MAX_SLOTS else {
-    abort("scalable counting bloom filter is too large")
-  }
   let self_slice_count = self.slices.length()
   let other_slice_count = other.slices.length()
   let slice_count = self_slice_count.min(other_slice_count)
+  let mut result_slots = 0L
+  for i = 0; i < slice_count; i = i + 1 {
+    result_slots = result_slots + self.slices[i].slot_count().to_int64()
+  }
+  guard result_slots <= SCALABLE_COUNTING_MAX_SLOTS else {
+    abort("scalable counting bloom filter is too large")
+  }
   let slices : Array[CountingBloomFilter] = []
   let capacities : Array[Int32] = []
   let slice_inserted : Array[Int32] = Array::make(slice_count, 0)
