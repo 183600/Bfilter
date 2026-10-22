@@ -210,7 +210,7 @@ pub fn ConcurrentScalableCountingBloomFilter::clear(
 }
 
 ///|
-/// Number of insertions observed since creation or the last `clear`.
+/// Number of insertions not yet removed since creation or the last `clear`.
 pub fn ConcurrentScalableCountingBloomFilter::count(
   self : ConcurrentScalableCountingBloomFilter,
 ) -> Int32 {
@@ -218,7 +218,7 @@ pub fn ConcurrentScalableCountingBloomFilter::count(
 }
 
 ///|
-/// Whether no insertion has happened since creation or the last `clear`.
+/// Whether no insertion is currently outstanding.
 pub fn ConcurrentScalableCountingBloomFilter::is_empty(
   self : ConcurrentScalableCountingBloomFilter,
 ) -> Bool {

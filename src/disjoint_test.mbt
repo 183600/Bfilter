@@ -197,3 +197,41 @@ test "scalable bloom disjointness handles slices with different layouts" {
   other.clear()
   assert_true(grown.is_disjoint_from(other))
 }
+
+///|
+test "scalable bloom disjointness treats mismatched slice layouts as inconclusive" {
+  let base = @src.BloomFilter::with_size(64, 10)
+  base.insert("layout-base")
+  let mut disjoint_key = -1
+  for candidate = 0; candidate < 10_000; candidate = candidate + 1 {
+    let probe = @src.BloomFilter::with_size(64, 10)
+    probe.insert(candidate)
+    if base.is_disjoint_from(probe) {
+      disjoint_key = candidate
+      break
+    }
+  }
+  assert_true(disjoint_key >= 0)
+  let left = @src.ScalableBloomFilter::new(1, 0.001)
+  left.insert("layout-base")
+  let right = @src.ScalableBloomFilter::new(1, 0.001)
+  right.insert(disjoint_key)
+  right.insert("layout-second")
+  right.insert("layout-third")
+  assert_eq(right.slice_count(), 2)
+  assert_false(left.is_disjoint_from(right))
+}
+
+///|
+test "scalable counting disjointness treats mismatched slice layouts as inconclusive" {
+  let left = @src.ScalableCountingBloomFilter::new(1, 0.001)
+  left.insert("first")
+  left.insert("second")
+  assert_eq(left.slice_count(), 2)
+  assert_true(left.remove("first"))
+  assert_false(left.contains("first"))
+  let right = @src.ScalableCountingBloomFilter::new(1, 0.001)
+  right.insert("other")
+  assert_false(left.is_disjoint_from(right))
+  assert_false(right.is_disjoint_from(left))
+}
