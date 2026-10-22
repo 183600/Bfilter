@@ -212,27 +212,31 @@ priv struct CountingPositionSet {
 }
 
 ///|
-/// Largest hash count that receives reusable probe buffers.
+/// Largest reachable position count that receives reusable probe buffers.
 ///
 /// The buffers are only a workspace and do not affect the serialized layout.
-/// Capping them keeps a filter with an unusually wide, but still valid, hash
-/// count from reserving permanent scratch memory it may never need.
+/// Capping them keeps a filter with an unusually wide, but still valid, layout
+/// from reserving permanent scratch memory it may never need.
 const COUNTING_PROBE_SCRATCH_LIMIT : Int32 = 1024
 
 ///|
 /// Length of the reusable probe workspace for a filter layout.
 ///
-/// A key can select at most one distinct position per slot, so a small slot
-/// count caps the number of meaningful entries even when the hash count is
-/// wide. Layouts with an unusually wide hash count still skip the permanent
-/// workspace and allocate a temporary set for each operation.
+/// A key can select at most one distinct position per slot, so the number of
+/// meaningful entries is capped by the smaller of the hash count and the slot
+/// count. Small filters keep that bounded workspace even when the nominal hash
+/// count is very wide; only layouts whose reachable slot count exceeds the
+/// scratch limit allocate a temporary set per operation.
 fn counting_probe_length(hash_count : Int32, slot_count : Int32) -> Int32 {
-  if hash_count > COUNTING_PROBE_SCRATCH_LIMIT {
-    0
-  } else if hash_count < slot_count {
+  let reachable = if hash_count < slot_count {
     hash_count
   } else {
     slot_count
+  }
+  if reachable > COUNTING_PROBE_SCRATCH_LIMIT {
+    0
+  } else {
+    reachable
   }
 }
 

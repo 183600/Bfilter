@@ -548,15 +548,17 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   deduplicating positions selected more than once, and store 16 bits or 4 bits
   per slot respectively. Inserts and removals reuse a per-filter probe workspace
   sized to `min(k, slot_count)` to avoid allocating temporary position arrays;
-  the workspace is omitted from `memory_bytes()` and from serialized data, and
-  very wide hash counts fall back to temporary arrays that are capped by the
-  slot count as well. When the slot count is a power of two and a wider hash
-  count exceeds a cycle of at most 16,384 positions, inserts, removals, and
-  conditional inserts enumerate that cycle once and assign each position its
-  exact number of occurrences; `contains` and `count_of` always stop at the
-  cycle. Other slot counts keep scanning every probe so later wraparound offsets
-  cannot hide a counter. Set operations scan the packed counter words, and
-  merging into an empty receiver copies the packed words directly.
+  the workspace is omitted from `memory_bytes()` and from serialized data. Small
+  slot counts keep that bounded workspace even when `k` is very wide; only
+  layouts whose reachable position count exceeds 1,024 fall back to temporary
+  arrays, which are themselves capped by the slot count. When the slot count is
+  a power of two and a wider hash count exceeds a cycle of at most 16,384
+  positions, inserts, removals, and conditional inserts enumerate that cycle
+  once and assign each position its exact number of occurrences; `contains` and
+  `count_of` always stop at the cycle. Other slot counts keep scanning every
+  probe so later wraparound offsets cannot hide a counter. Set operations scan
+  the packed counter words, and merging into an empty receiver copies the packed
+  words directly.
 - `CuckooFilter` checks two buckets of `B` fingerprints per query, so a lookup
   is `O(B)` expected. An insert may evict fingerprints and, when random eviction
   does not find room, run a bounded breadth-first search for an augmenting path;

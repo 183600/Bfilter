@@ -52,34 +52,83 @@ test "compact counting filters reuse probe buffers across interleaved operations
 }
 
 ///|
-test "wide counting layouts skip probe scratch but remain fully usable" {
+test "wide counting layouts reuse bounded probe scratch" {
+  // The hash count is much wider than the filter, but a key can still reach
+  // only sixty-four distinct slots, so the reusable workspace stays bounded
+  // instead of allocating temporary position arrays on every operation.
   let wide = CountingBloomFilter::with_size(64, 2048)
-  assert_eq(wide.probe_positions.length(), 0)
+  assert_eq(wide.probe_positions.length(), 64)
   wide.insert("wide")
   assert_true(wide.contains("wide"))
   let copy = wide.copy()
-  assert_eq(copy.probe_positions.length(), 0)
+  assert_eq(copy.probe_positions.length(), 64)
   assert_eq(copy.count_of("wide"), wide.count_of("wide"))
   let restored = CountingBloomFilter::from_bytes(wide.to_bytes())
-  assert_eq(restored.probe_positions.length(), 0)
+  assert_eq(restored.probe_positions.length(), 64)
   assert_eq(restored.count_of("wide"), wide.count_of("wide"))
   assert_true(wide.remove("wide"))
   assert_false(wide.contains("wide"))
 
   let compact = CompactCountingBloomFilter::with_size(64, 2048)
-  assert_eq(compact.probe_positions.length(), 0)
+  assert_eq(compact.probe_positions.length(), 64)
   compact.insert("wide")
   assert_true(compact.contains("wide"))
   let compact_copy = compact.copy()
-  assert_eq(compact_copy.probe_positions.length(), 0)
+  assert_eq(compact_copy.probe_positions.length(), 64)
   assert_eq(compact_copy.count_of("wide"), compact.count_of("wide"))
   let compact_restored = CompactCountingBloomFilter::from_bytes(
     compact.to_bytes(),
   )
-  assert_eq(compact_restored.probe_positions.length(), 0)
+  assert_eq(compact_restored.probe_positions.length(), 64)
   assert_eq(compact_restored.count_of("wide"), compact.count_of("wide"))
   assert_true(compact.remove("wide"))
   assert_false(compact.contains("wide"))
+}
+
+///|
+test "counting probe scratch follows the reachable slot count boundary" {
+  // Sixteen slots are always the reachable maximum, however wide the hash count
+  // becomes, so the workspace is retained up to the scratch limit.
+  let narrow = CountingBloomFilter::with_size(16, 10_000_000)
+  assert_eq(narrow.probe_positions.length(), 16)
+  narrow.insert("wide")
+  assert_true(narrow.contains("wide"))
+  assert_true(narrow.remove("wide"))
+  assert_false(narrow.contains("wide"))
+
+  // At the limit the workspace is exactly the slot count.
+  let at_limit = CountingBloomFilter::with_size(1024, 2048)
+  assert_eq(at_limit.probe_positions.length(), 1024)
+  at_limit.insert("limit")
+  assert_true(at_limit.contains("limit"))
+  assert_true(at_limit.remove("limit"))
+
+  // One more slot would exceed the scratch bound, so the workspace is omitted
+  // and operations fall back to a temporary set. The filter still works.
+  let over_limit = CountingBloomFilter::with_size(1040, 2048)
+  assert_eq(over_limit.probe_positions.length(), 0)
+  over_limit.insert("over")
+  assert_true(over_limit.contains("over"))
+  assert_true(over_limit.remove("over"))
+
+  let compact_narrow = CompactCountingBloomFilter::with_size(16, 10_000_000)
+  assert_eq(compact_narrow.probe_positions.length(), 16)
+  compact_narrow.insert("wide")
+  assert_true(compact_narrow.contains("wide"))
+  assert_true(compact_narrow.remove("wide"))
+  assert_false(compact_narrow.contains("wide"))
+
+  let compact_at_limit = CompactCountingBloomFilter::with_size(1024, 2048)
+  assert_eq(compact_at_limit.probe_positions.length(), 1024)
+  compact_at_limit.insert("limit")
+  assert_true(compact_at_limit.contains("limit"))
+  assert_true(compact_at_limit.remove("limit"))
+
+  let compact_over_limit = CompactCountingBloomFilter::with_size(1040, 2048)
+  assert_eq(compact_over_limit.probe_positions.length(), 0)
+  compact_over_limit.insert("over")
+  assert_true(compact_over_limit.contains("over"))
+  assert_true(compact_over_limit.remove("over"))
 }
 
 ///|
