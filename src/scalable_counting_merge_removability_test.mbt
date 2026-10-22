@@ -55,3 +55,30 @@ test "scalable counting merge records unsaturated lanes when a shared lane is fu
   assert_eq(target.count_of(0), 0)
   assert_false(target.remove(0))
 }
+
+///|
+test "scalable counting cross-slice merge records a single extra occurrence" {
+  let target = @src.ScalableCountingBloomFilter::new(2, 0.25)
+  target.insert(2)
+  target.insert(0)
+  target.insert(0)
+  for i = 0; i < 65_535; i = i + 1 {
+    target.insert(2)
+  }
+  let source = @src.ScalableCountingBloomFilter::new(2, 0.25)
+  source.insert(3)
+  source.insert(4)
+  source.insert(5)
+  source.insert(0)
+  assert_true(source.slice_count() > 1)
+  target.merge(source)
+  assert_eq(target.count_of(0), 3)
+  assert_true(target.contains(0))
+  assert_true(target.remove(0))
+  assert_eq(target.count_of(0), 2)
+  assert_true(target.remove(0))
+  assert_eq(target.count_of(0), 1)
+  assert_true(target.remove(0))
+  assert_eq(target.count_of(0), 0)
+  assert_false(target.remove(0))
+}

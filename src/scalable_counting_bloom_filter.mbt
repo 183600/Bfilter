@@ -603,7 +603,7 @@ pub fn ScalableCountingBloomFilter::merge(
   }
   for entry in self.locations.iter() {
     let (id, (slice_index, occurrences)) = entry
-    slices[slice_index].raise_positions(id.0, id.1, occurrences)
+    slices[slice_index].raise_positions_for_merge(id.0, id.1, occurrences)
     slice_inserted[slice_index] = slice_inserted[slice_index] +
       occurrences.to_int64()
     total_inserted = total_inserted + occurrences.to_int64()
@@ -620,7 +620,7 @@ pub fn ScalableCountingBloomFilter::merge(
             other_occurrences
           }
           let extra = occurrences - self_occurrences
-          slices[other_slice].raise_positions(id.0, id.1, extra)
+          slices[other_slice].raise_positions_for_merge(id.0, id.1, extra)
           slice_inserted[other_slice] = slice_inserted[other_slice] +
             extra.to_int64()
           total_inserted = total_inserted + extra.to_int64()
@@ -629,14 +629,22 @@ pub fn ScalableCountingBloomFilter::merge(
           guard self_occurrences <= 2147483647 - other_occurrences else {
             abort("scalable counting bloom filter occurrence count overflow")
           }
-          slices[self_slice].raise_positions(id.0, id.1, other_occurrences)
+          slices[self_slice].raise_positions_for_merge(
+            id.0,
+            id.1,
+            other_occurrences,
+          )
           slice_inserted[self_slice] = slice_inserted[self_slice] +
             other_occurrences.to_int64()
           total_inserted = total_inserted + other_occurrences.to_int64()
           merged.set(id, (self_slice, self_occurrences + other_occurrences))
         }
       None => {
-        slices[other_slice].raise_positions(id.0, id.1, other_occurrences)
+        slices[other_slice].raise_positions_for_merge(
+          id.0,
+          id.1,
+          other_occurrences,
+        )
         slice_inserted[other_slice] = slice_inserted[other_slice] +
           other_occurrences.to_int64()
         total_inserted = total_inserted + other_occurrences.to_int64()
@@ -727,7 +735,7 @@ pub fn ScalableCountingBloomFilter::intersection(
         } else {
           other_slice
         }
-        slices[slice_index].raise_positions(id.0, id.1, occurrences)
+        slices[slice_index].raise_positions_for_merge(id.0, id.1, occurrences)
         slice_inserted[slice_index] = slice_inserted[slice_index] + occurrences
         locations.set(id, (slice_index, occurrences))
       }

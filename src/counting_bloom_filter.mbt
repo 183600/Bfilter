@@ -365,6 +365,44 @@ fn CountingBloomFilter::raise_positions(
 }
 
 ///|
+/// Record up to `multiplicity` complete contributions in every selected lane
+/// independently.
+///
+/// Used when merging filters: a lane that is already saturated keeps its value,
+/// which can still fund the shared removals, while the remaining lanes may have
+/// room for the new occurrences. Capping every lane to the most saturated one
+/// would leave a tracked multiplicity removable only in part.
+fn CountingBloomFilter::raise_positions_independently_at(
+  self : CountingBloomFilter,
+  positions : CountingPositionSet,
+  multiplicity : Int32,
+) -> Unit {
+  let wanted = multiplicity.to_uint64()
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
+    let limit = counting_position_limit(occurrences)
+    let value = self.counter_at(pos)
+    if value < limit {
+      let raised = value + wanted * occurrences
+      self.set_counter(pos, if raised > limit { limit } else { raised })
+    }
+  }
+}
+
+///|
+/// Add the occurrences of a key that a merge contributes to an existing slice.
+fn CountingBloomFilter::raise_positions_for_merge(
+  self : CountingBloomFilter,
+  h1 : UInt64,
+  h2 : UInt64,
+  multiplicity : Int32,
+) -> Unit {
+  let positions = self.positions_for(h1, h2)
+  self.raise_positions_independently_at(positions, multiplicity)
+}
+
+///|
 fn CountingBloomFilter::raise_positions_at(
   self : CountingBloomFilter,
   positions : CountingPositionSet,
@@ -372,21 +410,7 @@ fn CountingBloomFilter::raise_positions_at(
 ) -> Unit {
   let wanted = multiplicity.to_uint64()
   if multiplicity > 1 {
-    // A merge records several occurrences at once. A saturated lane keeps its
-    // existing value, which can still fund the shared removals, so record as
-    // many complete contributions as every other lane can hold, up to the
-    // requested multiplicity. Capping those lanes to the most saturated lane
-    // would leave the tracked occurrences removable only in part.
-    for i = 0; i < positions.length; i = i + 1 {
-      let pos = positions.positions[i]
-      let occurrences = positions.counts[i].to_uint64()
-      let limit = counting_position_limit(occurrences)
-      let value = self.counter_at(pos)
-      if value < limit {
-        let raised = value + wanted * occurrences
-        self.set_counter(pos, if raised > limit { limit } else { raised })
-      }
-    }
+    self.raise_positions_independently_at(positions, multiplicity)
     return
   }
   // A single insertion advances all counters of the key together. Saturation is
