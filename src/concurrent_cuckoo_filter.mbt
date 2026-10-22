@@ -264,9 +264,7 @@ pub fn ConcurrentCuckooFilter::remaining_capacity(
 
 ///|
 /// Whether every slot is occupied, read while holding the lock.
-pub fn ConcurrentCuckooFilter::is_full(
-  self : ConcurrentCuckooFilter,
-) -> Bool {
+pub fn ConcurrentCuckooFilter::is_full(self : ConcurrentCuckooFilter) -> Bool {
   self.with_lock(filter => filter.is_full())
 }
 

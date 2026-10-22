@@ -194,9 +194,7 @@ fn CompactCountingBloomFilter::increment_positions(
   h2 : UInt64,
 ) -> Unit {
   let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions_fast(
-    h1, h2, self.hash_count, slot_count,
-  )
+  let positions = unique_key_positions_fast(h1, h2, self.hash_count, slot_count)
   self.increment_positions_at(positions)
 }
 
@@ -286,9 +284,7 @@ pub fn[K : Hash] CompactCountingBloomFilter::insert_if_absent(
 ) -> Bool {
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions_fast(
-    h1, h2, self.hash_count, slot_count,
-  )
+  let positions = unique_key_positions_fast(h1, h2, self.hash_count, slot_count)
   for i = 0; i < positions.length; i = i + 1 {
     if self.counter_at(positions.positions[i]) == 0UL {
       guard self.inserted < 2147483647 else {
@@ -316,9 +312,7 @@ pub fn[K : Hash] CompactCountingBloomFilter::remove(
 ) -> Bool {
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions_fast(
-    h1, h2, self.hash_count, slot_count,
-  )
+  let positions = unique_key_positions_fast(h1, h2, self.hash_count, slot_count)
   for i = 0; i < positions.length; i = i + 1 {
     let pos = positions.positions[i]
     let occurrences = positions.counts[i].to_uint64()

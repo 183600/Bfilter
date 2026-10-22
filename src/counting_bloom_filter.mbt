@@ -243,7 +243,7 @@ fn unique_key_positions_fast(
       length = length + 1
     }
   }
-  { positions, counts, length }
+  { positions, counts, length, }
 }
 
 ///|
@@ -283,9 +283,7 @@ fn CountingBloomFilter::raise_positions(
   multiplicity : Int32,
 ) -> Unit {
   let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions_fast(
-    h1, h2, self.hash_count, slot_count,
-  )
+  let positions = unique_key_positions_fast(h1, h2, self.hash_count, slot_count)
   self.raise_positions_at(positions, multiplicity)
 }
 
@@ -391,9 +389,7 @@ fn CountingBloomFilter::insert_if_absent_hashes(
   h2 : UInt64,
 ) -> Bool {
   let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions_fast(
-    h1, h2, self.hash_count, slot_count,
-  )
+  let positions = unique_key_positions_fast(h1, h2, self.hash_count, slot_count)
   for i = 0; i < positions.length; i = i + 1 {
     if self.counter_at(positions.positions[i]) == 0UL {
       guard self.inserted < 2147483647 else {
@@ -442,9 +438,7 @@ fn CountingBloomFilter::remove_hashes(
   h2 : UInt64,
 ) -> Bool {
   let slot_count = self.slot_count.to_uint64()
-  let positions = unique_key_positions_fast(
-    h1, h2, self.hash_count, slot_count,
-  )
+  let positions = unique_key_positions_fast(h1, h2, self.hash_count, slot_count)
   for i = 0; i < positions.length; i = i + 1 {
     let pos = positions.positions[i]
     let occurrences = positions.counts[i].to_uint64()

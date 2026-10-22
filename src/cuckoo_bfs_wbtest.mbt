@@ -143,4 +143,3 @@ test "cuckoo sparse augmenting path fills an empty large bucket" {
   assert_eq(filter.count(), 1)
   assert_eq(filter.buckets[0], b'\x01')
 }
-

@@ -230,7 +230,10 @@ test "counting insert respects a selected lane above its removable ceiling" {
   let key = "ceiling"
   let (h1, h2) = key_hashes(key)
   let positions = unique_key_positions(
-    h1, h2, filter.hash_count, filter.slot_count.to_uint64(),
+    h1,
+    h2,
+    filter.hash_count,
+    filter.slot_count.to_uint64(),
   )
   let mut duplicated = -1
   for entry in positions {
