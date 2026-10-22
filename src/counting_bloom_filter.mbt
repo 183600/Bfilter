@@ -225,6 +225,15 @@ fn CountingBloomFilter::raise_positions(
 ) -> Unit {
   let slot_count = self.slot_count.to_uint64()
   let positions = unique_key_positions(h1, h2, self.hash_count, slot_count)
+  self.raise_positions_at(positions, multiplicity)
+}
+
+///|
+fn CountingBloomFilter::raise_positions_at(
+  self : CountingBloomFilter,
+  positions : Array[(Int32, Int32)],
+  multiplicity : Int32,
+) -> Unit {
   for entry in positions {
     let (pos, occurrences) = entry
     let occurrences = occurrences.to_uint64()
@@ -286,17 +295,16 @@ fn CountingBloomFilter::insert_if_absent_hashes(
   h2 : UInt64,
 ) -> Bool {
   let slot_count = self.slot_count.to_uint64()
-  let mut state = h1
-  for i = 0; i < self.hash_count; i = i + 1 {
-    if self.counter_at((state % slot_count).to_int()) == 0UL {
+  let positions = unique_key_positions(h1, h2, self.hash_count, slot_count)
+  for entry in positions {
+    if self.counter_at(entry.0) == 0UL {
       guard self.inserted < 2147483647 else {
         abort("counting bloom filter insertion count overflow")
       }
-      self.increment_positions(h1, h2)
+      self.raise_positions_at(positions, 1)
       self.inserted += 1
       return true
     }
-    state = state + h2
   }
   false
 }

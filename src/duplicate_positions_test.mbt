@@ -91,3 +91,27 @@ test "counting bloom removes keys with more duplicate positions than counter wid
   assert_eq(filter.count_of(0), 0)
   assert_eq(filter.count(), 0)
 }
+
+///|
+test "counting bloom conditional insert handles duplicate positions once" {
+  let filter = @src.CountingBloomFilter::with_size(16, 70000)
+  assert_true(filter.insert_if_absent(0))
+  assert_false(filter.insert_if_absent(0))
+  assert_eq(filter.count(), 1)
+  assert_true(filter.remove(0))
+  assert_false(filter.contains(0))
+  assert_true(filter.insert_if_absent(0))
+  assert_eq(filter.count(), 1)
+}
+
+///|
+test "compact counting conditional insert handles duplicate positions once" {
+  let filter = @src.CompactCountingBloomFilter::with_size(16, 300)
+  assert_true(filter.insert_if_absent(0))
+  assert_false(filter.insert_if_absent(0))
+  assert_eq(filter.count(), 1)
+  assert_true(filter.remove(0))
+  assert_false(filter.contains(0))
+  assert_true(filter.insert_if_absent(0))
+  assert_eq(filter.count(), 1)
+}
