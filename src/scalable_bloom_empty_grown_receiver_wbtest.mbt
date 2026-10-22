@@ -6,10 +6,9 @@ test "scalable bloom merge keeps a grown empty receiver's extra slices" {
   }
   assert_true(receiver.slice_count() > 1)
   let grown_slices = receiver.slice_count()
-  // Simulate a receiver that grew before its keys were discarded, matching the
-  // state produced by a prior empty intersection or by removing all tracked
-  // keys from a counting variant. Bloom filters have no removal API, so clear
-  // the backing slices directly in this whitebox setup.
+  // Simulate an already-grown receiver with no live keys. Bloom filters have no
+  // removal API, so clear the backing slices directly in this whitebox setup;
+  // the merge fast path must still retain the extra slice layout.
   for i = 0; i < receiver.slices.length(); i = i + 1 {
     receiver.slices[i].clear()
   }
@@ -61,4 +60,31 @@ test "scalable bloom merge appends source slices beyond a grown empty receiver" 
   for i = 0; i < 8; i = i + 1 {
     assert_true(restored.contains("source-" + i.to_string()))
   }
+}
+
+///|
+test "scalable bloom merge keeps slices of a multi-slice intersection result" {
+  let left = ScalableBloomFilter::new(2, 0.01)
+  let right = ScalableBloomFilter::new(2, 0.01)
+  for i = 0; i < 12; i = i + 1 {
+    left.insert("left-" + i.to_string())
+    right.insert("right-" + i.to_string())
+  }
+  assert_true(left.slice_count() > 1)
+  assert_eq(left.slice_count(), right.slice_count())
+  let common = left.intersection(right)
+  assert_eq(common.count(), left.count().min(right.count()))
+  let common_slices = common.slice_count()
+
+  let source = ScalableBloomFilter::new(2, 0.01)
+  source.insert("source")
+  let source_count = source.count()
+  common.merge(source)
+  assert_eq(common.slice_count(), common_slices)
+  assert_eq(common.count(), left.count().min(right.count()) + source_count)
+  assert_true(common.contains("source"))
+  let restored = ScalableBloomFilter::from_bytes(common.to_bytes())
+  assert_eq(restored.slice_count(), common.slice_count())
+  assert_eq(restored.count(), common.count())
+  assert_true(restored.contains("source"))
 }
