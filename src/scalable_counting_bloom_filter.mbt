@@ -140,6 +140,12 @@ pub fn ScalableCountingBloomFilter::new(
 fn ScalableCountingBloomFilter::ensure_room(
   self : ScalableCountingBloomFilter,
 ) -> Unit {
+  // A whitebox-constructed filter can have no slices. There is no newest slice
+  // to fill, so create the first one before indexing the slice arrays.
+  if self.slices.length() == 0 {
+    self.append_slice()
+    return
+  }
   let last = self.slices.length() - 1
   if self.slices[last].count() >= self.capacities[last] {
     self.append_slice()
@@ -169,7 +175,8 @@ fn ScalableCountingBloomFilter::insert_hashes(
       // Insert the first real key into a fresh slice so that slice's insertion
       // count stays exactly equal to its tracked occurrences; the older
       // count-only slices remain representable as conservative extras.
-      if self.locations.length() == 0 && self.inserted > 0 {
+      if self.locations.length() == 0 && self.inserted > 0 &&
+        self.slices.length() > 0 {
         let last = self.slices.length() - 1
         if self.slices[last].count() > 0 {
           self.append_slice()

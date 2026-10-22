@@ -106,6 +106,12 @@ pub fn ScalableBloomFilter::new(
 
 ///|
 fn ScalableBloomFilter::ensure_room(self : ScalableBloomFilter) -> Unit {
+  // A whitebox-constructed filter can have no slices. There is no newest slice
+  // to fill, so create the first one before indexing the slice arrays.
+  if self.slices.length() == 0 {
+    self.append_slice()
+    return
+  }
   let last = self.slices.length() - 1
   if self.slices[last].count() >= self.capacities[last] {
     self.append_slice()
