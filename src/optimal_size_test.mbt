@@ -97,3 +97,28 @@ test "panic blocked filter optimal size rejects invalid arguments" {
 test "panic cuckoo filter optimal size rejects invalid arguments" {
   @src.CuckooFilter::optimal_size(0) |> ignore
 }
+
+///|
+test "panic bloom filter optimal size rejects oversized layouts" {
+  @src.BloomFilter::optimal_size(2147483647, 0.000000001) |> ignore
+}
+
+///|
+test "panic counting filter optimal size rejects oversized layouts" {
+  @src.CountingBloomFilter::optimal_size(2147483647, 0.000000001) |> ignore
+}
+
+///|
+test "panic compact counting optimal size rejects oversized layouts" {
+  @src.CompactCountingBloomFilter::optimal_size(50000000, 0.00001) |> ignore
+}
+
+///|
+test "panic blocked filter optimal size rejects oversized layouts" {
+  @src.BlockedBloomFilter::optimal_size(2147483647, 0.000000001) |> ignore
+}
+
+///|
+test "panic cuckoo filter optimal size rejects oversized capacities" {
+  @src.CuckooFilter::optimal_size(536870913) |> ignore
+}
