@@ -11,8 +11,9 @@ test "concurrent filters expose allocation-free optimal sizes" {
     @src.BloomFilter::optimal_size(10_000, 0.01),
   )
 
-  let (blocked_bits, blocked_hashes) =
-    @src.ConcurrentBlockedBloomFilter::optimal_size(10_000, 0.01)
+  let (blocked_bits, blocked_hashes) = @src.ConcurrentBlockedBloomFilter::optimal_size(
+    10_000, 0.01,
+  )
   let blocked = @src.ConcurrentBlockedBloomFilter::new(10_000, 0.01)
   assert_eq(blocked_bits, blocked.bit_count())
   assert_eq(blocked_hashes, blocked.hash_count())
@@ -21,8 +22,9 @@ test "concurrent filters expose allocation-free optimal sizes" {
     @src.BlockedBloomFilter::optimal_size(10_000, 0.01),
   )
 
-  let (counting_slots, counting_hashes) =
-    @src.ConcurrentCountingBloomFilter::optimal_size(10_000, 0.01)
+  let (counting_slots, counting_hashes) = @src.ConcurrentCountingBloomFilter::optimal_size(
+    10_000, 0.01,
+  )
   let counting = @src.ConcurrentCountingBloomFilter::new(10_000, 0.01)
   assert_eq(counting_slots, counting.slot_count())
   assert_eq(counting_hashes, counting.hash_count())
@@ -31,8 +33,9 @@ test "concurrent filters expose allocation-free optimal sizes" {
     @src.CountingBloomFilter::optimal_size(10_000, 0.01),
   )
 
-  let (compact_slots, compact_hashes) =
-    @src.ConcurrentCompactCountingBloomFilter::optimal_size(10_000, 0.01)
+  let (compact_slots, compact_hashes) = @src.ConcurrentCompactCountingBloomFilter::optimal_size(
+    10_000, 0.01,
+  )
   let compact = @src.ConcurrentCompactCountingBloomFilter::new(10_000, 0.01)
   assert_eq(compact_slots, compact.slot_count())
   assert_eq(compact_hashes, compact.hash_count())
