@@ -651,6 +651,10 @@ fn CuckooFilter::min_bucket_fingerprints(
   other : CuckooFilter,
 ) -> CuckooFilter {
   let result = CuckooFilter::with_size(self.bucket_count, self.bucket_size)
+  // The intersection has no fingerprints from the receiver when either input is
+  // empty, but it should still keep the receiver's deterministic eviction state
+  // so serialization does not depend on which operand happened to be empty.
+  result.random_state = self.random_state
   if self.inserted == 0 || other.inserted == 0 {
     return result
   }
