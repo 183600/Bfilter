@@ -11,7 +11,7 @@
 pub struct ScalableCountingBloomFilter {
   priv mut slices : Array[CountingBloomFilter]
   priv mut capacities : Array[Int32]
-  priv locations : @hashmap.HashMap[(UInt64, UInt64), (Int32, Int32)]
+  priv mut locations : @hashmap.HashMap[(UInt64, UInt64), (Int32, Int32)]
   priv initial_capacity : Int32
   priv target_rate : Double
   priv mut inserted : Int32
@@ -225,20 +225,6 @@ pub fn[K : Hash] ScalableCountingBloomFilter::remove(
     return true
   }
   false
-}
-
-///|
-/// Keep the global insertion count consistent with the slice counters after a
-/// removal. Counter collisions can make an individual slice keep a saturated
-/// residue, so the total is recomputed instead of decremented blindly.
-fn ScalableCountingBloomFilter::refresh_inserted(
-  self : ScalableCountingBloomFilter,
-) -> Unit {
-  let mut total = 0
-  for slice in self.slices {
-    total = total + slice.count()
-  }
-  self.inserted = total
 }
 
 ///|
@@ -591,12 +577,8 @@ pub fn ScalableCountingBloomFilter::merge(
   }
   self.slices = slices
   self.capacities = capacities
-  self.locations.clear()
-  for entry in merged.iter() {
-    self.locations.set(entry.0, entry.1)
-  }
-  self.inserted = 0
-  self.refresh_inserted()
+  self.locations = merged
+  self.inserted = total_inserted.to_int()
 }
 
 ///|
