@@ -547,11 +547,7 @@ fn CountingBloomFilter::raise_positions_at(
   multiplicity : Int32,
 ) -> Unit {
   let wanted = multiplicity.to_uint64()
-  if multiplicity > 1 {
-    self.raise_positions_independently_at(positions, multiplicity)
-    return
-  }
-  // A single insertion advances all counters of the key together. Saturation is
+  // Every insertion advances all counters of the key together. Saturation is
   // per position, so capping the lanes that still have room independently makes
   // one lane run out of recorded insertions before the others. The later
   // removals then stop early and leave positive residue on the remaining lanes
