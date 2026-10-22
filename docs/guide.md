@@ -191,12 +191,14 @@ assert_true(left.is_subset_of(combined))
 ```
 
 Keys stay in the slice where they were first inserted, so filters with different
-insert histories can store the same key in different slices. `intersection` only
-compares slices at matching indices, so it can omit a key that both inputs
-contain when they placed it in different slices; it is most useful when the
-inputs grew in lockstep. `merge` and `union` preserve every slice, and
-`is_subset_of` is conservative for the same reason: it may return `false` even
-when the inputs logically contain one another.
+insert histories can store the same key in different slices. The scalable bloom
+filter's `intersection` only compares slices at matching indices, so it can omit
+a key that both inputs contain when they placed it in different slices; it is
+most useful when the inputs grew in lockstep. `merge` and `union` preserve every
+slice, and its `is_subset_of` is conservative for the same reason: it may return
+`false` even when the inputs logically contain one another. The scalable
+counting filter tracks each key's slice, so its `intersection` matches tracked
+keys across different slices instead.
 
 Merging adds the insertion counts, and a slice whose combined count exceeds its
 planned capacity simply triggers growth before the next insertion, so a merged
