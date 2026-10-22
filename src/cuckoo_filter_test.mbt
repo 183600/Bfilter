@@ -148,3 +148,20 @@ test "cuckoo serialization preserves eviction state for later inserts" {
   assert_eq(restored.count(), filter.count())
   assert_eq(restored.to_bytes(), filter.to_bytes())
 }
+
+///|
+test "cuckoo failed insert preserves eviction state" {
+  let filter = @src.CuckooFilter::with_size(16, 1)
+  let keys = [
+    27590, 1575, 24084, 2781, 15474, 899, 29952, 56185, 17886, 71308, 15288,
+    58321, 89366, 46029, 30152,
+  ]
+  for key in keys {
+    assert_true(filter.insert(key))
+  }
+  assert_eq(filter.count(), 15)
+  let before = filter.to_bytes()
+  assert_false(filter.insert(100000))
+  assert_eq(filter.count(), 15)
+  assert_eq(filter.to_bytes(), before)
+}

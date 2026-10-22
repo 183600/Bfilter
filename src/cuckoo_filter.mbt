@@ -358,6 +358,7 @@ fn CuckooFilter::insert_fingerprint(
     }
   }
   let evictions : Array[(Int32, Int32, Byte)] = []
+  let saved_random_state = self.random_state
   let mut index = index1
   let mut current = fingerprint
   for kick = 0; kick < 512; kick = kick + 1 {
@@ -381,9 +382,13 @@ fn CuckooFilter::insert_fingerprint(
   }
   if self.insert_fingerprint_bfs(index1, fingerprint) {
     true
-  } else if index2 != index1 {
-    self.insert_fingerprint_bfs(index2, fingerprint)
+  } else if index2 != index1 &&
+    self.insert_fingerprint_bfs(index2, fingerprint) {
+    true
   } else {
+    // The eviction search did not find a placement, so the failed insertion is
+    // a no-op for later eviction choices as well as for the stored buckets.
+    self.random_state = saved_random_state
     false
   }
 }
