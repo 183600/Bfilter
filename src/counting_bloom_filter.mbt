@@ -35,6 +35,44 @@ fn counting_word_mass(word : UInt64) -> UInt64 {
 }
 
 ///|
+/// High bit of every 16-bit counter lane.
+const COUNTING_LANE_SIGN : UInt64 = 0x8000800080008000UL
+
+///|
+/// Low fifteen bits of every 16-bit counter lane.
+const COUNTING_LANE_LOW : UInt64 = 0x7FFF7FFF7FFF7FFFUL
+
+///|
+/// Mark the high bit of every lane where `left` is at least `right`.
+///
+/// Forcing the high bit of `left` and clearing it in `right` keeps the
+/// subtraction inside each lane, so a borrow never crosses lane boundaries. The
+/// high bit of the difference is then set exactly for lanes whose low fifteen
+/// bits satisfy `left >= right`; lanes whose high bits differ are decided by
+/// those high bits instead.
+fn counting_lane_at_least(left : UInt64, right : UInt64) -> UInt64 {
+  let different = (left ^ right) & COUNTING_LANE_SIGN
+  let left_sign = left & COUNTING_LANE_SIGN
+  let low_at_least = ((left | COUNTING_LANE_SIGN) - (right & COUNTING_LANE_LOW)) &
+    COUNTING_LANE_SIGN
+  (different & left_sign) | ((COUNTING_LANE_SIGN ^ different) & low_at_least)
+}
+
+///|
+/// Take the larger of the two counters in every 16-bit lane.
+fn counting_lane_max(left : UInt64, right : UInt64) -> UInt64 {
+  let at_least = counting_lane_at_least(left, right)
+  let lanes = (at_least >> 15) * 0xFFFFUL
+  right ^ ((left ^ right) & lanes)
+}
+
+///|
+/// Take the smaller of the two counters in every 16-bit lane.
+fn counting_lane_min(left : UInt64, right : UInt64) -> UInt64 {
+  left ^ right ^ counting_lane_max(left, right)
+}
+
+///|
 /// Compute the slot and hash layout used by counting filters.
 fn counting_bloom_layout(
   expected_items : Int32,
@@ -474,14 +512,7 @@ pub fn CountingBloomFilter::merge(
       merged_mass = merged_mass + counting_word_mass(left)
       continue
     }
-    let mut merged = 0UL
-    for lane = 0; lane < 4; lane = lane + 1 {
-      let shift = lane * 16
-      let a = (left >> shift) & 0xFFFFUL
-      let b = (right >> shift) & 0xFFFFUL
-      let value = if a > b { a } else { b }
-      merged = merged | (value << shift)
-    }
+    let merged = counting_lane_max(left, right)
     self.counters[i] = merged
     merged_mass = merged_mass + counting_word_mass(merged)
   }
@@ -531,14 +562,7 @@ pub fn CountingBloomFilter::intersection(
       merged_mass = merged_mass + counting_word_mass(left)
       continue
     }
-    let mut merged = 0UL
-    for lane = 0; lane < 4; lane = lane + 1 {
-      let shift = lane * 16
-      let a = (left >> shift) & 0xFFFFUL
-      let b = (right >> shift) & 0xFFFFUL
-      let value = if a < b { a } else { b }
-      merged = merged | (value << shift)
-    }
+    let merged = counting_lane_min(left, right)
     result.counters[i] = merged
     merged_mass = merged_mass + counting_word_mass(merged)
   }
@@ -565,11 +589,8 @@ pub fn CountingBloomFilter::is_subset_of(
     if left == 0UL || left == right {
       continue
     }
-    for lane = 0; lane < 4; lane = lane + 1 {
-      let shift = lane * 16
-      if ((left >> shift) & 0xFFFFUL) > ((right >> shift) & 0xFFFFUL) {
-        return false
-      }
+    if counting_lane_min(left, right) != left {
+      return false
     }
   }
   true

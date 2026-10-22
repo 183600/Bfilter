@@ -48,6 +48,44 @@ fn compact_word_mass(word : UInt64) -> UInt64 {
 }
 
 ///|
+/// High bit of every 4-bit counter lane.
+const COMPACT_LANE_SIGN : UInt64 = 0x8888888888888888UL
+
+///|
+/// Low three bits of every 4-bit counter lane.
+const COMPACT_LANE_LOW : UInt64 = 0x7777777777777777UL
+
+///|
+/// Mark the high bit of every lane where `left` is at least `right`.
+///
+/// Forcing the high bit of `left` and clearing it in `right` keeps the
+/// subtraction inside each lane, so a borrow never crosses lane boundaries. The
+/// high bit of the difference is then set exactly for lanes whose low three
+/// bits satisfy `left >= right`; lanes whose high bits differ are decided by
+/// those high bits instead.
+fn compact_lane_at_least(left : UInt64, right : UInt64) -> UInt64 {
+  let different = (left ^ right) & COMPACT_LANE_SIGN
+  let left_sign = left & COMPACT_LANE_SIGN
+  let low_at_least = ((left | COMPACT_LANE_SIGN) - (right & COMPACT_LANE_LOW)) &
+    COMPACT_LANE_SIGN
+  (different & left_sign) | ((COMPACT_LANE_SIGN ^ different) & low_at_least)
+}
+
+///|
+/// Take the larger of the two counters in every 4-bit lane.
+fn compact_lane_max(left : UInt64, right : UInt64) -> UInt64 {
+  let at_least = compact_lane_at_least(left, right)
+  let lanes = (at_least >> 3) * 0xFUL
+  right ^ ((left ^ right) & lanes)
+}
+
+///|
+/// Take the smaller of the two counters in every 4-bit lane.
+fn compact_lane_min(left : UInt64, right : UInt64) -> UInt64 {
+  left ^ right ^ compact_lane_max(left, right)
+}
+
+///|
 /// Create a compact counting filter sized for `expected_items` and the target
 /// `false_positive_rate`.
 ///
@@ -380,14 +418,7 @@ pub fn CompactCountingBloomFilter::merge(
       merged_mass = merged_mass + compact_word_mass(left)
       continue
     }
-    let mut merged = 0UL
-    for lane = 0; lane < COMPACT_SLOTS_PER_WORD; lane = lane + 1 {
-      let shift = lane * 4
-      let a = (left >> shift) & COMPACT_COUNTER_MAX
-      let b = (right >> shift) & COMPACT_COUNTER_MAX
-      let value = if a > b { a } else { b }
-      merged = merged | (value << shift)
-    }
+    let merged = compact_lane_max(left, right)
     self.counters[i] = merged
     merged_mass = merged_mass + compact_word_mass(merged)
   }
@@ -440,14 +471,7 @@ pub fn CompactCountingBloomFilter::intersection(
       merged_mass = merged_mass + compact_word_mass(left)
       continue
     }
-    let mut merged = 0UL
-    for lane = 0; lane < COMPACT_SLOTS_PER_WORD; lane = lane + 1 {
-      let shift = lane * 4
-      let a = (left >> shift) & COMPACT_COUNTER_MAX
-      let b = (right >> shift) & COMPACT_COUNTER_MAX
-      let value = if a < b { a } else { b }
-      merged = merged | (value << shift)
-    }
+    let merged = compact_lane_min(left, right)
     result.counters[i] = merged
     merged_mass = merged_mass + compact_word_mass(merged)
   }
@@ -474,12 +498,8 @@ pub fn CompactCountingBloomFilter::is_subset_of(
     if left == 0UL || left == right {
       continue
     }
-    for lane = 0; lane < COMPACT_SLOTS_PER_WORD; lane = lane + 1 {
-      let shift = lane * 4
-      if ((left >> shift) & COMPACT_COUNTER_MAX) >
-        ((right >> shift) & COMPACT_COUNTER_MAX) {
-        return false
-      }
+    if compact_lane_min(left, right) != left {
+      return false
     }
   }
   true
