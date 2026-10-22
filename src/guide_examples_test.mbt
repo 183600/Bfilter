@@ -358,3 +358,130 @@ test "guide definite disjointness" {
   right.insert("shared")
   assert_false(left.is_disjoint_from(right))
 }
+
+///|
+test "guide blocked bloom filter batch and block layout" {
+  let filter = @src.BlockedBloomFilter::new(10_000, 0.001)
+  filter.insert_all(["alpha", "beta"])
+  assert_true(filter.contains("alpha"))
+  assert_true(filter.contains_all(["alpha", "beta"]))
+  assert_false(filter.contains("gamma"))
+  assert_eq(filter.bit_count() % 512, 0)
+  assert_eq(filter.block_count(), filter.bit_count() / 512)
+  let restored = @src.BlockedBloomFilter::from_bytes(filter.to_bytes())
+  assert_true(restored.contains_all(["alpha", "beta"]))
+}
+
+///|
+test "guide scalable counting growth tracks one key per slice" {
+  let filter = @src.ScalableCountingBloomFilter::new(4, 0.01)
+  for i = 0; i < 40; i = i + 1 {
+    filter.insert("key-" + i.to_string())
+  }
+  filter.insert("key-0")
+  assert_true(filter.slice_count() > 1)
+  assert_eq(filter.count_of("key-0"), 2)
+  assert_true(filter.remove("key-0"))
+  assert_eq(filter.count_of("key-0"), 1)
+  assert_eq(filter.tracked_key_count(), 40)
+  let restored = @src.ScalableCountingBloomFilter::from_bytes(filter.to_bytes())
+  assert_eq(restored.count_of("key-0"), 1)
+  assert_eq(restored.tracked_key_count(), 40)
+}
+
+///|
+test "guide sizing helpers match allocated constructors" {
+  let (bits, hashes) = @src.BloomFilter::optimal_size(10_000, 0.01)
+  let filter = @src.BloomFilter::new(10_000, 0.01)
+  assert_eq(bits, filter.bit_count())
+  assert_eq(hashes, filter.hash_count())
+  assert_eq(bits.to_int64() / 8L, filter.memory_bytes())
+
+  let (blocked_bits, blocked_hashes) = @src.BlockedBloomFilter::optimal_size(
+    10_000, 0.01,
+  )
+  let blocked = @src.BlockedBloomFilter::new(10_000, 0.01)
+  assert_eq(blocked_bits, blocked.bit_count())
+  assert_eq(blocked_hashes, blocked.hash_count())
+
+  let (slots, counting_hashes) = @src.CountingBloomFilter::optimal_size(
+    10_000, 0.01,
+  )
+  let counting = @src.CountingBloomFilter::new(10_000, 0.01)
+  assert_eq(slots, counting.slot_count())
+  assert_eq(counting_hashes, counting.hash_count())
+  assert_eq(
+    @src.CompactCountingBloomFilter::optimal_size(10_000, 0.01),
+    (slots, counting_hashes),
+  )
+
+  let (buckets, bucket_size) = @src.CuckooFilter::optimal_size(10_000)
+  let cuckoo = @src.CuckooFilter::new(10_000)
+  assert_eq(buckets, cuckoo.bucket_count())
+  assert_eq(bucket_size, cuckoo.bucket_size())
+}
+
+///|
+test "guide scalable and concurrent wrappers serialize end to end" {
+  let scalable = @src.ScalableBloomFilter::new(10, 0.01)
+  for i = 0; i < 100; i = i + 1 {
+    scalable.insert(i)
+  }
+  let scalable_restored = @src.ScalableBloomFilter::from_bytes(
+    scalable.to_bytes(),
+  )
+  assert_true(scalable_restored.contains(42))
+  assert_eq(scalable_restored.count(), scalable.count())
+
+  let concurrent_bloom = @src.ConcurrentScalableBloomFilter::new(10, 0.01)
+  for i = 0; i < 100; i = i + 1 {
+    concurrent_bloom.insert(i)
+  }
+  let bloom_restored = @src.ConcurrentScalableBloomFilter::from_bytes(
+    concurrent_bloom.to_bytes(),
+  )
+  assert_true(bloom_restored.contains(42))
+  assert_eq(bloom_restored.count(), concurrent_bloom.count())
+
+  let concurrent_counting = @src.ConcurrentScalableCountingBloomFilter::new(
+    10, 0.01,
+  )
+  for i = 0; i < 100; i = i + 1 {
+    concurrent_counting.insert(i)
+  }
+  let snapshot = concurrent_counting.snapshot()
+  assert_true(snapshot.contains(42))
+  let counting_restored = @src.ConcurrentScalableCountingBloomFilter::from_bytes(
+    concurrent_counting.to_bytes(),
+  )
+  assert_eq(counting_restored.count(), concurrent_counting.count())
+  assert_eq(counting_restored.count_of(42), 1)
+}
+
+///|
+test "guide every compact and blocked wrapper round trips" {
+  let compact = @src.CompactCountingBloomFilter::new(1000, 0.01)
+  compact.insert("saved")
+  compact.insert("saved")
+  let compact_restored = @src.CompactCountingBloomFilter::from_bytes(
+    compact.to_bytes(),
+  )
+  assert_true(compact_restored.contains("saved"))
+  assert_eq(compact_restored.count_of("saved"), 2)
+
+  let concurrent_compact = @src.ConcurrentCompactCountingBloomFilter::new(
+    1000, 0.01,
+  )
+  concurrent_compact.insert("saved")
+  let concurrent_compact_restored = @src.ConcurrentCompactCountingBloomFilter::from_bytes(
+    concurrent_compact.to_bytes(),
+  )
+  assert_eq(concurrent_compact_restored.snapshot().count(), 1)
+
+  let concurrent_blocked = @src.ConcurrentBlockedBloomFilter::new(1000, 0.01)
+  concurrent_blocked.insert("saved")
+  let concurrent_blocked_restored = @src.ConcurrentBlockedBloomFilter::from_bytes(
+    concurrent_blocked.to_bytes(),
+  )
+  assert_true(concurrent_blocked_restored.contains("saved"))
+}
