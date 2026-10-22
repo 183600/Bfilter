@@ -38,6 +38,16 @@ pub fn ConcurrentBlockedBloomFilter::with_size(
 }
 
 ///|
+/// Compute the layout that `ConcurrentBlockedBloomFilter::new` would use without
+/// allocating a backing array.
+pub fn ConcurrentBlockedBloomFilter::optimal_size(
+  expected_items : Int32,
+  false_positive_rate : Double,
+) -> (Int32, Int32) {
+  BlockedBloomFilter::optimal_size(expected_items, false_positive_rate)
+}
+
+///|
 fn[R] ConcurrentBlockedBloomFilter::with_lock(
   self : ConcurrentBlockedBloomFilter,
   f : (BlockedBloomFilter) -> R,

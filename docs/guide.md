@@ -581,8 +581,14 @@ Both variants share the same layout, so their `optimal_size` results are
 identical. `BlockedBloomFilter::optimal_size` returns a bit count rounded up to
 a whole 512-bit block, and `CuckooFilter::optimal_size(expected_items)` returns
 the power-of-two `(bucket_count, bucket_size)` pair used by `CuckooFilter::new`.
-All of these functions panic for the same invalid arguments as the constructor
-they mirror.
+The concurrent wrappers expose the same helpers as
+`ConcurrentBloomFilter::optimal_size`,
+`ConcurrentBlockedBloomFilter::optimal_size`,
+`ConcurrentCountingBloomFilter::optimal_size`,
+`ConcurrentCompactCountingBloomFilter::optimal_size`, and
+`ConcurrentCuckooFilter::optimal_size`, forwarding to the corresponding base
+layout without taking the mutex or allocating storage. All of these functions
+panic for the same invalid arguments as the constructor they mirror.
 
 ## Configuration and Errors
 

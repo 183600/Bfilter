@@ -133,6 +133,7 @@ pub fn ConcurrentBlockedBloomFilter::is_subset_of(Self, BlockedBloomFilter) -> B
 pub fn ConcurrentBlockedBloomFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentBlockedBloomFilter::merge(Self, BlockedBloomFilter) -> Unit
 pub fn ConcurrentBlockedBloomFilter::new(Int32, Double) -> Self
+pub fn ConcurrentBlockedBloomFilter::optimal_size(Int32, Double) -> (Int32, Int32)
 pub fn ConcurrentBlockedBloomFilter::set_bit_count(Self) -> Int32
 pub fn ConcurrentBlockedBloomFilter::snapshot(Self) -> BlockedBloomFilter
 pub fn ConcurrentBlockedBloomFilter::to_bytes(Self) -> Bytes
@@ -164,6 +165,7 @@ pub fn ConcurrentBloomFilter::is_subset_of(Self, BloomFilter) -> Bool
 pub fn ConcurrentBloomFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentBloomFilter::merge(Self, BloomFilter) -> Unit
 pub fn ConcurrentBloomFilter::new(Int32, Double) -> Self
+pub fn ConcurrentBloomFilter::optimal_size(Int32, Double) -> (Int32, Int32)
 pub fn ConcurrentBloomFilter::set_bit_count(Self) -> Int32
 pub fn ConcurrentBloomFilter::snapshot(Self) -> BloomFilter
 pub fn ConcurrentBloomFilter::to_bytes(Self) -> Bytes
@@ -197,6 +199,7 @@ pub fn ConcurrentCompactCountingBloomFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentCompactCountingBloomFilter::merge(Self, CompactCountingBloomFilter) -> Unit
 pub fn ConcurrentCompactCountingBloomFilter::new(Int32, Double) -> Self
 pub fn ConcurrentCompactCountingBloomFilter::occupied_slot_count(Self) -> Int32
+pub fn ConcurrentCompactCountingBloomFilter::optimal_size(Int32, Double) -> (Int32, Int32)
 pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
 pub fn ConcurrentCompactCountingBloomFilter::slot_count(Self) -> Int32
@@ -232,6 +235,7 @@ pub fn ConcurrentCountingBloomFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentCountingBloomFilter::merge(Self, CountingBloomFilter) -> Unit
 pub fn ConcurrentCountingBloomFilter::new(Int32, Double) -> Self
 pub fn ConcurrentCountingBloomFilter::occupied_slot_count(Self) -> Int32
+pub fn ConcurrentCountingBloomFilter::optimal_size(Int32, Double) -> (Int32, Int32)
 pub fn[K : Hash] ConcurrentCountingBloomFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
 pub fn ConcurrentCountingBloomFilter::slot_count(Self) -> Int32
@@ -267,6 +271,7 @@ pub fn ConcurrentCuckooFilter::load_factor(Self) -> Double
 pub fn ConcurrentCuckooFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentCuckooFilter::merge(Self, CuckooFilter) -> Bool
 pub fn ConcurrentCuckooFilter::new(Int32) -> Self
+pub fn ConcurrentCuckooFilter::optimal_size(Int32) -> (Int32, Int32)
 pub fn ConcurrentCuckooFilter::remaining_capacity(Self) -> Int32
 pub fn[K : Hash] ConcurrentCuckooFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentCuckooFilter::remove_all(Self, ArrayView[K]) -> Bool

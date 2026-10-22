@@ -33,6 +33,15 @@ pub fn ConcurrentCuckooFilter::with_size(
 }
 
 ///|
+/// Compute the bucket layout that `ConcurrentCuckooFilter::new` would use
+/// without allocating a backing array.
+pub fn ConcurrentCuckooFilter::optimal_size(
+  expected_items : Int32,
+) -> (Int32, Int32) {
+  CuckooFilter::optimal_size(expected_items)
+}
+
+///|
 fn[R] ConcurrentCuckooFilter::with_lock(
   self : ConcurrentCuckooFilter,
   f : (CuckooFilter) -> R,
