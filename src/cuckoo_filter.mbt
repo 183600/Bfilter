@@ -744,6 +744,17 @@ pub fn CuckooFilter::merge(self : CuckooFilter, other : CuckooFilter) -> Bool {
   if other.inserted == 0 {
     return true
   }
+  // An empty receiver already has no fingerprints, so union would build a copy
+  // of the source and then copy it back. Adopt the source storage directly and
+  // keep the two filters independent by copying each slot.
+  if self.inserted == 0 {
+    for i = 0; i < self.buckets.length(); i = i + 1 {
+      self.buckets[i] = other.buckets[i]
+    }
+    self.inserted = other.inserted
+    self.random_state = other.random_state
+    return true
+  }
   match self.union(other) {
     Some(result) => {
       for i = 0; i < self.buckets.length(); i = i + 1 {
