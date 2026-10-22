@@ -310,6 +310,9 @@ pub fn CuckooFilter::from_bytes(data : Bytes) -> CuckooFilter {
 /// target false-positive rate. Each slice is appended as a length-prefixed
 /// Bloom filter produced by `BloomFilter::to_bytes`.
 pub fn ScalableBloomFilter::to_bytes(self : ScalableBloomFilter) -> Bytes {
+  guard self.total_bits() <= 2147483584L else {
+    abort("scalable bloom filter is too large")
+  }
   let mut total = SERIAL_HEADER_BYTES + 8
   for slice in self.slices {
     total = total + 4 + slice.serialized_size()
@@ -433,6 +436,9 @@ pub fn ScalableBloomFilter::from_bytes(data : Bytes) -> ScalableBloomFilter {
 pub fn ScalableCountingBloomFilter::to_bytes(
   self : ScalableCountingBloomFilter,
 ) -> Bytes {
+  guard self.slot_count() <= SCALABLE_COUNTING_MAX_SLOTS else {
+    abort("scalable counting bloom filter is too large")
+  }
   let mut total = SERIAL_HEADER_BYTES + 12
   for slice in self.slices {
     total = total + 4 + slice.serialized_size()

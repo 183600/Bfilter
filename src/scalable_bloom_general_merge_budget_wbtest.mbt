@@ -41,3 +41,9 @@ test "panic scalable bloom intersection checks aggregate bit budget" {
   other.inserted = 1
   receiver.intersection(other) |> ignore
 }
+
+///|
+test "panic scalable bloom serialization checks aggregate bit budget" {
+  let receiver = oversized_grown_bloom_receiver()
+  receiver.to_bytes() |> ignore
+}
