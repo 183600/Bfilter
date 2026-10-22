@@ -56,8 +56,8 @@ test "counting queries still stop at a cycle for power-of-two slots" {
   assert_eq(counting_effective_probes(100, 1UL, 16UL), 16)
   assert_eq(counting_effective_probes(100, 4UL, 16UL), 4)
   assert_eq(counting_effective_probes(100, 0UL, 16UL), 1)
-  // Four is not a power of two, so its wraparound-sensitive slots retain the
-  // full probe count unless the step is zero.
+  // Forty-eight is not a power of two, so its wraparound-sensitive slots
+  // retain the full probe count unless the step is zero.
   assert_eq(counting_effective_probes(100, 1UL, 48UL), 100)
   assert_eq(counting_effective_probes(100, 0UL, 48UL), 1)
 }
