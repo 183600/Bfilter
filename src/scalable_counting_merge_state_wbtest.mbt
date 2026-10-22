@@ -1,4 +1,4 @@
-fn probe_count_only(filter : ScalableCountingBloomFilter, counts : Array[Int32], total : Int32) -> Unit {
+fn fill_count_only_state(filter : ScalableCountingBloomFilter, counts : Array[Int32], total : Int32) -> Unit {
   filter.slices = []
   filter.capacities = []
   filter.locations.clear()
@@ -11,7 +11,7 @@ fn probe_count_only(filter : ScalableCountingBloomFilter, counts : Array[Int32],
   filter.inserted = total
 }
 
-fn probe_drained(filter : ScalableCountingBloomFilter, key : String, occurrences : Int32, slice : Int32) -> Unit {
+fn fill_drained_state(filter : ScalableCountingBloomFilter, key : String, occurrences : Int32, slice : Int32) -> Unit {
   filter.slices = []
   filter.capacities = []
   filter.locations.clear()
@@ -23,7 +23,7 @@ fn probe_drained(filter : ScalableCountingBloomFilter, key : String, occurrences
   filter.inserted = occurrences
 }
 
-fn probe_roundtrip(filter : ScalableCountingBloomFilter) -> Unit raise {
+fn assert_roundtrip(filter : ScalableCountingBloomFilter) -> Unit raise {
   let bytes = filter.to_bytes()
   let restored = ScalableCountingBloomFilter::from_bytes(bytes)
   assert_eq(restored.to_bytes(), bytes)
@@ -40,8 +40,8 @@ test "scalable counting merge matrix keeps count-only and drained states seriali
         let receiver = ScalableCountingBloomFilter::new(2, 0.5)
         let counts : Array[Int32] = Array::make(receiver_slices, 1)
         match mode {
-          0 => probe_count_only(receiver, counts, receiver_slices)
-          1 => probe_drained(receiver, "hot", 4465, receiver_slices - 1)
+          0 => fill_count_only_state(receiver, counts, receiver_slices)
+          1 => fill_drained_state(receiver, "hot", 4465, receiver_slices - 1)
           2 => {
             receiver.clear()
             for i = 0; i < receiver_slices; i = i + 1 {
@@ -60,8 +60,8 @@ test "scalable counting merge matrix keeps count-only and drained states seriali
         }
         let source = ScalableCountingBloomFilter::new(2, 0.5)
         match mode {
-          0 => probe_count_only(source, Array::make(source_slices, 1), source_slices)
-          1 => probe_drained(source, "cold", 3, source_slices - 1)
+          0 => fill_count_only_state(source, Array::make(source_slices, 1), source_slices)
+          1 => fill_drained_state(source, "cold", 3, source_slices - 1)
           2 => {
             source.clear()
             for i = 0; i < source_slices; i = i + 1 {
@@ -79,23 +79,23 @@ test "scalable counting merge matrix keeps count-only and drained states seriali
             }
           }
         }
-        probe_roundtrip(receiver)
-        probe_roundtrip(source)
+        assert_roundtrip(receiver)
+        assert_roundtrip(source)
         let combined = receiver.union(source)
-        probe_roundtrip(combined)
+        assert_roundtrip(combined)
         let merged = receiver.copy()
         merged.merge(source)
         assert_eq(merged.to_bytes(), combined.to_bytes())
-        probe_roundtrip(merged)
+        assert_roundtrip(merged)
         // A subsequent insertion and removal must keep the filter serializable.
         merged.insert("fresh")
-        probe_roundtrip(merged)
+        assert_roundtrip(merged)
         assert_eq(merged.count_of("fresh"), 1)
         assert_true(merged.contains("fresh"))
         assert_true(merged.remove("fresh"))
-        probe_roundtrip(merged)
+        assert_roundtrip(merged)
         let common = receiver.intersection(source)
-        probe_roundtrip(common)
+        assert_roundtrip(common)
       }
     }
   }
