@@ -260,7 +260,12 @@ multiplicity, even when the inputs stored them in different slices.
 `is_subset_of` also consults the tracked multiplicities across slices, so a
 shared key counts as contained even when the two filters placed it in different
 slices; `is_disjoint_from` still compares the slice counters because it must
-prove that no key can be reported by both. The cross-slice fallback covers keys
+prove that no key can be reported by both. Count-only slices, which carry a
+conservative insertion count without tracked keys or positive counters, are
+treated as empty by set operations: merging such a filter leaves a non-empty
+receiver's counters untouched, and a count-only receiver copies the source's
+slices and metadata.
+The cross-slice fallback covers keys
 inserted through the filters. Because slices at different indices use different
 hash layouts, it cannot rule out an untracked false-positive key that only the
 first filter reports; compare filters that grew in lockstep when a strict

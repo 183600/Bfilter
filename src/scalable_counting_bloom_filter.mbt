@@ -520,11 +520,14 @@ pub fn ScalableCountingBloomFilter::merge(
   other : ScalableCountingBloomFilter,
 ) -> Unit {
   self.ensure_same_policy(other)
-  // An empty filter contributes no tracked keys and no counters. Rebuilding the
-  // receiver from its own metadata would be extra work and could perturb
-  // saturated counters, so leave the existing slices untouched. If the empty
-  // filter grew further, append the empty slices its layout calls for.
-  if other.inserted == 0 && other.locations.length() == 0 {
+  // An empty filter contributes no tracked keys and no counters. A count-only
+  // filter restored from bytes is also empty in this sense: it carries a
+  // conservative insertion count but no tracked key and no positive counter.
+  // Rebuilding the receiver from its own metadata would be extra work and could
+  // perturb saturated counters, so leave the existing slices untouched. If the
+  // empty filter grew further, append the empty slices its layout calls for.
+  if other.locations.length() == 0 &&
+    (other.inserted == 0 || other.occupied_slot_count() == 0L) {
     let mut total_slots = self.slot_count()
     for i = self.slices.length(); i < other.slices.length(); i = i + 1 {
       total_slots = total_slots + other.slices[i].slot_count().to_int64()
@@ -537,11 +540,17 @@ pub fn ScalableCountingBloomFilter::merge(
     }
     return
   }
-  // The receiver holds no tracked keys and no counters. Rebuilding every
-  // counter from the other filter's metadata would rehash all of its keys, so
-  // copy the slices and locations directly. Extra empty slices that the
-  // receiver already grew are preserved.
-  if self.inserted == 0 && self.locations.length() == 0 {
+  // The receiver holds no tracked keys and no counters. A count-only receiver
+  // restored from bytes is also empty in this sense. Rebuilding every counter
+  // from the other filter's metadata would rehash all of its keys, so copy the
+  // slices and locations directly. Extra empty slices that the receiver already
+  // grew are preserved; their conservative count-only insertion counts are
+  // dropped so the merged insertion count stays consistent with its slices.
+  let receiver_is_count_only = self.inserted > 0 &&
+    self.locations.length() == 0 &&
+    self.occupied_slot_count() == 0L
+  if (self.inserted == 0 && self.locations.length() == 0) ||
+    receiver_is_count_only {
     let self_slice_count = self.slices.length()
     let other_slice_count = other.slices.length()
     let slice_count = if self_slice_count > other_slice_count {
@@ -567,7 +576,9 @@ pub fn ScalableCountingBloomFilter::merge(
         slices.push(other.slices[i].copy())
         capacities.push(other.capacities[i])
       } else {
-        slices.push(self.slices[i].copy())
+        let extra = self.slices[i].copy()
+        extra.inserted = 0
+        slices.push(extra)
         capacities.push(self.capacities[i])
       }
     }
