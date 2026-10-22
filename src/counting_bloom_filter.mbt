@@ -369,7 +369,23 @@ fn unique_positions_cycle_into(
 }
 
 ///|
+/// Greatest common divisor of two unsigned integers.
+///
+/// Every cycle calculation in this package passes a power-of-two slot count as
+/// `right`. For that case the divisor is just the lowest set bit of `left`, so
+/// the common hot path avoids the Euclidean loop entirely. The general branch
+/// keeps the helper correct for other callers and for whitebox tests.
 fn counting_gcd(left : UInt64, right : UInt64) -> UInt64 {
+  if left == 0UL {
+    return right
+  }
+  if right == 0UL {
+    return left
+  }
+  if (right & (right - 1UL)) == 0UL {
+    let lowest = 1UL << left.ctz()
+    return if lowest > right { right } else { lowest }
+  }
   let mut a = left
   let mut b = right
   while b != 0UL {
