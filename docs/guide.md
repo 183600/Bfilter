@@ -91,6 +91,12 @@ counts and `intersection` takes the smaller one, so `false_positive_rate()`
 stays conservative when the inputs overlap. These operations panic when the
 filter configurations differ.
 
+Empty operands are handled without scanning the backing arrays: `intersection`
+returns an empty filter with the shared layout, `is_subset_of` is immediately
+true when `self` is empty, and `is_disjoint_from` is immediately true when
+either input is empty. The same shortcuts apply to the blocked, counting, and
+compact counting variants.
+
 `merge` performs the same combination as `union` in place, avoiding a new
 allocation. The concurrent wrappers expose `merge`, `union`, `intersection`,
 and `is_subset_of`, acquiring the lock once for the whole operation:
@@ -203,8 +209,14 @@ keys across different slices instead.
 Merging adds the insertion counts, and a slice whose combined count exceeds its
 planned capacity simply triggers growth before the next insertion, so a merged
 filter keeps accepting keys. The merged state also survives a `to_bytes` /
-`from_bytes` round trip. `ConcurrentScalableBloomFilter` exposes atomic `merge`,
-`union`, `intersection`, `is_subset_of`, and `is_disjoint_from` methods.
+`from_bytes` round trip. Merging into an empty filter copies the source slices
+directly instead of OR-ing them into empty storage, and slices the receiver had
+already grown are retained; the scalable counting variant likewise copies
+counters and metadata instead of rehashing every tracked key. When halving the
+target rate for a later slice would underflow to zero, the slice rate is clamped
+to the smallest positive `Double`, so every slice stays positive.
+`ConcurrentScalableBloomFilter` exposes atomic `merge`, `union`,
+`intersection`, `is_subset_of`, and `is_disjoint_from` methods.
 
 ## Scalable Counting Bloom Filter
 
@@ -527,9 +539,10 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
 - `ScalableBloomFilter` queries up to `s` slices, while
   `ScalableCountingBloomFilter` also consults its tracked-key map. Inserts append
   a slice when the newest one reaches its planned capacity, so growth is
-  amortized. Merges and unions process the slices they combine. The scalable
-  counting map grows with the number of distinct tracked keys and is not
-  included in `memory_bytes()`, which reports only counter storage.
+  amortized. Merges and unions process the slices they combine; merging into an
+  empty scalable filter copies the source slices instead of rebuilding them.
+  The scalable counting map grows with the number of distinct tracked keys and
+  is not included in `memory_bytes()`, which reports only counter storage.
 - The `optimal_size` helpers compute layouts without allocating, and the
   concurrent wrappers forward them without taking the mutex. Batch operations on
   the concurrent wrappers take the lock once for the whole batch.

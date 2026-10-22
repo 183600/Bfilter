@@ -112,7 +112,9 @@ assert_true(left.is_subset_of(union))
 `merge` performs the union in place. `intersection`, `is_disjoint_from`, and
 `is_subset_of` are available on the Bloom family; the Cuckoo filter has its own
 set-operation semantics documented in the guide. Mismatched configurations
-panic rather than silently producing a wrong result.
+panic rather than silently producing a wrong result. Empty operands
+short-circuit without scanning the backing array, and merging into an empty
+scalable filter copies the source slices directly.
 
 ## Concurrency
 
