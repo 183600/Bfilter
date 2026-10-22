@@ -542,9 +542,12 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   very wide hash counts fall back to temporary arrays that are capped by the
   slot count as well. When the hash count is much wider than the slot array,
   `contains` and `count_of` stop once the double-hash sequence repeats, since
-  the remaining probes revisit counters already checked. Set operations scan the
-  packed counter words, and merging into an empty receiver copies the packed
-  words directly.
+  the remaining probes revisit counters already checked. This cycle shortcut
+  applies when the slot count is a power of two, where wrapping the 64-bit probe
+  state preserves the cycle; other slot counts keep scanning every probe so
+  later wraparound offsets cannot hide a counter. Set operations scan the packed
+  counter words, and merging into an empty receiver copies the packed words
+  directly.
 - `CuckooFilter` checks two buckets of `B` fingerprints per query, so a lookup
   is `O(B)` expected. An insert may evict fingerprints and, when random eviction
   does not find room, run a bounded breadth-first search for an augmenting path;

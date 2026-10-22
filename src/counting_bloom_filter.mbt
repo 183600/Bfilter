@@ -312,16 +312,25 @@ fn counting_gcd(left : UInt64, right : UInt64) -> UInt64 {
 /// Number of probes in the repeating part of a key's double-hash sequence.
 ///
 /// `contains` and `count_of` only care which positions are selected, not how
-/// often. Once the sequence returns to its starting slot every remaining probe
-/// repeats an already-seen counter, so a wide hash count over a small slot array
-/// can stop after one cycle. The sequence is purely periodic from its first
-/// element, with period `slot_count / gcd(step, slot_count)`.
+/// often. When the slot count is a power of two, wrapping the 64-bit state
+/// subtracts a multiple of the slot count, so the position sequence is purely
+/// periodic with period `slot_count / gcd(step, slot_count)` and a wide hash
+/// count over a small slot array can stop after one cycle. Other slot counts
+/// keep the full probe count: a wrap subtracts `2^64`, which is not a multiple
+/// of the slot count, so later probes can reach positions outside the first
+/// cycle.
 fn counting_effective_probes(
   hash_count : Int32,
   h2 : UInt64,
   slot_count : UInt64,
 ) -> Int32 {
   if hash_count <= 64 {
+    return hash_count
+  }
+  if h2 == 0UL {
+    return 1
+  }
+  if (slot_count & (slot_count - 1UL)) != 0UL {
     return hash_count
   }
   let step = h2 % slot_count
