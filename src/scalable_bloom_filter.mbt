@@ -128,6 +128,13 @@ fn ScalableBloomFilter::insert_hashes(
   guard self.inserted < 2147483647 else {
     abort("scalable bloom filter insertion count overflow")
   }
+  // A whitebox-constructed filter can carry an insertion count without any
+  // slices. Preserve that conservative count in an empty slice before adding
+  // the new key, so the filter remains serializable.
+  if self.slices.length() == 0 && self.inserted > 0 {
+    self.append_slice()
+    self.slices[0].inserted = self.inserted
+  }
   self.ensure_room()
   self.slices[self.slices.length() - 1].insert_hashes(h1, h2)
   self.inserted += 1
@@ -430,12 +437,16 @@ pub fn ScalableBloomFilter::merge(
   self.ensure_same_policy(other)
   // A whitebox-constructed filter can have no slices. Merging two such filters
   // would otherwise leave the receiver in a transient zero-slice state that
-  // cannot be serialized, so normalize it to one empty initial slice.
-  if self.slices.length() == 0 &&
-    other.slices.length() == 0 &&
-    self.inserted == 0 &&
-    other.inserted == 0 {
+  // cannot be serialized, so normalize it to one empty initial slice carrying
+  // the combined conservative insertion count.
+  if self.slices.length() == 0 && other.slices.length() == 0 {
+    let total = self.inserted.to_int64() + other.inserted.to_int64()
+    guard total >= 0L && total <= 2147483647L else {
+      abort("scalable bloom filter insertion count overflow")
+    }
     self.append_slice()
+    self.slices[0].inserted = total.to_int()
+    self.inserted = total.to_int()
     return
   }
   // Merging an empty filter whose slices are already covered by the receiver

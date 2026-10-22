@@ -56,3 +56,75 @@ test "zero-slice scalable counting merges and unions become serializable" {
   assert_true(merged.insert_if_absent("after"))
   assert_true(merged.contains("after"))
 }
+
+///|
+test "zero-slice scalable bloom preserves conservative counts across inserts and merges" {
+  let left : ScalableBloomFilter = {
+    slices: [],
+    capacities: [],
+    initial_capacity: 2,
+    target_rate: 0.01,
+    inserted: 5,
+  }
+  let right : ScalableBloomFilter = {
+    slices: [],
+    capacities: [],
+    initial_capacity: 2,
+    target_rate: 0.01,
+    inserted: 3,
+  }
+  let union = left.union(right)
+  assert_eq(union.count(), 8)
+  assert_eq(union.slice_count(), 1)
+  let restored = ScalableBloomFilter::from_bytes(union.to_bytes())
+  assert_eq(restored.count(), 8)
+  let merged = left.copy()
+  merged.merge(right)
+  assert_eq(merged.to_bytes(), union.to_bytes())
+
+  let inserted = left.copy()
+  inserted.insert("after")
+  assert_eq(inserted.count(), 6)
+  assert_true(inserted.contains("after"))
+  let round_trip = ScalableBloomFilter::from_bytes(inserted.to_bytes())
+  assert_eq(round_trip.count(), 6)
+  assert_true(round_trip.contains("after"))
+}
+
+///|
+test "zero-slice scalable counting preserves conservative counts across inserts and merges" {
+  let left : ScalableCountingBloomFilter = {
+    slices: [],
+    capacities: [],
+    locations: @hashmap.HashMap([]),
+    initial_capacity: 2,
+    target_rate: 0.01,
+    inserted: 5,
+  }
+  let right : ScalableCountingBloomFilter = {
+    slices: [],
+    capacities: [],
+    locations: @hashmap.HashMap([]),
+    initial_capacity: 2,
+    target_rate: 0.01,
+    inserted: 3,
+  }
+  let union = left.union(right)
+  assert_eq(union.count(), 8)
+  assert_eq(union.slice_count(), 1)
+  let restored = ScalableCountingBloomFilter::from_bytes(union.to_bytes())
+  assert_eq(restored.count(), 8)
+  let merged = left.copy()
+  merged.merge(right)
+  assert_eq(merged.to_bytes(), union.to_bytes())
+
+  let inserted = left.copy()
+  inserted.insert("after")
+  assert_eq(inserted.count(), 6)
+  assert_eq(inserted.count_of("after"), 1)
+  assert_true(inserted.contains("after"))
+  let round_trip = ScalableCountingBloomFilter::from_bytes(inserted.to_bytes())
+  assert_eq(round_trip.count(), 6)
+  assert_eq(round_trip.count_of("after"), 1)
+  assert_true(round_trip.contains("after"))
+}

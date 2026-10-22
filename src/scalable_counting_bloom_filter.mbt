@@ -170,6 +170,15 @@ fn ScalableCountingBloomFilter::insert_hashes(
       self.locations.set(id, (slice_index, occurrences + 1))
     }
     None => {
+      // A whitebox-constructed filter can carry an insertion count without any
+      // slices. Preserve that count in an empty slice so the new key can go
+      // into a fresh slice without breaking the serialization invariant.
+      if self.slices.length() == 0 &&
+        self.locations.length() == 0 &&
+        self.inserted > 0 {
+        self.append_slice()
+        self.slices[0].inserted = self.inserted
+      }
       // A count-only filter restored from bytes may carry conservative insertion
       // counts in its newest slice without any tracked key or positive counter.
       // Insert the first real key into a fresh slice so that slice's insertion
@@ -566,14 +575,19 @@ pub fn ScalableCountingBloomFilter::merge(
   self.ensure_same_policy(other)
   // A whitebox-constructed filter can have no slices. Merging two such filters
   // would otherwise leave the receiver in a transient zero-slice state that
-  // cannot be serialized, so normalize it to one empty initial slice.
+  // cannot be serialized, so normalize it to one empty initial slice carrying
+  // the combined conservative insertion count.
   if self.slices.length() == 0 &&
     other.slices.length() == 0 &&
-    self.inserted == 0 &&
-    other.inserted == 0 &&
     self.locations.length() == 0 &&
     other.locations.length() == 0 {
+    let total = self.inserted.to_int64() + other.inserted.to_int64()
+    guard total >= 0L && total <= 2147483647L else {
+      abort("scalable counting bloom filter insertion count overflow")
+    }
     self.append_slice()
+    self.slices[0].inserted = total.to_int()
+    self.inserted = total.to_int()
     return
   }
   // An empty filter contributes no tracked keys and no counters. A count-only
