@@ -311,6 +311,7 @@ pub fn ConcurrentScalableBloomFilter::is_subset_of(Self, ScalableBloomFilter) ->
 pub fn ConcurrentScalableBloomFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentScalableBloomFilter::merge(Self, ScalableBloomFilter) -> Unit
 pub fn ConcurrentScalableBloomFilter::new(Int32, Double) -> Self
+pub fn ConcurrentScalableBloomFilter::optimal_size(Int32, Double) -> (Int32, Int32)
 pub fn ConcurrentScalableBloomFilter::set_bit_count(Self) -> Int32
 pub fn ConcurrentScalableBloomFilter::slice_count(Self) -> Int32
 pub fn ConcurrentScalableBloomFilter::snapshot(Self) -> ScalableBloomFilter
@@ -346,6 +347,7 @@ pub fn ConcurrentScalableCountingBloomFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentScalableCountingBloomFilter::merge(Self, ScalableCountingBloomFilter) -> Unit
 pub fn ConcurrentScalableCountingBloomFilter::new(Int32, Double) -> Self
 pub fn ConcurrentScalableCountingBloomFilter::occupied_slot_count(Self) -> Int64
+pub fn ConcurrentScalableCountingBloomFilter::optimal_size(Int32, Double) -> (Int32, Int32)
 pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] ConcurrentScalableCountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
 pub fn ConcurrentScalableCountingBloomFilter::slice_count(Self) -> Int32
@@ -454,6 +456,7 @@ pub fn ScalableBloomFilter::is_subset_of(Self, Self) -> Bool
 pub fn ScalableBloomFilter::memory_bytes(Self) -> Int64
 pub fn ScalableBloomFilter::merge(Self, Self) -> Unit
 pub fn ScalableBloomFilter::new(Int32, Double) -> Self
+pub fn ScalableBloomFilter::optimal_size(Int32, Double) -> (Int32, Int32)
 pub fn ScalableBloomFilter::set_bit_count(Self) -> Int32
 pub fn ScalableBloomFilter::slice_count(Self) -> Int32
 pub fn ScalableBloomFilter::target_false_positive_rate(Self) -> Double
@@ -488,6 +491,7 @@ pub fn ScalableCountingBloomFilter::memory_bytes(Self) -> Int64
 pub fn ScalableCountingBloomFilter::merge(Self, Self) -> Unit
 pub fn ScalableCountingBloomFilter::new(Int32, Double) -> Self
 pub fn ScalableCountingBloomFilter::occupied_slot_count(Self) -> Int64
+pub fn ScalableCountingBloomFilter::optimal_size(Int32, Double) -> (Int32, Int32)
 pub fn[K : Hash] ScalableCountingBloomFilter::remove(Self, K) -> Bool
 pub fn[K : Hash] ScalableCountingBloomFilter::remove_all(Self, ArrayView[K]) -> Bool
 pub fn ScalableCountingBloomFilter::slice_count(Self) -> Int32

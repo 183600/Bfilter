@@ -59,6 +59,25 @@ fn ScalableBloomFilter::append_slice(self : ScalableBloomFilter) -> Unit {
 }
 
 ///|
+/// Compute the bit and hash counts of the first slice that
+/// `ScalableBloomFilter::new` would create, without allocating it.
+///
+/// The first slice uses half of the requested false-positive budget; later
+/// slices keep halving it, so this helper is only a planning aid for the
+/// initial allocation, not for the whole growing filter. Panics for the same
+/// invalid arguments as `ScalableBloomFilter::new`.
+pub fn ScalableBloomFilter::optimal_size(
+  expected_items : Int32,
+  false_positive_rate : Double,
+) -> (Int32, Int32) {
+  guard expected_items > 0 else { abort("expected_items must be positive") }
+  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
+    abort("false_positive_rate must be between 0 and 1")
+  }
+  bloom_layout(expected_items, scalable_slice_rate(false_positive_rate, 0))
+}
+
+///|
 /// Create a growing Bloom filter sized for an initial `expected_items` keys and
 /// the target `false_positive_rate`.
 ///

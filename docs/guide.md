@@ -657,14 +657,23 @@ Both variants share the same layout, so their `optimal_size` results are
 identical. `BlockedBloomFilter::optimal_size` returns a bit count rounded up to
 a whole 512-bit block, and `CuckooFilter::optimal_size(expected_items)` returns
 the power-of-two `(bucket_count, bucket_size)` pair used by `CuckooFilter::new`.
+The scalable filters also expose `optimal_size(expected_items,
+false_positive_rate)` for the first slice they allocate. That slice uses half of
+the requested false-positive budget, so the helper returns the same
+`(bit_count, hash_count)` or `(slot_count, hash_count)` pair as the first slice
+of the corresponding constructor. Later slices double the capacity and halve
+the rate again, so this helper plans only the initial allocation.
 The concurrent wrappers expose the same helpers as
 `ConcurrentBloomFilter::optimal_size`,
 `ConcurrentBlockedBloomFilter::optimal_size`,
 `ConcurrentCountingBloomFilter::optimal_size`,
-`ConcurrentCompactCountingBloomFilter::optimal_size`, and
-`ConcurrentCuckooFilter::optimal_size`, forwarding to the corresponding base
-layout without taking the mutex or allocating storage. All of these functions
-panic for the same invalid arguments as the constructor they mirror.
+`ConcurrentCompactCountingBloomFilter::optimal_size`,
+`ConcurrentCuckooFilter::optimal_size`,
+`ConcurrentScalableBloomFilter::optimal_size`, and
+`ConcurrentScalableCountingBloomFilter::optimal_size`, forwarding to the
+corresponding base layout without taking the mutex or allocating storage. All of
+these functions panic for the same invalid arguments as the constructor they
+mirror.
 
 ## Configuration and Errors
 

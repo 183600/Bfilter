@@ -26,6 +26,19 @@ pub fn ConcurrentScalableCountingBloomFilter::new(
 }
 
 ///|
+/// Compute the layout of the first slice that
+/// `ConcurrentScalableCountingBloomFilter::new` would create without taking the
+/// mutex or allocating storage.
+pub fn ConcurrentScalableCountingBloomFilter::optimal_size(
+  expected_items : Int32,
+  false_positive_rate : Double,
+) -> (Int32, Int32) {
+  ScalableCountingBloomFilter::optimal_size(
+    expected_items, false_positive_rate,
+  )
+}
+
+///|
 fn[R] ConcurrentScalableCountingBloomFilter::with_lock(
   self : ConcurrentScalableCountingBloomFilter,
   f : (ScalableCountingBloomFilter) -> R,

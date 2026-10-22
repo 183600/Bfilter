@@ -122,3 +122,88 @@ test "panic blocked filter optimal size rejects oversized layouts" {
 test "panic cuckoo filter optimal size rejects oversized capacities" {
   @src.CuckooFilter::optimal_size(536870913) |> ignore
 }
+
+///|
+test "scalable optimal size matches the first constructed slice" {
+  for expected in [1, 4, 1000, 100_000] {
+    for rate in [0.5, 0.01, 0.001] {
+      let (bloom_bits, bloom_hashes) = @src.ScalableBloomFilter::optimal_size(
+        expected, rate,
+      )
+      let bloom = @src.ScalableBloomFilter::new(expected, rate)
+      assert_eq(bloom.slice_count(), 1)
+      assert_eq(bloom_bits, bloom.bit_count())
+      assert_eq(
+        (bloom_bits, bloom_hashes),
+        @src.BloomFilter::optimal_size(expected, rate * 0.5),
+      )
+      assert_eq(bloom_bits % 64, 0)
+
+      let (counting_slots, counting_hashes) = @src.ScalableCountingBloomFilter::optimal_size(
+        expected, rate,
+      )
+      let counting = @src.ScalableCountingBloomFilter::new(expected, rate)
+      assert_eq(counting.slice_count(), 1)
+      assert_eq(counting_slots.to_int64(), counting.slot_count())
+      assert_eq(
+        (counting_slots, counting_hashes),
+        @src.CountingBloomFilter::optimal_size(expected, rate * 0.5),
+      )
+      assert_eq(counting_slots % 16, 0)
+    }
+  }
+}
+
+///|
+test "concurrent scalable optimal size matches the constructed first slice" {
+  for expected in [1, 1000] {
+    for rate in [0.5, 0.01] {
+      let bloom_layout = @src.ConcurrentScalableBloomFilter::optimal_size(
+        expected, rate,
+      )
+      assert_eq(
+        bloom_layout,
+        @src.ScalableBloomFilter::optimal_size(expected, rate),
+      )
+      let bloom = @src.ConcurrentScalableBloomFilter::new(expected, rate)
+      assert_eq(bloom_layout.0, bloom.bit_count())
+      assert_eq(
+        bloom_layout,
+        @src.BloomFilter::optimal_size(expected, rate * 0.5),
+      )
+
+      let counting_layout = @src.ConcurrentScalableCountingBloomFilter::optimal_size(
+        expected, rate,
+      )
+      assert_eq(
+        counting_layout,
+        @src.ScalableCountingBloomFilter::optimal_size(expected, rate),
+      )
+      let counting = @src.ConcurrentScalableCountingBloomFilter::new(
+        expected, rate,
+      )
+      assert_eq(counting_layout.0.to_int64(), counting.slot_count())
+    }
+  }
+}
+
+///|
+test "panic scalable optimal size rejects invalid arguments" {
+  @src.ScalableBloomFilter::optimal_size(0, 0.01) |> ignore
+}
+
+///|
+test "panic scalable optimal size rejects an invalid rate" {
+  @src.ScalableBloomFilter::optimal_size(10, 1.0) |> ignore
+}
+
+///|
+test "panic scalable counting optimal size rejects invalid arguments" {
+  @src.ScalableCountingBloomFilter::optimal_size(10, 0.0) |> ignore
+}
+
+///|
+test "panic concurrent scalable optimal size rejects invalid arguments" {
+  @src.ConcurrentScalableBloomFilter::optimal_size(0, 0.01) |> ignore
+}
+
