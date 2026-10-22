@@ -504,12 +504,14 @@ pub fn ScalableCountingBloomFilter::merge(
   other : ScalableCountingBloomFilter,
 ) -> Unit {
   self.ensure_same_policy(other)
-  // An empty filter with no extra slices contributes no tracked keys and no
-  // counters. Rebuilding the receiver from its own metadata would be extra work
-  // and could perturb saturated counters, so leave it untouched.
-  if other.inserted == 0 &&
-    other.locations.length() == 0 &&
-    other.slices.length() <= self.slices.length() {
+  // An empty filter contributes no tracked keys and no counters. Rebuilding the
+  // receiver from its own metadata would be extra work and could perturb
+  // saturated counters, so leave the existing slices untouched. If the empty
+  // filter grew further, append the empty slices its layout calls for.
+  if other.inserted == 0 && other.locations.length() == 0 {
+    while self.slices.length() < other.slices.length() {
+      self.append_slice()
+    }
     return
   }
   let self_slice_count = self.slices.length()
