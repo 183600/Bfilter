@@ -112,3 +112,48 @@ test "counting probe workspaces shrink to the reachable slot count" {
   }
   assert_eq(occurrences, 1_048_576)
 }
+
+///|
+test "counting query probes stop at the double-hash cycle length" {
+  assert_eq(counting_effective_probes(100, 0UL, 16UL), 1)
+  assert_eq(counting_effective_probes(100, 4UL, 16UL), 4)
+  assert_eq(counting_effective_probes(100, 2UL, 16UL), 8)
+  assert_eq(counting_effective_probes(100, 1UL, 16UL), 16)
+  assert_eq(counting_effective_probes(65, 1UL, 16UL), 16)
+  assert_eq(counting_effective_probes(64, 0UL, 16UL), 64)
+
+  let counting = CountingBloomFilter::with_size(16, 100_000)
+  counting.insert("wide")
+  let (h1, h2) = key_hashes("wide")
+  let slot_count = counting.slot_count.to_uint64()
+  let mut state = h1
+  let mut full_minimum = 65535UL
+  for i = 0; i < counting.hash_count; i = i + 1 {
+    let value = counting.counter_at((state % slot_count).to_int())
+    if value < full_minimum {
+      full_minimum = value
+    }
+    state = state + h2
+  }
+  assert_eq(counting.count_of("wide"), full_minimum.to_int())
+  assert_true(counting.contains("wide"))
+  assert_true(counting.remove("wide"))
+  assert_false(counting.contains("wide"))
+
+  let compact = CompactCountingBloomFilter::with_size(16, 100_000)
+  compact.insert("wide")
+  let compact_slots = compact.slot_count.to_uint64()
+  let mut compact_state = h1
+  let mut compact_minimum = COMPACT_COUNTER_MAX
+  for i = 0; i < compact.hash_count; i = i + 1 {
+    let value = compact.counter_at((compact_state % compact_slots).to_int())
+    if value < compact_minimum {
+      compact_minimum = value
+    }
+    compact_state = compact_state + h2
+  }
+  assert_eq(compact.count_of("wide"), compact_minimum.to_int())
+  assert_true(compact.contains("wide"))
+  assert_true(compact.remove("wide"))
+  assert_false(compact.contains("wide"))
+}

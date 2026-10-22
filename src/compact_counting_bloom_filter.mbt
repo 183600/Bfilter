@@ -388,8 +388,9 @@ pub fn[K : Hash] CompactCountingBloomFilter::contains(
 ) -> Bool {
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
+  let probes = counting_effective_probes(self.hash_count, h2, slot_count)
   let mut state = h1
-  for i = 0; i < self.hash_count; i = i + 1 {
+  for i = 0; i < probes; i = i + 1 {
     if self.counter_at((state % slot_count).to_int()) == 0UL {
       return false
     }
@@ -412,9 +413,10 @@ pub fn[K : Hash] CompactCountingBloomFilter::count_of(
 ) -> Int32 {
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
+  let probes = counting_effective_probes(self.hash_count, h2, slot_count)
   let mut state = h1
   let mut minimum = COMPACT_COUNTER_MAX
-  for i = 0; i < self.hash_count; i = i + 1 {
+  for i = 0; i < probes; i = i + 1 {
     let value = self.counter_at((state % slot_count).to_int())
     if value == 0UL {
       return 0

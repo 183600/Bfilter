@@ -297,6 +297,44 @@ fn unique_key_positions_into(
 }
 
 ///|
+fn counting_gcd(left : UInt64, right : UInt64) -> UInt64 {
+  let mut a = left
+  let mut b = right
+  while b != 0UL {
+    let remainder = a % b
+    a = b
+    b = remainder
+  }
+  a
+}
+
+///|
+/// Number of probes in the repeating part of a key's double-hash sequence.
+///
+/// `contains` and `count_of` only care which positions are selected, not how
+/// often. Once the sequence returns to its starting slot every remaining probe
+/// repeats an already-seen counter, so a wide hash count over a small slot array
+/// can stop after one cycle. The sequence is purely periodic from its first
+/// element, with period `slot_count / gcd(step, slot_count)`.
+fn counting_effective_probes(
+  hash_count : Int32,
+  h2 : UInt64,
+  slot_count : UInt64,
+) -> Int32 {
+  if hash_count <= 64 {
+    return hash_count
+  }
+  let step = h2 % slot_count
+  let divisor = if step == 0UL { slot_count } else { counting_gcd(step, slot_count) }
+  let period = slot_count / divisor
+  if period < hash_count.to_uint64() {
+    period.to_int()
+  } else {
+    hash_count
+  }
+}
+
+///|
 /// Compute each distinct slot selected by a key together with the number of
 /// hash functions that select it, allocating fresh result arrays.
 fn unique_key_positions_fast(
@@ -610,8 +648,9 @@ fn CountingBloomFilter::contains_hashes(
   h2 : UInt64,
 ) -> Bool {
   let slot_count = self.slot_count.to_uint64()
+  let probes = counting_effective_probes(self.hash_count, h2, slot_count)
   let mut state = h1
-  for i = 0; i < self.hash_count; i = i + 1 {
+  for i = 0; i < probes; i = i + 1 {
     if self.counter_at((state % slot_count).to_int()) == 0UL {
       return false
     }
@@ -643,9 +682,10 @@ pub fn[K : Hash] CountingBloomFilter::count_of(
 ) -> Int32 {
   let (h1, h2) = key_hashes(key)
   let slot_count = self.slot_count.to_uint64()
+  let probes = counting_effective_probes(self.hash_count, h2, slot_count)
   let mut state = h1
   let mut minimum = 65535UL
-  for i = 0; i < self.hash_count; i = i + 1 {
+  for i = 0; i < probes; i = i + 1 {
     let value = self.counter_at((state % slot_count).to_int())
     if value == 0UL {
       return 0
