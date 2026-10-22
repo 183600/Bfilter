@@ -33,6 +33,24 @@ fn[T : Hash] key_hashes(key : T) -> (UInt64, UInt64) {
 }
 
 ///|
+/// Number of bit probes that can select a new position before the double-hash
+/// sequence repeats.
+///
+/// A Bloom bit count is always a multiple of 64. When it is also a power of two,
+/// wrapping the 64-bit probe state subtracts a multiple of the bit count, so the
+/// position sequence is periodic with period `bit_count / gcd(step, bit_count)`.
+/// Wider hash counts can then stop after one cycle instead of rechecking bits
+/// that are already known to be set or clear. Other bit counts keep every probe
+/// because a 64-bit wrap can move later probes outside the first cycle.
+fn bloom_effective_probes(
+  bit_count : Int32,
+  hash_count : Int32,
+  h2 : UInt64,
+) -> Int32 {
+  counting_effective_probes(hash_count, h2, bit_count.to_uint64())
+}
+
+///|
 /// Compute the standard Bloom filter layout for a capacity and target rate.
 fn bloom_layout(
   expected_items : Int32,
@@ -116,8 +134,9 @@ fn BloomFilter::insert_hashes(
     abort("bloom filter insertion count overflow")
   }
   let bit_count = self.bit_count.to_uint64()
+  let probes = bloom_effective_probes(self.bit_count, self.hash_count, h2)
   let mut state = h1
-  for i = 0; i < self.hash_count; i = i + 1 {
+  for i = 0; i < probes; i = i + 1 {
     let pos = (state % bit_count).to_int()
     let word = pos / 64
     let bit = pos % 64
@@ -145,8 +164,9 @@ fn BloomFilter::insert_if_absent_hashes(
   h2 : UInt64,
 ) -> Bool {
   let bit_count = self.bit_count.to_uint64()
+  let probes = bloom_effective_probes(self.bit_count, self.hash_count, h2)
   let mut state = h1
-  for i = 0; i < self.hash_count; i = i + 1 {
+  for i = 0; i < probes; i = i + 1 {
     let pos = (state % bit_count).to_int()
     let mask = 1UL << (pos % 64)
     if (self.words[pos / 64] & mask) == 0UL {
@@ -154,7 +174,7 @@ fn BloomFilter::insert_if_absent_hashes(
         abort("bloom filter insertion count overflow")
       }
       let mut remaining_state = state
-      for j = i; j < self.hash_count; j = j + 1 {
+      for j = i; j < probes; j = j + 1 {
         let remaining = (remaining_state % bit_count).to_int()
         self.words[remaining / 64] = self.words[remaining / 64] |
           (1UL << (remaining % 64))
@@ -190,8 +210,9 @@ fn BloomFilter::contains_hashes(
   h2 : UInt64,
 ) -> Bool {
   let bit_count = self.bit_count.to_uint64()
+  let probes = bloom_effective_probes(self.bit_count, self.hash_count, h2)
   let mut state = h1
-  for i = 0; i < self.hash_count; i = i + 1 {
+  for i = 0; i < probes; i = i + 1 {
     let pos = (state % bit_count).to_int()
     let word = pos / 64
     let bit = pos % 64

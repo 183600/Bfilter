@@ -24,6 +24,16 @@ const BLOCKED_BLOCK_WORDS : Int32 = 8
 const BLOCKED_MAX_BITS : Int32 = 2147483136
 
 ///|
+/// Number of probes that can select a new bit inside one blocked-filter block.
+///
+/// Every probe stays in the selected 512-bit block, and the step is odd, so the
+/// offset sequence repeats after at most 512 probes. A wider hash count can stop
+/// after one cycle instead of rescanning bits that are already known.
+fn blocked_effective_probes(hash_count : Int32, h2 : UInt64) -> Int32 {
+  counting_effective_probes(hash_count, h2, BLOCKED_BLOCK_BITS.to_uint64())
+}
+
+///|
 /// Compute the Bloom layout used by a blocked filter.
 fn blocked_bloom_layout(
   expected_items : Int32,
@@ -131,7 +141,8 @@ pub fn[K : Hash] BlockedBloomFilter::insert(
   let block_bits = BLOCKED_BLOCK_BITS.to_uint64()
   let step = (h2 % block_bits).to_int()
   let mut offset = (h1 % block_bits).to_int()
-  for i = 0; i < self.hash_count; i = i + 1 {
+  let probes = blocked_effective_probes(self.hash_count, h2)
+  for i = 0; i < probes; i = i + 1 {
     let pos = base + offset
     let word = pos / 64
     let bit = pos % 64
@@ -159,7 +170,8 @@ pub fn[K : Hash] BlockedBloomFilter::insert_if_absent(
   let block_bits = BLOCKED_BLOCK_BITS.to_uint64()
   let step = (h2 % block_bits).to_int()
   let mut offset = (h1 % block_bits).to_int()
-  for i = 0; i < self.hash_count; i = i + 1 {
+  let probes = blocked_effective_probes(self.hash_count, h2)
+  for i = 0; i < probes; i = i + 1 {
     let pos = base + offset
     let mask = 1UL << (pos % 64)
     if (self.words[pos / 64] & mask) == 0UL {
@@ -167,7 +179,7 @@ pub fn[K : Hash] BlockedBloomFilter::insert_if_absent(
         abort("blocked bloom filter insertion count overflow")
       }
       let mut remaining = offset
-      for j = i; j < self.hash_count; j = j + 1 {
+      for j = i; j < probes; j = j + 1 {
         let target = base + remaining
         self.words[target / 64] = self.words[target / 64] |
           (1UL << (target % 64))
@@ -201,7 +213,8 @@ pub fn[K : Hash] BlockedBloomFilter::contains(
   let block_bits = BLOCKED_BLOCK_BITS.to_uint64()
   let step = (h2 % block_bits).to_int()
   let mut offset = (h1 % block_bits).to_int()
-  for i = 0; i < self.hash_count; i = i + 1 {
+  let probes = blocked_effective_probes(self.hash_count, h2)
+  for i = 0; i < probes; i = i + 1 {
     let pos = base + offset
     let mask = 1UL << (pos % 64)
     if (self.words[pos / 64] & mask) == 0UL {
