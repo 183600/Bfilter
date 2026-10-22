@@ -396,6 +396,17 @@ pub fn ScalableBloomFilter::merge(
     } else {
       other_slice_count
     }
+    let mut total_bits = 0L
+    for i = 0; i < slice_count; i = i + 1 {
+      if i < other_slice_count {
+        total_bits = total_bits + other.slices[i].bit_count().to_int64()
+      } else {
+        total_bits = total_bits + self.slices[i].bit_count().to_int64()
+      }
+    }
+    guard total_bits <= 2147483584L else {
+      abort("scalable bloom filter is too large")
+    }
     let slices : Array[BloomFilter] = []
     let capacities : Array[Int32] = []
     for i = 0; i < slice_count; i = i + 1 {
