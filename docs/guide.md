@@ -162,8 +162,11 @@ at most 512 probes, so a wider `hash_count` is capped at one cycle. Blocks fill
 unevenly, which can raise the observed false-positive rate slightly above a
 classic Bloom filter with the same total bit count, but the standard
 `fill_ratio()`, `estimated_item_count()`, and `false_positive_rate()` estimates
-remain available. Filters can be combined when their rounded bit counts and
-hash counts match, exactly like `BloomFilter`.
+remain available. A completely full filter is detected with one scan of the
+backing words when its capped probe walk is wider than that array; queries then
+return `true` and conditional insertions return `false` without walking the
+block cycle. Filters can be combined when their rounded bit counts and hash
+counts match, exactly like `BloomFilter`.
 
 ## Scalable Bloom Filter
 

@@ -125,6 +125,30 @@ fn BlockedBloomFilter::block_base(
 }
 
 ///|
+/// Whether every addressable bit is currently set.
+fn BlockedBloomFilter::all_bits_set(self : BlockedBloomFilter) -> Bool {
+  for i = 0; i < self.words.length(); i = i + 1 {
+    if self.words[i] != 0xFFFFFFFFFFFFFFFFUL {
+      return false
+    }
+  }
+  true
+}
+
+///|
+/// Whether a full-filter scan is cheaper than walking `probes` positions.
+///
+/// Every probe stays inside one 512-bit block, so the effective walk is capped
+/// at one block. The word scan wins only for small filters whose backing array
+/// is shorter than that walk; larger layouts stay on the probe path.
+fn BlockedBloomFilter::should_check_full(
+  self : BlockedBloomFilter,
+  probes : Int32,
+) -> Bool {
+  probes > 64 && probes > self.words.length()
+}
+
+///|
 /// Insert `key` by setting every selected bit in its block.
 ///
 /// Inserting the same key more than once is allowed. The insertion counter is
@@ -142,6 +166,11 @@ pub fn[K : Hash] BlockedBloomFilter::insert(
   let step = (h2 % block_bits).to_int()
   let mut offset = (h1 % block_bits).to_int()
   let probes = blocked_effective_probes(self.hash_count, h2)
+  // A completely full filter cannot change, so skip the block probe walk.
+  if self.should_check_full(probes) && self.all_bits_set() {
+    self.inserted += 1
+    return
+  }
   for i = 0; i < probes; i = i + 1 {
     let pos = base + offset
     let word = pos / 64
@@ -171,6 +200,11 @@ pub fn[K : Hash] BlockedBloomFilter::insert_if_absent(
   let step = (h2 % block_bits).to_int()
   let mut offset = (h1 % block_bits).to_int()
   let probes = blocked_effective_probes(self.hash_count, h2)
+  // Every selected bit is already set on a full filter, so the conditional
+  // insertion must report a false positive without walking the block.
+  if self.should_check_full(probes) && self.all_bits_set() {
+    return false
+  }
   for i = 0; i < probes; i = i + 1 {
     let pos = base + offset
     let mask = 1UL << (pos % 64)
@@ -219,6 +253,10 @@ pub fn[K : Hash] BlockedBloomFilter::contains(
   let step = (h2 % block_bits).to_int()
   let mut offset = (h1 % block_bits).to_int()
   let probes = blocked_effective_probes(self.hash_count, h2)
+  // A full filter reports every key present; avoid walking the block cycle.
+  if self.should_check_full(probes) && self.all_bits_set() {
+    return true
+  }
   for i = 0; i < probes; i = i + 1 {
     let pos = base + offset
     let mask = 1UL << (pos % 64)
