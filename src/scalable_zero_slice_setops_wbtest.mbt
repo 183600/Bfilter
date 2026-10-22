@@ -110,10 +110,10 @@ test "zero-slice scalable counting preserves conservative counts across inserts 
     inserted: 3,
   }
   let union = left.union(right)
-  assert_eq(union.count(), 8)
+  assert_eq(union.count(), 5)
   assert_eq(union.slice_count(), 1)
   let restored = ScalableCountingBloomFilter::from_bytes(union.to_bytes())
-  assert_eq(restored.count(), 8)
+  assert_eq(restored.count(), 5)
   let merged = left.copy()
   merged.merge(right)
   assert_eq(merged.to_bytes(), union.to_bytes())
