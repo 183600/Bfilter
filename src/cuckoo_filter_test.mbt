@@ -124,3 +124,10 @@ test "cuckoo filter repeated failed inserts never lose entries" {
     assert_true(filter.contains(key))
   }
 }
+
+///|
+test "panic cuckoo merge rejects different bucket layouts" {
+  let filter = @src.CuckooFilter::with_size(8, 2)
+  let other = @src.CuckooFilter::with_size(16, 2)
+  filter.merge(other) |> ignore
+}

@@ -82,3 +82,38 @@ test "panic optimal size helpers reject infinite false positive rates" {
 test "panic counting optimal size rejects negative infinity rates" {
   @src.CountingBloomFilter::optimal_size(10, @double.neg_infinity) |> ignore
 }
+
+///|
+test "scalable filters support subnormal rates while growing" {
+  // Multiplying this rate by the slice policy factor underflows to zero once
+  // the filter reaches its fourth slice, exercising the target-rate fallback.
+  let rate = @double.min_positive / 1.0e15
+  let bloom = @src.ScalableBloomFilter::new(1, rate)
+  for i = 0; i < 8; i = i + 1 {
+    bloom.insert("key-" + i.to_string())
+  }
+  assert_eq(bloom.slice_count(), 4)
+  assert_eq(bloom.target_false_positive_rate(), rate)
+  assert_true(bloom.contains("key-0"))
+  assert_true(bloom.contains("key-7"))
+  let bloom_restored = @src.ScalableBloomFilter::from_bytes(bloom.to_bytes())
+  assert_eq(bloom_restored.slice_count(), 4)
+  assert_true(bloom_restored.contains_all(["key-0", "key-7"]))
+
+  let counting = @src.ScalableCountingBloomFilter::new(1, rate)
+  for i = 0; i < 8; i = i + 1 {
+    counting.insert("key-" + i.to_string())
+  }
+  counting.insert("key-0")
+  assert_eq(counting.slice_count(), 4)
+  assert_eq(counting.target_false_positive_rate(), rate)
+  assert_eq(counting.count_of("key-0"), 2)
+  assert_eq(counting.count_of("key-7"), 1)
+  let counting_restored = @src.ScalableCountingBloomFilter::from_bytes(
+    counting.to_bytes(),
+  )
+  assert_eq(counting_restored.slice_count(), 4)
+  assert_eq(counting_restored.count_of("key-0"), 2)
+  assert_true(counting_restored.remove("key-0"))
+  assert_eq(counting_restored.count_of("key-0"), 1)
+}

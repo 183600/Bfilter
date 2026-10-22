@@ -181,26 +181,21 @@ test "merging into an empty scalable counting receiver keeps its extra slices" {
   assert_eq(empty_slice_count, grown_empty.slice_count())
 
   let source = @src.ScalableCountingBloomFilter::new(1, 0.01)
-  for i = 0; i < 8; i = i + 1 {
-    source.insert("source-" + i.to_string())
-  }
+  source.insert("source-0")
   let source_slice_count = source.slice_count()
+  assert_true(empty_slice_count > source_slice_count)
   receiver.merge(source)
   assert_eq(receiver.count(), source.count())
   assert_eq(receiver.tracked_key_count(), source.tracked_key_count())
   assert_eq(receiver.slice_count(), empty_slice_count.max(source_slice_count))
-  for i = 0; i < 8; i = i + 1 {
-    assert_true(receiver.contains("source-" + i.to_string()))
-    assert_eq(receiver.count_of("source-" + i.to_string()), 1)
-  }
+  assert_true(receiver.contains("source-0"))
+  assert_eq(receiver.count_of("source-0"), 1)
   let restored = @src.ScalableCountingBloomFilter::from_bytes(
     receiver.to_bytes(),
   )
   assert_eq(restored.count(), receiver.count())
   assert_eq(restored.slice_count(), receiver.slice_count())
-  for i = 0; i < 8; i = i + 1 {
-    assert_true(restored.remove("source-" + i.to_string()))
-  }
+  assert_true(restored.remove("source-0"))
   assert_true(restored.is_empty())
   assert_eq(restored.tracked_key_count(), 0)
 }

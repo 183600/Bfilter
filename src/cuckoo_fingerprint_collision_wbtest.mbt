@@ -41,3 +41,21 @@ test "cuckoo union preserves colliding fingerprints" {
     }
   }
 }
+
+///|
+test "cuckoo insert_if_absent detects a fingerprint in the alternate bucket" {
+  let filter = CuckooFilter::with_size(64, 2)
+  let key = "alternate-only"
+  let (primary, fingerprint) = filter.key_info(key)
+  let alternate = filter.alternate_index(primary, fingerprint)
+  assert_true(alternate != primary)
+  filter.buckets[alternate * filter.bucket_size] = fingerprint
+  filter.inserted = 1
+  assert_true(filter.contains(key))
+  assert_false(filter.insert_if_absent(key))
+  assert_eq(filter.count(), 1)
+  assert_eq(filter.count_of(key), 1)
+  assert_true(filter.remove(key))
+  assert_false(filter.contains(key))
+  assert_eq(filter.count(), 0)
+}

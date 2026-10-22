@@ -258,3 +258,14 @@ test "counting insert respects a selected lane above its removable ceiling" {
   assert_false(filter.contains(key))
   assert_true(filter.count() > 1)
 }
+
+///|
+test "compact counter setter clamps values above the nibble maximum" {
+  let filter = CompactCountingBloomFilter::with_size(16, 1)
+  filter.set_counter(0, 99UL)
+  assert_eq(filter.counter_at(0), 15UL)
+  assert_eq(filter.counter_mass, 15UL)
+  filter.set_counter(0, 3UL)
+  assert_eq(filter.counter_at(0), 3UL)
+  assert_eq(filter.counter_mass, 3UL)
+}
