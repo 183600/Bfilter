@@ -22,8 +22,8 @@ test "cuckoo set checks handle duplicate fingerprints in one bucket" {
   assert_false(mirror.is_disjoint_from(filter))
   let common = filter.intersection(mirror)
   assert_eq(common.count(), 3)
-  assert_eq(common.is_subset_of(filter), true)
-  assert_eq(common.is_subset_of(mirror), true)
+  assert_true(common.is_subset_of(filter))
+  assert_true(common.is_subset_of(mirror))
 }
 
 ///|

@@ -1,5 +1,5 @@
 ///|
-test "scalable bloom empty filters answer subset and disjoint checks without slices" {
+test "scalable bloom empty filters answer subset and disjoint checks with several empty slices" {
   let left = ScalableBloomFilter::new(1024, 0.01)
   let right = ScalableBloomFilter::new(1024, 0.01)
   for i = 0; i < 4; i = i + 1 {
@@ -20,7 +20,7 @@ test "scalable bloom empty filters answer subset and disjoint checks without sli
 }
 
 ///|
-test "scalable counting empty filters answer subset and disjoint checks without slices" {
+test "scalable counting empty filters answer subset and disjoint checks with several empty slices" {
   let left = ScalableCountingBloomFilter::new(1024, 0.01)
   let right = ScalableCountingBloomFilter::new(1024, 0.01)
   for i = 0; i < 4; i = i + 1 {
