@@ -428,6 +428,16 @@ pub fn ScalableBloomFilter::merge(
   other : ScalableBloomFilter,
 ) -> Unit {
   self.ensure_same_policy(other)
+  // A whitebox-constructed filter can have no slices. Merging two such filters
+  // would otherwise leave the receiver in a transient zero-slice state that
+  // cannot be serialized, so normalize it to one empty initial slice.
+  if self.slices.length() == 0 &&
+    other.slices.length() == 0 &&
+    self.inserted == 0 &&
+    other.inserted == 0 {
+    self.append_slice()
+    return
+  }
   // Merging an empty filter whose slices are already covered by the receiver
   // cannot change any bit or append a slice. Skip the per-slice OR scans.
   if other.inserted == 0 && other.slices.length() <= self.slices.length() {

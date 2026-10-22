@@ -564,6 +564,18 @@ pub fn ScalableCountingBloomFilter::merge(
   other : ScalableCountingBloomFilter,
 ) -> Unit {
   self.ensure_same_policy(other)
+  // A whitebox-constructed filter can have no slices. Merging two such filters
+  // would otherwise leave the receiver in a transient zero-slice state that
+  // cannot be serialized, so normalize it to one empty initial slice.
+  if self.slices.length() == 0 &&
+    other.slices.length() == 0 &&
+    self.inserted == 0 &&
+    other.inserted == 0 &&
+    self.locations.length() == 0 &&
+    other.locations.length() == 0 {
+    self.append_slice()
+    return
+  }
   // An empty filter contributes no tracked keys and no counters. A count-only
   // filter restored from bytes is also empty in this sense: it carries a
   // conservative insertion count but no tracked key and no positive counter.
