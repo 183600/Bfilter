@@ -15,3 +15,19 @@ test "cuckoo union retry keeps a nonzero eviction state" {
   assert_eq(restored.random_state, result.random_state)
   assert_true(restored.contains("payload"))
 }
+
+///|
+test "cuckoo union of two empty filters keeps the receiver state" {
+  let left = CuckooFilter::with_size(8, 4)
+  left.random_state = 0x13579BDF2468ACE0UL
+  let right = CuckooFilter::with_size(8, 4)
+  right.random_state = 0x0FEDCBA987654321UL
+  let combined = match left.union(right) {
+    Some(filter) => filter
+    None => abort("empty union unexpectedly failed")
+  }
+  assert_eq(combined.to_bytes(), left.to_bytes())
+  let merged = left.copy()
+  assert_true(merged.merge(right))
+  assert_eq(merged.to_bytes(), left.to_bytes())
+}

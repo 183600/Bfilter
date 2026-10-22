@@ -587,6 +587,12 @@ pub fn CuckooFilter::union(
     return None
   }
   if self.inserted == 0 {
+    // Unioning two empty filters has no fingerprints to copy. Keep the
+    // receiver's state so the result matches an in-place merge of an empty
+    // source instead of depending on which empty operand happens to be second.
+    if other.inserted == 0 {
+      return Some(self.copy())
+    }
     return Some(other.copy())
   }
   if other.inserted == 0 {
