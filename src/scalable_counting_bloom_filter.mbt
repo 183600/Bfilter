@@ -267,6 +267,11 @@ pub fn[K : Hash] ScalableCountingBloomFilter::contains(
   self : ScalableCountingBloomFilter,
   key : K,
 ) -> Bool {
+  // A filter with no outstanding insertions has no positive counter in any
+  // slice, so a query can answer without hashing the key.
+  if self.inserted == 0 {
+    return false
+  }
   let id = key_hashes(key)
   self.contains_hashes(id)
 }

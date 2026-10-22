@@ -280,6 +280,11 @@ fn BloomFilter::contains_hashes(
 /// `false` means the key is definitely absent. `true` means it is either
 /// present or a false positive.
 pub fn[K : Hash] BloomFilter::contains(self : BloomFilter, key : K) -> Bool {
+  // No insertion has happened, so no bit is set and hashing the key would be
+  // wasted work.
+  if self.inserted == 0 {
+    return false
+  }
   let (h1, h2) = key_hashes(key)
   self.contains_hashes(h1, h2)
 }

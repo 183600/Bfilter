@@ -401,6 +401,11 @@ fn CuckooFilter::insert_fingerprint(
 /// failed attempt restores all displaced fingerprints before returning, so a
 /// failed insert never loses existing entries.
 pub fn[K : Hash] CuckooFilter::insert(self : CuckooFilter, key : K) -> Bool {
+  // A full filter rejects every insertion, so avoid hashing the key and
+  // scanning its candidate buckets first.
+  if self.inserted >= self.capacity() {
+    return false
+  }
   let (index1, fingerprint) = self.key_info(key)
   self.insert_fingerprint(index1, fingerprint)
 }
@@ -414,6 +419,11 @@ pub fn[K : Hash] CuckooFilter::insert_if_absent(
   self : CuckooFilter,
   key : K,
 ) -> Bool {
+  // A full filter cannot add a fingerprint, so skip the presence check and
+  // insertion attempt entirely.
+  if self.inserted >= self.capacity() {
+    return false
+  }
   let (index1, fingerprint) = self.key_info(key)
   if self.bucket_contains(index1, fingerprint) {
     return false
@@ -430,6 +440,10 @@ pub fn[K : Hash] CuckooFilter::insert_if_absent(
 /// bucket. Results may contain false positives but never false negatives for
 /// successfully inserted keys.
 pub fn[K : Hash] CuckooFilter::contains(self : CuckooFilter, key : K) -> Bool {
+  // No fingerprint is stored, so no key can be reported present.
+  if self.inserted == 0 {
+    return false
+  }
   let (index1, fingerprint) = self.key_info(key)
   if self.bucket_contains(index1, fingerprint) {
     return true
@@ -446,6 +460,10 @@ pub fn[K : Hash] CuckooFilter::contains(self : CuckooFilter, key : K) -> Bool {
 /// fingerprint occupies a candidate bucket, but it is never lower than the
 /// number of successful insertions.
 pub fn[K : Hash] CuckooFilter::count_of(self : CuckooFilter, key : K) -> Int32 {
+  // No fingerprint is stored, so the count is zero without hashing the key.
+  if self.inserted == 0 {
+    return 0
+  }
   let (index1, fingerprint) = self.key_info(key)
   self.pair_fingerprint_count(index1, fingerprint)
 }
@@ -457,6 +475,10 @@ pub fn[K : Hash] CuckooFilter::count_of(self : CuckooFilter, key : K) -> Int32 {
 /// known to be inserted; removing a false positive can delete another key's
 /// entry.
 pub fn[K : Hash] CuckooFilter::remove(self : CuckooFilter, key : K) -> Bool {
+  // No fingerprint is stored, so nothing can be removed.
+  if self.inserted == 0 {
+    return false
+  }
   let (index1, fingerprint) = self.key_info(key)
   let mut removed = self.bucket_remove(index1, fingerprint)
   if !removed {

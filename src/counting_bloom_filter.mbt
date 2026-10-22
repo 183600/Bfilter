@@ -751,6 +751,11 @@ pub fn[K : Hash] CountingBloomFilter::remove(
   self : CountingBloomFilter,
   key : K,
 ) -> Bool {
+  // No counter is positive, so no removal can succeed and hashing the key is
+  // wasted work.
+  if self.counter_mass == 0UL {
+    return false
+  }
   let (h1, h2) = key_hashes(key)
   self.remove_hashes(h1, h2)
 }
@@ -859,6 +864,11 @@ pub fn[K : Hash] CountingBloomFilter::contains(
   self : CountingBloomFilter,
   key : K,
 ) -> Bool {
+  // No counter is positive, so no probe can succeed and hashing the key is
+  // wasted work.
+  if self.counter_mass == 0UL {
+    return false
+  }
   let (h1, h2) = key_hashes(key)
   self.contains_hashes(h1, h2)
 }
