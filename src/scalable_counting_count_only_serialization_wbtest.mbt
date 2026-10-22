@@ -52,3 +52,36 @@ test "panic scalable counting serialization rejects lost metadata with counters"
   )
   |> ignore
 }
+
+///|
+test "scalable counting count-only filter stays serializable after insertion" {
+  let filter = ScalableCountingBloomFilter::new(2, 0.01)
+  filter.append_slice()
+  filter.slices[0].inserted = 2
+  filter.slices[1].inserted = 3
+  filter.inserted = 5
+
+  let restored = ScalableCountingBloomFilter::from_bytes(filter.to_bytes())
+  assert_eq(restored.count(), 5)
+  restored.insert("fresh")
+  assert_eq(restored.count(), 6)
+  assert_eq(restored.count_of("fresh"), 1)
+  assert_true(restored.contains("fresh"))
+
+  let restored_again = ScalableCountingBloomFilter::from_bytes(
+    restored.to_bytes(),
+  )
+  assert_eq(restored_again.count(), 6)
+  assert_eq(restored_again.tracked_key_count(), 1)
+  assert_eq(restored_again.count_of("fresh"), 1)
+  assert_true(restored_again.contains("fresh"))
+
+  assert_true(restored_again.remove("fresh"))
+  assert_eq(restored_again.count(), 5)
+  assert_eq(restored_again.tracked_key_count(), 0)
+  let empty_again = ScalableCountingBloomFilter::from_bytes(
+    restored_again.to_bytes(),
+  )
+  assert_eq(empty_again.count(), 5)
+  assert_eq(empty_again.tracked_key_count(), 0)
+}
