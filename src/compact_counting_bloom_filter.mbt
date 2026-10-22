@@ -471,6 +471,12 @@ pub fn CompactCountingBloomFilter::merge(
   other : CompactCountingBloomFilter,
 ) -> Unit {
   self.ensure_compatible(other)
+  // An empty filter contributes no counters. Checking the counter mass as well
+  // as the insertion count keeps the fast path safe even for a hand-built state
+  // whose counters are positive but whose insertion count has already drained.
+  if other.inserted == 0 && other.counter_mass == 0UL {
+    return
+  }
   guard self.inserted <= 2147483647 - other.inserted else {
     abort("compact counting bloom filter insertion count overflow")
   }

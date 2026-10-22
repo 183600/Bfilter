@@ -697,6 +697,15 @@ pub fn CuckooFilter::intersection(
 /// when every fingerprint was added. If the combined fingerprints cannot fit,
 /// returns `false` and leaves `self` unchanged.
 pub fn CuckooFilter::merge(self : CuckooFilter, other : CuckooFilter) -> Bool {
+  guard self.bucket_count == other.bucket_count &&
+    self.bucket_size == other.bucket_size else {
+    abort("cuckoo filters must have the same bucket count and size")
+  }
+  // Unioning with an empty filter copies the receiver and copies it back. The
+  // empty filter contributes no fingerprints, so the merge is already complete.
+  if other.inserted == 0 {
+    return true
+  }
   match self.union(other) {
     Some(result) => {
       for i = 0; i < self.buckets.length(); i = i + 1 {

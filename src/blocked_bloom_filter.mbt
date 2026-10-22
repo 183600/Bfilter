@@ -298,6 +298,12 @@ pub fn BlockedBloomFilter::merge(
   other : BlockedBloomFilter,
 ) -> Unit {
   self.ensure_compatible(other)
+  // An empty filter contributes neither bits nor insertions, so avoid scanning
+  // the whole bit array. `inserted == 0` implies no bit is set in a valid
+  // filter; deserialization rejects a zero count with set bits.
+  if other.inserted == 0 {
+    return
+  }
   guard self.inserted <= 2147483647 - other.inserted else {
     abort("blocked bloom filter insertion count overflow")
   }
