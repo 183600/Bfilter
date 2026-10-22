@@ -170,12 +170,12 @@ the slices. `copy` is independent, and `clear` returns the filter to a single
 empty slice with the original initial capacity. `ConcurrentScalableBloomFilter`
 provides the same operations with one mutex and a `snapshot()` method.
 
-Scalable filters can also be combined when they share the same initial capacity
-and target false-positive rate. Slices are matched by index, so `merge` ORs the
-bits of corresponding slices and appends slices that only the other filter
-holds. `union` returns a new combined filter, `intersection` intersects slices
-with the same index up to the shorter input, and `is_subset_of` compares each
-slice against the slice with the same index:
+Scalable bloom filters can also be combined when they share the same initial
+capacity and target false-positive rate. Slices are matched by index, so
+`ScalableBloomFilter::merge` ORs the bits of corresponding slices and appends
+slices that only the other filter holds. `union` returns a new combined filter,
+`intersection` intersects slices with the same index up to the shorter input,
+and `is_subset_of` compares each slice against the slice with the same index:
 
 ```moonbit
 let left = @src.ScalableBloomFilter::new(100, 0.01)
