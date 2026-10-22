@@ -79,3 +79,29 @@ test "concurrent wrappers keep their receiver when merging an empty filter" {
   assert_eq(cuckoo.to_bytes(), cuckoo_before)
   assert_true(cuckoo.contains("alpha"))
 }
+
+///|
+test "merging a non-empty counting filter into an empty receiver copies it" {
+  let source = @src.CountingBloomFilter::with_size(64, 4)
+  source.insert_all(["alpha", "alpha", "beta"])
+  let source_bytes = source.to_bytes()
+  let receiver = @src.CountingBloomFilter::with_size(64, 4)
+  receiver.merge(source)
+  assert_eq(receiver.to_bytes(), source_bytes)
+  assert_eq(receiver.count(), source.count())
+  assert_eq(receiver.count_of("alpha"), 2)
+  assert_eq(source.to_bytes(), source_bytes)
+}
+
+///|
+test "merging a non-empty compact counting filter into an empty receiver copies it" {
+  let source = @src.CompactCountingBloomFilter::with_size(64, 4)
+  source.insert_all(["alpha", "alpha", "beta"])
+  let source_bytes = source.to_bytes()
+  let receiver = @src.CompactCountingBloomFilter::with_size(64, 4)
+  receiver.merge(source)
+  assert_eq(receiver.to_bytes(), source_bytes)
+  assert_eq(receiver.count(), source.count())
+  assert_eq(receiver.count_of("alpha"), 2)
+  assert_eq(source.to_bytes(), source_bytes)
+}

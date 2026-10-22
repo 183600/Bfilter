@@ -510,6 +510,17 @@ pub fn CompactCountingBloomFilter::merge(
   if other.inserted == 0 && other.counter_mass == 0UL {
     return
   }
+  // The receiver holds no counters, so lane-wise merging would only copy the
+  // other filter while recomputing its mass. Copy the packed words and metadata
+  // directly instead.
+  if self.inserted == 0 && self.counter_mass == 0UL {
+    for i = 0; i < self.counters.length(); i = i + 1 {
+      self.counters[i] = other.counters[i]
+    }
+    self.counter_mass = other.counter_mass
+    self.inserted = other.inserted
+    return
+  }
   guard self.inserted <= 2147483647 - other.inserted else {
     abort("compact counting bloom filter insertion count overflow")
   }
