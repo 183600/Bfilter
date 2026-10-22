@@ -29,6 +29,25 @@ const SERIAL_SCALABLE_COUNTING : Byte = b'\x07'
 const SERIAL_HEADER_BYTES : Int32 = 20
 
 ///|
+fn serial_write_header_at(
+  bytes : FixedArray[Byte],
+  offset : Int32,
+  variant : Byte,
+  first : Int32,
+  second : Int32,
+  third : Int32,
+) -> Unit {
+  bytes.unsafe_write_uint32_le(offset, SERIAL_MAGIC)
+  bytes[offset + 4] = variant
+  bytes[offset + 5] = SERIAL_VERSION
+  bytes[offset + 6] = b'\x00'
+  bytes[offset + 7] = b'\x00'
+  bytes.unsafe_write_uint32_le(offset + 8, first.reinterpret_as_uint())
+  bytes.unsafe_write_uint32_le(offset + 12, second.reinterpret_as_uint())
+  bytes.unsafe_write_uint32_le(offset + 16, third.reinterpret_as_uint())
+}
+
+///|
 fn serial_write_header(
   bytes : FixedArray[Byte],
   variant : Byte,
@@ -36,14 +55,7 @@ fn serial_write_header(
   second : Int32,
   third : Int32,
 ) -> Unit {
-  bytes.unsafe_write_uint32_le(0, SERIAL_MAGIC)
-  bytes[4] = variant
-  bytes[5] = SERIAL_VERSION
-  bytes[6] = b'\x00'
-  bytes[7] = b'\x00'
-  bytes.unsafe_write_uint32_le(8, first.reinterpret_as_uint())
-  bytes.unsafe_write_uint32_le(12, second.reinterpret_as_uint())
-  bytes.unsafe_write_uint32_le(16, third.reinterpret_as_uint())
+  serial_write_header_at(bytes, 0, variant, first, second, third)
 }
 
 ///|
@@ -74,24 +86,42 @@ fn serial_check_length(data : Bytes, expected : Int64) -> Unit {
 }
 
 ///|
+fn BloomFilter::serialized_size(self : BloomFilter) -> Int32 {
+  SERIAL_HEADER_BYTES + self.words.length() * 8
+}
+
+///|
+fn BloomFilter::write_serialized(
+  self : BloomFilter,
+  data : FixedArray[Byte],
+  offset : Int32,
+) -> Unit {
+  serial_write_header_at(
+    data,
+    offset,
+    SERIAL_BLOOM,
+    self.bit_count,
+    self.hash_count,
+    self.inserted,
+  )
+  let word_count = self.words.length()
+  for i = 0; i < word_count; i = i + 1 {
+    data.unsafe_write_uint64_le(
+      offset + SERIAL_HEADER_BYTES + i * 8,
+      self.words[i],
+    )
+  }
+}
+
+///|
 /// Encode the filter as a portable byte sequence.
 ///
 /// The encoding stores the configuration, insertion count, and bit array in a
 /// versioned little-endian format. Hashing uses fixed seeds, so a filter can be
 /// restored in another process and keep answering queries for the same keys.
 pub fn BloomFilter::to_bytes(self : BloomFilter) -> Bytes {
-  let word_count = self.words.length()
-  let data = FixedArray::make(SERIAL_HEADER_BYTES + word_count * 8, b'\x00')
-  serial_write_header(
-    data,
-    SERIAL_BLOOM,
-    self.bit_count,
-    self.hash_count,
-    self.inserted,
-  )
-  for i = 0; i < word_count; i = i + 1 {
-    data.unsafe_write_uint64_le(SERIAL_HEADER_BYTES + i * 8, self.words[i])
-  }
+  let data = FixedArray::make(self.serialized_size(), b'\x00')
+  self.write_serialized(data, 0)
   Bytes::from_array(data.exact_view())
 }
 
@@ -126,20 +156,38 @@ pub fn BloomFilter::from_bytes(data : Bytes) -> BloomFilter {
 }
 
 ///|
-/// Encode the counting filter as a portable byte sequence.
-pub fn CountingBloomFilter::to_bytes(self : CountingBloomFilter) -> Bytes {
-  let word_count = self.counters.length()
-  let data = FixedArray::make(SERIAL_HEADER_BYTES + word_count * 8, b'\x00')
-  serial_write_header(
+fn CountingBloomFilter::serialized_size(self : CountingBloomFilter) -> Int32 {
+  SERIAL_HEADER_BYTES + self.counters.length() * 8
+}
+
+///|
+fn CountingBloomFilter::write_serialized(
+  self : CountingBloomFilter,
+  data : FixedArray[Byte],
+  offset : Int32,
+) -> Unit {
+  serial_write_header_at(
     data,
+    offset,
     SERIAL_COUNTING,
     self.slot_count,
     self.hash_count,
     self.inserted,
   )
+  let word_count = self.counters.length()
   for i = 0; i < word_count; i = i + 1 {
-    data.unsafe_write_uint64_le(SERIAL_HEADER_BYTES + i * 8, self.counters[i])
+    data.unsafe_write_uint64_le(
+      offset + SERIAL_HEADER_BYTES + i * 8,
+      self.counters[i],
+    )
   }
+}
+
+///|
+/// Encode the counting filter as a portable byte sequence.
+pub fn CountingBloomFilter::to_bytes(self : CountingBloomFilter) -> Bytes {
+  let data = FixedArray::make(self.serialized_size(), b'\x00')
+  self.write_serialized(data, 0)
   Bytes::from_array(data.exact_view())
 }
 
@@ -246,12 +294,9 @@ pub fn CuckooFilter::from_bytes(data : Bytes) -> CuckooFilter {
 /// target false-positive rate. Each slice is appended as a length-prefixed
 /// Bloom filter produced by `BloomFilter::to_bytes`.
 pub fn ScalableBloomFilter::to_bytes(self : ScalableBloomFilter) -> Bytes {
-  let encoded : Array[Bytes] = []
   let mut total = SERIAL_HEADER_BYTES + 8
   for slice in self.slices {
-    let bytes = slice.to_bytes()
-    encoded.push(bytes)
-    total = total + 4 + bytes.length()
+    total = total + 4 + slice.serialized_size()
   }
   let data = FixedArray::make(total, b'\x00')
   serial_write_header(
@@ -266,13 +311,14 @@ pub fn ScalableBloomFilter::to_bytes(self : ScalableBloomFilter) -> Bytes {
     self.target_rate.reinterpret_as_uint64(),
   )
   let mut offset = SERIAL_HEADER_BYTES + 8
-  for bytes in encoded {
-    data.unsafe_write_uint32_le(offset, bytes.length().reinterpret_as_uint())
+  for slice in self.slices {
+    data.unsafe_write_uint32_le(
+      offset,
+      slice.serialized_size().reinterpret_as_uint(),
+    )
     offset = offset + 4
-    for i = 0; i < bytes.length(); i = i + 1 {
-      data[offset + i] = bytes.at(i)
-    }
-    offset = offset + bytes.length()
+    slice.write_serialized(data, offset)
+    offset = offset + slice.serialized_size()
   }
   Bytes::from_array(data.exact_view())
 }
@@ -371,12 +417,9 @@ pub fn ScalableBloomFilter::from_bytes(data : Bytes) -> ScalableBloomFilter {
 pub fn ScalableCountingBloomFilter::to_bytes(
   self : ScalableCountingBloomFilter,
 ) -> Bytes {
-  let encoded : Array[Bytes] = []
   let mut total = SERIAL_HEADER_BYTES + 12
   for slice in self.slices {
-    let bytes = slice.to_bytes()
-    encoded.push(bytes)
-    total = total + 4 + bytes.length()
+    total = total + 4 + slice.serialized_size()
   }
   let entry_count = self.locations.length()
   guard entry_count >= 0 && entry_count <= (2147483647 - total) / 24 else {
@@ -427,13 +470,14 @@ pub fn ScalableCountingBloomFilter::to_bytes(
     data.unsafe_write_uint32_le(offset + 20, occurrences.reinterpret_as_uint())
     offset = offset + 24
   }
-  for bytes in encoded {
-    data.unsafe_write_uint32_le(offset, bytes.length().reinterpret_as_uint())
+  for slice in self.slices {
+    data.unsafe_write_uint32_le(
+      offset,
+      slice.serialized_size().reinterpret_as_uint(),
+    )
     offset = offset + 4
-    for i = 0; i < bytes.length(); i = i + 1 {
-      data[offset + i] = bytes.at(i)
-    }
-    offset = offset + bytes.length()
+    slice.write_serialized(data, offset)
+    offset = offset + slice.serialized_size()
   }
   Bytes::from_array(data.exact_view())
 }
