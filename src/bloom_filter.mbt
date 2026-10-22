@@ -539,6 +539,13 @@ pub fn BloomFilter::set_bit_count(self : BloomFilter) -> Int32 {
 
 ///|
 fn BloomFilter::has_set_bit(self : BloomFilter) -> Bool {
+  // An insertion count of zero implies no bit is set in a valid filter, so the
+  // scalable set checks can skip empty slices without touching their words.
+  // A deserialized count-only slice can carry a positive count with zero bits,
+  // so only the zero-count case is eligible for this shortcut.
+  if self.inserted == 0 {
+    return false
+  }
   for i = 0; i < self.words.length(); i = i + 1 {
     if self.words[i] != 0UL {
       return true

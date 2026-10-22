@@ -109,9 +109,11 @@ true when `self` is empty, and `is_disjoint_from` is immediately true when
 either input is empty. The same shortcuts apply to the blocked, counting, and
 compact counting variants. The scalable variants keep the shortcut as well:
 their `is_subset_of` and `is_disjoint_from` checks return without scanning the
-slice storage when the relevant insertion count is zero. Merging a non-empty
-filter into an empty receiver copies its bits or counters instead of combining
-them with zeroed storage.
+slice storage when the relevant insertion count is zero. While checking a
+non-empty scalable filter, a slice whose own insertion count is zero is also
+skipped without scanning its bits or counters. Merging a non-empty filter into
+an empty receiver copies its bits or counters instead of combining them with
+zeroed storage.
 
 `merge` performs the same combination as `union` in place, avoiding a new
 allocation. The concurrent wrappers expose `merge`, `union`, `intersection`,
@@ -616,8 +618,10 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   a slice when the newest one reaches its planned capacity, so growth is
   amortized. Merges and unions process the slices they combine; merging into an
   empty scalable filter copies the source slices instead of rebuilding them.
-  The scalable counting map grows with the number of distinct tracked keys and
-  is not included in `memory_bytes()`, which reports only counter storage.
+  Set checks skip slices whose insertion count is zero, so an empty slice does
+  not add an occupancy scan. The scalable counting map grows with the number of
+  distinct tracked keys and is not included in `memory_bytes()`, which reports
+  only counter storage.
 - The `optimal_size` helpers compute layouts without allocating, and the
   concurrent wrappers forward them without taking the mutex. Batch operations on
   the concurrent wrappers take the lock once for the whole batch.

@@ -1320,6 +1320,13 @@ pub fn CountingBloomFilter::occupied_slot_count(
 fn CountingBloomFilter::has_positive_counter(
   self : CountingBloomFilter,
 ) -> Bool {
+  // No counter can be positive when the total counter mass is zero. Scalable
+  // set checks use this helper per slice, so empty slices can avoid a full
+  // packed-counter scan. A count-only slice has zero mass as well, and is
+  // correctly treated as having no positive counter.
+  if self.counter_mass == 0UL {
+    return false
+  }
   for i = 0; i < self.counters.length(); i = i + 1 {
     if counting_nonzero_lanes(self.counters[i]) != 0UL {
       return true
