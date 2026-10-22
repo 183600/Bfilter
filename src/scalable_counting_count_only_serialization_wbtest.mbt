@@ -85,3 +85,31 @@ test "scalable counting count-only filter stays serializable after insertion" {
   assert_eq(empty_again.count(), 5)
   assert_eq(empty_again.tracked_key_count(), 0)
 }
+
+///|
+test "count-only scalable counting filters support conditional insertion" {
+  let filter = ScalableCountingBloomFilter::new(2, 0.01)
+  filter.append_slice()
+  filter.slices[0].inserted = 2
+  filter.slices[1].inserted = 3
+  filter.inserted = 5
+
+  let restored = ScalableCountingBloomFilter::from_bytes(filter.to_bytes())
+  assert_eq(restored.tracked_key_count(), 0)
+  assert_true(restored.insert_if_absent("fresh"))
+  assert_false(restored.insert_if_absent("fresh"))
+  assert_eq(restored.count(), 6)
+  assert_eq(restored.count_of("fresh"), 1)
+  assert_true(restored.contains("fresh"))
+  // The first real key needs a fresh slice so the older count-only counts stay
+  // representable as conservative extras.
+  assert_eq(restored.slice_count(), 3)
+
+  let round_trip = ScalableCountingBloomFilter::from_bytes(
+    restored.to_bytes(),
+  )
+  assert_eq(round_trip.count(), 6)
+  assert_eq(round_trip.count_of("fresh"), 1)
+  assert_true(round_trip.contains("fresh"))
+  assert_eq(round_trip.slice_count(), 3)
+}
