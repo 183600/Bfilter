@@ -72,6 +72,13 @@ test "merging a saturated source into a count-only receiver copies it" {
   assert_false(receiver.contains("hot"))
   assert_eq(receiver.count_of("hot"), 4_465)
 
+  let union_receiver = ScalableCountingBloomFilter::new(1, 0.5)
+  count_only_scalable(union_receiver, 2)
+  let combined = union_receiver.union(source)
+  assert_eq(combined.to_bytes(), source_bytes)
+  assert_eq(combined.count_of("hot"), 4_465)
+  assert_false(combined.contains("hot"))
+
   let restored = ScalableCountingBloomFilter::from_bytes(receiver.to_bytes())
   assert_eq(restored.to_bytes(), source_bytes)
   assert_eq(restored.count_of("hot"), 4_465)
