@@ -690,7 +690,7 @@ pub fn ScalableCountingBloomFilter::is_subset_of(
       if !self.slices[i].is_subset_of(other.slices[i]) {
         return false
       }
-    } else if self.slices[i].occupied_slot_count() > 0 {
+    } else if self.slices[i].has_positive_counter() {
       return false
     }
   }
@@ -723,13 +723,13 @@ pub fn ScalableCountingBloomFilter::is_disjoint_from(
   let mut any_self = false
   let mut any_other = false
   for i = 0; i < self_slices.length(); i = i + 1 {
-    if self_slices[i].occupied_slot_count() > 0 {
+    if self_slices[i].has_positive_counter() {
       self_nonempty[i] = true
       any_self = true
     }
   }
   for i = 0; i < other_slices.length(); i = i + 1 {
-    if other_slices[i].occupied_slot_count() > 0 {
+    if other_slices[i].has_positive_counter() {
       other_nonempty[i] = true
       any_other = true
     }

@@ -422,6 +422,16 @@ pub fn BloomFilter::set_bit_count(self : BloomFilter) -> Int32 {
 }
 
 ///|
+fn BloomFilter::has_set_bit(self : BloomFilter) -> Bool {
+  for i = 0; i < self.words.length(); i = i + 1 {
+    if self.words[i] != 0UL {
+      return true
+    }
+  }
+  false
+}
+
+///|
 /// Fraction of addressable bits currently set to one, in `[0, 1]`.
 pub fn BloomFilter::fill_ratio(self : BloomFilter) -> Double {
   self.set_bit_count().to_double() / self.bit_count.to_double()

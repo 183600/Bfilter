@@ -63,3 +63,33 @@ test "scalable counting contains_all reports a key missing from every slice" {
   assert_false(filter.contains_all(["a", "definitely-missing"]))
   assert_true(filter.contains_all(["a", "b", "c"]))
 }
+
+///|
+test "scalable bloom set operations ignore count-only empty slices" {
+  let left = ScalableBloomFilter::new(2, 0.01)
+  left.append_slice()
+  left.slices[1].inserted = 5
+  left.inserted = 5
+  let right = ScalableBloomFilter::new(2, 0.01)
+  assert_eq(left.slices[1].set_bit_count(), 0)
+  assert_true(left.is_subset_of(right))
+  assert_true(left.is_disjoint_from(right))
+  assert_true(right.is_disjoint_from(left))
+  right.append_slice()
+  assert_true(left.is_disjoint_from(right))
+}
+
+///|
+test "scalable counting set operations ignore count-only empty slices" {
+  let left = ScalableCountingBloomFilter::new(2, 0.01)
+  left.append_slice()
+  left.slices[1].inserted = 5
+  left.inserted = 5
+  let right = ScalableCountingBloomFilter::new(2, 0.01)
+  assert_eq(left.slices[1].occupied_slot_count(), 0)
+  assert_true(left.is_subset_of(right))
+  assert_true(left.is_disjoint_from(right))
+  assert_true(right.is_disjoint_from(left))
+  right.append_slice()
+  assert_true(left.is_disjoint_from(right))
+}

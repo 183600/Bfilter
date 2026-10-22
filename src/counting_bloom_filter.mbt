@@ -719,6 +719,18 @@ pub fn CountingBloomFilter::occupied_slot_count(
 }
 
 ///|
+fn CountingBloomFilter::has_positive_counter(
+  self : CountingBloomFilter,
+) -> Bool {
+  for i = 0; i < self.counters.length(); i = i + 1 {
+    if counting_nonzero_lanes(self.counters[i]) != 0UL {
+      return true
+    }
+  }
+  false
+}
+
+///|
 /// Fraction of slots with a positive counter, in `[0, 1]`.
 pub fn CountingBloomFilter::fill_ratio(self : CountingBloomFilter) -> Double {
   self.occupied_slot_count().to_double() / self.slot_count.to_double()
