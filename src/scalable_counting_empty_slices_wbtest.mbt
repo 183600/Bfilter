@@ -81,3 +81,34 @@ test "zero-slice counting receiver keeps its count when merging an empty grown f
   assert_eq(restored.slice_count(), merged.slice_count())
   assert_eq(restored.to_bytes(), bytes)
 }
+
+///|
+test "inserting into a mixed count-only slice keeps the filter serializable" {
+  let filter = ScalableCountingBloomFilter::new(8, 0.5)
+  filter.insert("old")
+  filter.append_slice()
+  // The newest slice is count-only: a conservative insertion count with no
+  // tracked key and no positive counter. Serialization accepts this mixed
+  // state, so later insertions must not merge tracked occurrences into it.
+  filter.slices[1].inserted = 2
+  filter.inserted = 3
+  let restored = ScalableCountingBloomFilter::from_bytes(filter.to_bytes())
+  assert_eq(restored.count(), 3)
+  assert_eq(restored.count_of("old"), 1)
+  restored.insert("fresh")
+  assert_eq(restored.count(), 4)
+  assert_eq(restored.count_of("old"), 1)
+  assert_eq(restored.count_of("fresh"), 1)
+  assert_true(restored.contains("old"))
+  assert_true(restored.contains("fresh"))
+  let round_trip = ScalableCountingBloomFilter::from_bytes(
+    restored.to_bytes(),
+  )
+  assert_eq(round_trip.count(), 4)
+  assert_eq(round_trip.count_of("old"), 1)
+  assert_eq(round_trip.count_of("fresh"), 1)
+  assert_eq(round_trip.slice_count(), restored.slice_count())
+  assert_true(round_trip.remove("fresh"))
+  assert_eq(round_trip.count(), 3)
+  assert_eq(round_trip.count_of("fresh"), 0)
+}

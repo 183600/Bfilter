@@ -180,15 +180,27 @@ fn ScalableCountingBloomFilter::insert_hashes(
         self.slices[0].inserted = self.inserted
       }
       // A count-only filter restored from bytes may carry conservative insertion
-      // counts in its newest slice without any tracked key or positive counter.
-      // Insert the first real key into a fresh slice so that slice's insertion
-      // count stays exactly equal to its tracked occurrences; the older
-      // count-only slices remain representable as conservative extras.
-      if self.locations.length() == 0 && self.inserted > 0 &&
-        self.slices.length() > 0 {
+      // counts in a slice without any tracked key or positive counter. Insert
+      // the first real key into a fresh slice so that slice's insertion count
+      // stays exactly equal to its tracked occurrences; the older count-only
+      // slices remain representable as conservative extras. The same applies
+      // when a tracked key is added to a mixed filter whose newest slice still
+      // carries count-only insertions.
+      if self.inserted > 0 && self.slices.length() > 0 {
         let last = self.slices.length() - 1
-        if self.slices[last].count() > 0 {
-          self.append_slice()
+        let last_slice = self.slices[last]
+        if last_slice.count() > 0 && last_slice.occupied_slot_count() == 0 {
+          let mut has_tracked_key = false
+          for entry in self.locations.iter() {
+            let (_, (slice_index, _)) = entry
+            if slice_index == last {
+              has_tracked_key = true
+              break
+            }
+          }
+          if !has_tracked_key {
+            self.append_slice()
+          }
         }
       }
       self.ensure_room()
