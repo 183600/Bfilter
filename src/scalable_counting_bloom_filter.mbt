@@ -716,16 +716,43 @@ pub fn ScalableCountingBloomFilter::is_disjoint_from(
   other : ScalableCountingBloomFilter,
 ) -> Bool {
   self.ensure_same_policy(other)
-  for left in self.slices {
-    for right in other.slices {
-      if left.occupied_slot_count() > 0 && right.occupied_slot_count() > 0 {
-        if left.slot_count() != right.slot_count() ||
-          left.hash_count() != right.hash_count() {
-          return false
-        }
-        if !left.is_disjoint_from(right) {
-          return false
-        }
+  let self_slices = self.slices
+  let other_slices = other.slices
+  let self_nonempty : Array[Bool] = Array::make(self_slices.length(), false)
+  let other_nonempty : Array[Bool] = Array::make(other_slices.length(), false)
+  let mut any_self = false
+  let mut any_other = false
+  for i = 0; i < self_slices.length(); i = i + 1 {
+    if self_slices[i].occupied_slot_count() > 0 {
+      self_nonempty[i] = true
+      any_self = true
+    }
+  }
+  for i = 0; i < other_slices.length(); i = i + 1 {
+    if other_slices[i].occupied_slot_count() > 0 {
+      other_nonempty[i] = true
+      any_other = true
+    }
+  }
+  if !any_self || !any_other {
+    return true
+  }
+  for i = 0; i < self_slices.length(); i = i + 1 {
+    if !self_nonempty[i] {
+      continue
+    }
+    for j = 0; j < other_slices.length(); j = j + 1 {
+      if !other_nonempty[j] {
+        continue
+      }
+      let left = self_slices[i]
+      let right = other_slices[j]
+      if left.slot_count() != right.slot_count() ||
+        left.hash_count() != right.hash_count() {
+        return false
+      }
+      if !left.is_disjoint_from(right) {
+        return false
       }
     }
   }

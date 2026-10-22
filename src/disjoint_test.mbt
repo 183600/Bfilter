@@ -70,6 +70,28 @@ test "scalable bloom filters detect definite disjointness" {
 }
 
 ///|
+test "scalable bloom disjointness accepts an empty operand" {
+  let left = @src.ScalableBloomFilter::new(1 << 16, 0.001)
+  let right = @src.ScalableBloomFilter::new(1 << 16, 0.001)
+  left.insert_all(["a", "b", "c"])
+  assert_true(left.is_disjoint_from(right))
+  assert_true(right.is_disjoint_from(left))
+  right.insert_all(["d"])
+  assert_true(left.is_disjoint_from(right))
+}
+
+///|
+test "scalable counting disjointness accepts an empty operand" {
+  let left = @src.ScalableCountingBloomFilter::new(1 << 16, 0.001)
+  let right = @src.ScalableCountingBloomFilter::new(1 << 16, 0.001)
+  left.insert_all(["a", "b", "c"])
+  assert_true(left.is_disjoint_from(right))
+  assert_true(right.is_disjoint_from(left))
+  right.insert("d")
+  assert_true(left.is_disjoint_from(right))
+}
+
+///|
 test "scalable bloom disjointness rejects non-empty extra slices" {
   let short = @src.ScalableBloomFilter::new(2, 0.01)
   let long = @src.ScalableBloomFilter::new(2, 0.01)
