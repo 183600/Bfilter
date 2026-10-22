@@ -813,13 +813,36 @@ pub fn BlockedBloomFilter::from_bytes(data : Bytes) -> BlockedBloomFilter {
   )
   let words = FixedArray::make(word_count, 0UL)
   let mut set_bits = 0
+  let mut nonempty_blocks = 0
+  let mut block_has_bit = false
   for i = 0; i < word_count; i = i + 1 {
     let word = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * 8)
     words[i] = word
     set_bits = set_bits + word.popcnt()
+    if word != 0UL {
+      block_has_bit = true
+    }
+    if i % BLOCKED_BLOCK_WORDS == BLOCKED_BLOCK_WORDS - 1 {
+      if block_has_bit {
+        nonempty_blocks = nonempty_blocks + 1
+      }
+      block_has_bit = false
+    }
   }
-  guard set_bits.to_uint64() <= hash_count.to_uint64() * inserted.to_uint64() else {
+  // One insertion probes at most one 512-bit block, so it can set at most
+  // `min(hash_count, 512)` bits and can make at most one additional block
+  // nonempty. Reject encodings that no insertion history can produce.
+  let probes_per_insertion = if hash_count < BLOCKED_BLOCK_BITS {
+    hash_count
+  } else {
+    BLOCKED_BLOCK_BITS
+  }
+  guard set_bits.to_uint64() <=
+    probes_per_insertion.to_uint64() * inserted.to_uint64() else {
     abort("blocked bloom insertion count is too small for set bits")
+  }
+  guard nonempty_blocks <= inserted else {
+    abort("blocked bloom insertion count is too small for nonempty blocks")
   }
   { words, bit_count, hash_count, inserted, }
 }

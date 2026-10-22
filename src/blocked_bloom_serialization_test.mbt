@@ -70,3 +70,31 @@ test "panic blocked bloom serialization rejects trailing data" {
   let bytes = @src.BlockedBloomFilter::with_size(512, 1).to_bytes().add(b"\x00")
   @src.BlockedBloomFilter::from_bytes(bytes) |> ignore
 }
+
+///|
+test "panic blocked bloom serialization rejects bits beyond one insertion per block" {
+  let filter = @src.BlockedBloomFilter::with_size(1024, 1024)
+  filter.insert("seed")
+  let bytes = filter.to_bytes().to_fixedarray()
+  // Fill both 512-bit blocks while the header still claims one insertion.
+  for i = 0; i < 128; i = i + 1 {
+    bytes[20 + i] = b'\xFF'
+  }
+  @src.BlockedBloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
+  |> ignore
+}
+
+///|
+test "panic blocked bloom serialization rejects more blocks than insertions" {
+  let bytes = @src.BlockedBloomFilter::with_size(1536, 100)
+    .to_bytes()
+    .to_fixedarray()
+  bytes.unsafe_write_uint32_le(16, 2U)
+  // One bit in each of the three blocks: few set bits, but too many blocks for
+  // only two insertions.
+  bytes[20] = b'\x01'
+  bytes[20 + 64] = b'\x01'
+  bytes[20 + 128] = b'\x01'
+  @src.BlockedBloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
+  |> ignore
+}
