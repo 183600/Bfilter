@@ -114,9 +114,17 @@ test "scalable counting bloom filter reports occupancy and rates" {
 }
 
 ///|
-test "panic scalable counting bloom filter rejects invalid configuration" {
+test "panic scalable counting bloom filter rejects non-positive expected items" {
   @src.ScalableCountingBloomFilter::new(0, 0.01) |> ignore
+}
+
+///|
+test "panic scalable counting bloom filter rejects zero false positive rate" {
   @src.ScalableCountingBloomFilter::new(10, 0.0) |> ignore
+}
+
+///|
+test "panic scalable counting bloom filter rejects unit false positive rate" {
   @src.ScalableCountingBloomFilter::new(10, 1.0) |> ignore
 }
 
