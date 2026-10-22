@@ -300,6 +300,12 @@ pub fn CuckooFilter::from_bytes(data : Bytes) -> CuckooFilter {
   let random_state = data.unsafe_read_uint64_le(
     SERIAL_HEADER_BYTES + capacity,
   )
+  // A zero xorshift state is a fixed point, so every eviction would target the
+  // same slot. Valid filters always seed a nonzero state and the xorshift is
+  // invertible, so reject this malformed state instead of degrading placement.
+  guard random_state != 0UL else {
+    abort("invalid cuckoo eviction state")
+  }
   { buckets, bucket_count, bucket_size, inserted, random_state, }
 }
 

@@ -211,3 +211,22 @@ test "panic blocked bloom merge rejects insertion count overflow" {
   right.insert("one")
   left.merge(right)
 }
+
+///|
+test "panic cuckoo serialization rejects a zero eviction state" {
+  let bytes = @src.CuckooFilter::with_size(4, 1).to_bytes().to_fixedarray()
+  bytes.unsafe_write_uint64_le(24, 0UL)
+  @src.CuckooFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
+  |> ignore
+}
+
+///|
+test "cuckoo serialization round trip preserves a usable eviction state" {
+  let filter = @src.CuckooFilter::with_size(8, 2)
+  assert_true(filter.insert_all(["a", "b", "c", "d"]))
+  let restored = @src.CuckooFilter::from_bytes(filter.to_bytes())
+  assert_true(restored.insert("e"))
+  assert_true(restored.contains_all(["a", "b", "c", "d", "e"]))
+  assert_eq(restored.count(), filter.count() + 1)
+}
+

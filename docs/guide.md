@@ -631,9 +631,10 @@ The same methods exist on `BlockedBloomFilter`, `CountingBloomFilter`,
 lock. Hashing uses fixed seeds, so standard
 `Hash` implementations produce the same positions in a new process. The Cuckoo
 encoding also preserves its deterministic eviction state, so insertions after a
-round trip follow the same placement trajectory as the original filter.
-`from_bytes` panics on truncated data, a different filter type, an unsupported
-version, or an invalid configuration.
+round trip follow the same placement trajectory as the original filter; a zero
+eviction state is rejected because it would make every eviction target the same
+slot. `from_bytes` panics on truncated data, a different filter type, an
+unsupported version, or an invalid configuration.
 
 ## Sizing Before Allocation
 
