@@ -122,3 +122,85 @@ test "concurrent scalable wrappers keep their receiver when merging an empty fil
   counting.merge(@src.ScalableCountingBloomFilter::new(1, 0.5))
   assert_eq(counting.to_bytes(), counting_before)
 }
+
+///|
+test "merging a non-empty scalable bloom filter into an empty receiver copies it" {
+  let receiver = @src.ScalableBloomFilter::new(2, 0.01)
+  let source = @src.ScalableBloomFilter::new(2, 0.01)
+  for i = 0; i < 40; i = i + 1 {
+    source.insert("source-" + i.to_string())
+  }
+  assert_true(source.slice_count() > 1)
+  let source_bytes = source.to_bytes()
+  receiver.merge(source)
+  assert_eq(receiver.to_bytes(), source_bytes)
+  assert_eq(receiver.count(), source.count())
+  assert_eq(receiver.slice_count(), source.slice_count())
+  for i = 0; i < 40; i = i + 1 {
+    assert_true(receiver.contains("source-" + i.to_string()))
+  }
+  assert_eq(source.to_bytes(), source_bytes)
+}
+
+///|
+test "merging a non-empty scalable counting filter into an empty receiver copies it" {
+  let receiver = @src.ScalableCountingBloomFilter::new(1, 0.5)
+  let source = @src.ScalableCountingBloomFilter::new(1, 0.5)
+  for i = 0; i < 20; i = i + 1 {
+    source.insert("source-" + i.to_string())
+  }
+  source.insert("source-0")
+  assert_true(source.slice_count() > 1)
+  let source_bytes = source.to_bytes()
+  receiver.merge(source)
+  assert_eq(receiver.to_bytes(), source_bytes)
+  assert_eq(receiver.count(), source.count())
+  assert_eq(receiver.tracked_key_count(), source.tracked_key_count())
+  assert_eq(receiver.count_of("source-0"), 2)
+  assert_true(receiver.remove("source-0"))
+  assert_eq(receiver.count_of("source-0"), 1)
+  assert_eq(source.count_of("source-0"), 2)
+  assert_eq(source.to_bytes(), source_bytes)
+}
+
+///|
+test "merging into an empty scalable counting receiver keeps its extra slices" {
+  let receiver = @src.ScalableCountingBloomFilter::new(1, 0.01)
+  let grown_empty = @src.ScalableCountingBloomFilter::new(1, 0.01)
+  for i = 0; i < 3; i = i + 1 {
+    grown_empty.insert("grow-" + i.to_string())
+  }
+  for i = 0; i < 3; i = i + 1 {
+    assert_true(grown_empty.remove("grow-" + i.to_string()))
+  }
+  assert_true(grown_empty.is_empty())
+  assert_eq(grown_empty.tracked_key_count(), 0)
+  receiver.merge(grown_empty)
+  assert_true(receiver.is_empty())
+  let empty_slice_count = receiver.slice_count()
+  assert_eq(empty_slice_count, grown_empty.slice_count())
+
+  let source = @src.ScalableCountingBloomFilter::new(1, 0.01)
+  for i = 0; i < 8; i = i + 1 {
+    source.insert("source-" + i.to_string())
+  }
+  let source_slice_count = source.slice_count()
+  receiver.merge(source)
+  assert_eq(receiver.count(), source.count())
+  assert_eq(receiver.tracked_key_count(), source.tracked_key_count())
+  assert_eq(receiver.slice_count(), empty_slice_count.max(source_slice_count))
+  for i = 0; i < 8; i = i + 1 {
+    assert_true(receiver.contains("source-" + i.to_string()))
+    assert_eq(receiver.count_of("source-" + i.to_string()), 1)
+  }
+  let restored = @src.ScalableCountingBloomFilter::from_bytes(
+    receiver.to_bytes(),
+  )
+  assert_eq(restored.count(), receiver.count())
+  assert_eq(restored.slice_count(), receiver.slice_count())
+  for i = 0; i < 8; i = i + 1 {
+    assert_true(restored.remove("source-" + i.to_string()))
+  }
+  assert_true(restored.is_empty())
+  assert_eq(restored.tracked_key_count(), 0)
+}

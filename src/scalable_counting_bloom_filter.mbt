@@ -523,6 +523,46 @@ pub fn ScalableCountingBloomFilter::merge(
     }
     return
   }
+  // The receiver holds no tracked keys and no counters. Rebuilding every
+  // counter from the other filter's metadata would rehash all of its keys, so
+  // copy the slices and locations directly. Extra empty slices that the
+  // receiver already grew are preserved.
+  if self.inserted == 0 && self.locations.length() == 0 {
+    let self_slice_count = self.slices.length()
+    let other_slice_count = other.slices.length()
+    let slice_count = if self_slice_count > other_slice_count {
+      self_slice_count
+    } else {
+      other_slice_count
+    }
+    let mut total_slots = 0L
+    for i = 0; i < slice_count; i = i + 1 {
+      if i < other_slice_count {
+        total_slots = total_slots + other.slices[i].slot_count().to_int64()
+      } else {
+        total_slots = total_slots + self.slices[i].slot_count().to_int64()
+      }
+    }
+    guard total_slots <= SCALABLE_COUNTING_MAX_SLOTS else {
+      abort("scalable counting bloom filter is too large")
+    }
+    let slices : Array[CountingBloomFilter] = []
+    let capacities : Array[Int32] = []
+    for i = 0; i < slice_count; i = i + 1 {
+      if i < other_slice_count {
+        slices.push(other.slices[i].copy())
+        capacities.push(other.capacities[i])
+      } else {
+        slices.push(self.slices[i].copy())
+        capacities.push(self.capacities[i])
+      }
+    }
+    self.slices = slices
+    self.capacities = capacities
+    self.locations = other.locations.copy()
+    self.inserted = other.inserted
+    return
+  }
   let self_slice_count = self.slices.length()
   let other_slice_count = other.slices.length()
   let mut total_slots = self.slot_count()

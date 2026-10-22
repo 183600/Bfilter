@@ -381,6 +381,33 @@ pub fn ScalableBloomFilter::merge(
   if other.inserted == 0 && other.slices.length() <= self.slices.length() {
     return
   }
+  // The receiver holds no bits, so ORing every slice would only copy the other
+  // filter into empty storage. Copy the slices directly instead, keeping any
+  // extra empty slices the receiver already grew.
+  if self.inserted == 0 {
+    let self_slice_count = self.slices.length()
+    let other_slice_count = other.slices.length()
+    let slice_count = if self_slice_count > other_slice_count {
+      self_slice_count
+    } else {
+      other_slice_count
+    }
+    let slices : Array[BloomFilter] = []
+    let capacities : Array[Int32] = []
+    for i = 0; i < slice_count; i = i + 1 {
+      if i < other_slice_count {
+        slices.push(other.slices[i].copy())
+        capacities.push(other.capacities[i])
+      } else {
+        slices.push(self.slices[i].copy())
+        capacities.push(self.capacities[i])
+      }
+    }
+    self.slices = slices
+    self.capacities = capacities
+    self.inserted = other.inserted
+    return
+  }
   guard self.inserted <= 2147483647 - other.inserted else {
     abort("scalable bloom filter insertion count overflow")
   }
