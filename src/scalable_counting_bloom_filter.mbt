@@ -509,6 +509,13 @@ pub fn ScalableCountingBloomFilter::merge(
   // saturated counters, so leave the existing slices untouched. If the empty
   // filter grew further, append the empty slices its layout calls for.
   if other.inserted == 0 && other.locations.length() == 0 {
+    let mut total_slots = self.slot_count()
+    for i = self.slices.length(); i < other.slices.length(); i = i + 1 {
+      total_slots = total_slots + other.slices[i].slot_count().to_int64()
+    }
+    guard total_slots <= SCALABLE_COUNTING_MAX_SLOTS else {
+      abort("scalable counting bloom filter is too large")
+    }
     while self.slices.length() < other.slices.length() {
       self.append_slice()
     }
