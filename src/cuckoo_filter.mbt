@@ -587,6 +587,9 @@ fn CuckooFilter::min_bucket_fingerprints(
   other : CuckooFilter,
 ) -> CuckooFilter {
   let result = CuckooFilter::with_size(self.bucket_count, self.bucket_size)
+  if self.inserted == 0 || other.inserted == 0 {
+    return result
+  }
   let mut stored = 0
   let visited : @hashmap.HashMap[(Int32, Byte), Unit] = @hashmap.HashMap([])
   for bucket = 0; bucket < result.bucket_count; bucket = bucket + 1 {

@@ -27,6 +27,19 @@ test "cuckoo filter intersection of disjoint filters is empty" {
 }
 
 ///|
+test "cuckoo filter intersection with an empty input keeps the layout" {
+  let filled = @src.CuckooFilter::with_size(128, 4)
+  let empty = @src.CuckooFilter::with_size(128, 4)
+  assert_true(filled.insert("present"))
+  let common = filled.intersection(empty)
+  assert_true(common.is_empty())
+  assert_eq(common.count(), 0)
+  assert_eq(common.bucket_count(), empty.bucket_count())
+  assert_eq(common.bucket_size(), empty.bucket_size())
+  assert_true(empty.intersection(empty).is_empty())
+}
+
+///|
 test "cuckoo filter intersection respects duplicate multiplicities" {
   let left = @src.CuckooFilter::with_size(64, 4)
   let right = @src.CuckooFilter::with_size(64, 4)
