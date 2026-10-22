@@ -5,6 +5,8 @@
 /// half a byte instead of the two bytes used by `CountingBloomFilter`. A counter
 /// saturates at 15 instead of wrapping, which bounds how many insertions of the
 /// same key the filter can represent but keeps the filter four times smaller.
+/// Because a saturated counter is shared by every key that maps to it, removing
+/// one key can drain another inserted key's contribution.
 /// Removing a key that was never inserted can still corrupt the filter when it
 /// produces a false positive, which is inherent to counting Bloom filters.
 pub struct CompactCountingBloomFilter {
@@ -243,6 +245,8 @@ pub fn[K : Hash] CompactCountingBloomFilter::insert_if_absent(
 /// Returns `true` when all counters were positive and were decremented. A key
 /// that was never inserted may still return `true` on a false positive and
 /// remove another key's contribution; only remove keys known to be present.
+/// Saturated shared counters can also make a removal of an inserted key fail
+/// after another key has drained the same positions.
 pub fn[K : Hash] CompactCountingBloomFilter::remove(
   self : CompactCountingBloomFilter,
   key : K,

@@ -57,6 +57,19 @@ test "compact counting removes saturated duplicate positions" {
 }
 
 ///|
+test "compact counting saturated shared positions can drop inserted keys" {
+  // With sixteen slots and 128 hashes every key hits each slot eight times, so
+  // both keys saturate the same lanes and the second insert is skipped.
+  let filter = @src.CompactCountingBloomFilter::with_size(16, 128)
+  filter.insert("alpha")
+  filter.insert("beta")
+  assert_true(filter.contains("beta"))
+  assert_true(filter.remove("alpha"))
+  assert_false(filter.contains("beta"))
+  assert_false(filter.remove("beta"))
+}
+
+///|
 test "compact counting removes keys whose duplicate positions exceed the counter width" {
   let filter = @src.CompactCountingBloomFilter::with_size(16, 300)
   filter.insert(0)

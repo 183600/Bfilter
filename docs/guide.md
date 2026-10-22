@@ -329,9 +329,9 @@ assert_eq(regular.memory_bytes(), compact.memory_bytes() * 4L)
 The API mirrors `CountingBloomFilter`: `insert`, `contains`, `remove`,
 `count_of`, the batch helpers, and the set algebra all behave the same way. The
 trade-off is the counter width: counters saturate at `counter_max()`, which is
-15, so the filter cannot represent more than 15 insertions of the same key. It
-still never reports a false negative for a successfully inserted key, and
-`remove` still decrements one insertion at a time:
+15, so the filter cannot record more than 15 insertions of the same key.
+Insertions past the cap still advance `count()` but leave the counters
+unchanged, and `remove` decrements one recorded insertion at a time:
 
 ```moonbit
 let filter = @src.CompactCountingBloomFilter::new(1000, 0.01)
@@ -342,6 +342,14 @@ assert_eq(filter.count_of("task"), @src.CompactCountingBloomFilter::counter_max(
 assert_true(filter.remove("task"))
 assert_eq(filter.count_of("task"), 14)
 ```
+
+Saturation also couples keys that share positions. A shared counter holds the
+capped sum of their contributions, and increments to a lane already at its
+insertion cap are skipped, so removing one key can drain a counter that another
+key still relies on. That key then reports `false` from `contains` and `remove`
+even though it was inserted. This is inherent to 4-bit counters; avoid
+interleaved removals when keys overlap on saturated positions, or use
+`CountingBloomFilter` when large multiplicities must survive such removals.
 
 `ConcurrentCompactCountingBloomFilter` wraps the type with the same mutex-based
 protection as the other concurrent filters, including atomic `remove`,
