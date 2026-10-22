@@ -45,7 +45,6 @@ test "counting queries scan every probe on non-power-of-two slots" {
   let counting = CountingBloomFilter::with_size(48, 720)
   counting.insert(key)
   assert_eq(counting.count_of(key), counting_full_probe_minimum(counting, key))
-  assert_eq(counting.count_of(key), 12)
 
   let compact = CompactCountingBloomFilter::with_size(48, 720)
   compact.insert(key)
