@@ -160,3 +160,48 @@ test "zero-slice scalable bloom intersections keep conservative counts" {
   assert_eq(restored.count(), 3)
   assert_eq(restored.to_bytes(), common.to_bytes())
 }
+
+///|
+test "zero-slice scalable bloom counts survive merges with sliced filters" {
+  let counted : ScalableBloomFilter = {
+    slices: [],
+    capacities: [],
+    initial_capacity: 2,
+    target_rate: 0.01,
+    inserted: 5,
+  }
+  let sliced = ScalableBloomFilter::new(2, 0.01)
+  sliced.insert("source")
+  let forward = counted.union(sliced)
+  assert_eq(forward.count(), 6)
+  assert_true(forward.contains("source"))
+  assert_eq(
+    ScalableBloomFilter::from_bytes(forward.to_bytes()).count(),
+    6,
+  )
+  let backward = sliced.union(counted)
+  assert_eq(backward.count(), 6)
+  assert_eq(
+    ScalableBloomFilter::from_bytes(backward.to_bytes()).count(),
+    6,
+  )
+
+  let merged = counted.copy()
+  merged.merge(sliced)
+  assert_eq(merged.to_bytes(), forward.to_bytes())
+  let merged_back = sliced.copy()
+  merged_back.merge(counted)
+  assert_eq(merged_back.to_bytes(), backward.to_bytes())
+
+  let grown_empty = ScalableBloomFilter::new(2, 0.01)
+  grown_empty.insert("grow")
+  grown_empty.clear()
+  grown_empty.append_slice()
+  let with_empty = counted.copy()
+  with_empty.merge(grown_empty)
+  assert_eq(with_empty.count(), 5)
+  assert_eq(
+    ScalableBloomFilter::from_bytes(with_empty.to_bytes()).count(),
+    5,
+  )
+}

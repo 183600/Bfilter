@@ -449,6 +449,12 @@ pub fn ScalableBloomFilter::merge(
     self.inserted = total.to_int()
     return
   }
+  // The receiver can also carry a conservative count without any slices even
+  // when the source has slices. Preserve it in an empty slice before merging.
+  if self.slices.length() == 0 && self.inserted > 0 {
+    self.append_slice()
+    self.slices[0].inserted = self.inserted
+  }
   // Merging an empty filter whose slices are already covered by the receiver
   // cannot change any bit or append a slice. Skip the per-slice OR scans.
   if other.inserted == 0 && other.slices.length() <= self.slices.length() {
@@ -489,6 +495,13 @@ pub fn ScalableBloomFilter::merge(
     }
     self.slices = slices
     self.capacities = capacities
+    if other_slice_count == 0 && other.inserted > 0 {
+      let total = self.slices[0].inserted.to_int64() + other.inserted.to_int64()
+      guard total <= 2147483647L else {
+        abort("scalable bloom filter insertion count overflow")
+      }
+      self.slices[0].inserted = total.to_int()
+    }
     self.inserted = other.inserted
     return
   }
@@ -501,6 +514,15 @@ pub fn ScalableBloomFilter::merge(
   }
   guard total_bits <= 2147483584L else {
     abort("scalable bloom filter is too large")
+  }
+  // A source with no slices but a conservative count still contributes that
+  // count to the merged filter, so record it in the receiver's first slice.
+  if other.slices.length() == 0 && other.inserted > 0 {
+    let total = self.slices[0].inserted.to_int64() + other.inserted.to_int64()
+    guard total <= 2147483647L else {
+      abort("scalable bloom filter insertion count overflow")
+    }
+    self.slices[0].inserted = total.to_int()
   }
   for i = 0; i < other.slices.length(); i = i + 1 {
     if i < self.slices.length() {
