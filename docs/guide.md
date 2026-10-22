@@ -41,11 +41,14 @@ When `bit_count()` is a power of two, a very wide `hash_count` stops after one
 double-hash cycle: every later probe repeats a bit that an earlier probe already
 set or tested. This keeps an otherwise valid but unusually wide configuration
 from scanning the full nominal hash count. Other bit counts are not purely
-periodic, so they still perform every configured probe; when such a filter is
-already completely full, insertions and queries short-circuit the walk because
-no remaining probe can change the result. A filter with no insertions has no set
-bits, so queries also return `false` without probing. Prefer a power-of-two bit
-count when planning an unusually wide `hash_count`.
+periodic, so they still perform every configured probe. Independently of the
+cycle, a completely full filter cannot change, so an effective probe walk that
+is wider than the backing word array is replaced by one scan of those words:
+queries return `true` and conditional insertions return `false` without probing.
+This covers wide non-power-of-two layouts and power-of-two layouts whose
+double-hash period is long. A filter with no insertions has no set bits, so
+queries also return `false` without probing. Prefer a power-of-two bit count when
+planning an unusually wide `hash_count`.
 
 Batch helpers insert or test multiple keys. `contains_all` requires every key,
 while `contains_any` stops at the first possible match and returns `false` for
@@ -566,7 +569,10 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   and store `m` bits in about `m / 8` bytes. `BlockedBloomFilter` keeps every
   probe inside one 512-bit block, so a query touches one cache line regardless
   of `k`. An empty filter has no set bit, so queries return `false` without
-  probing. Set operations scan the `m / 64` backing words.
+  probing. A full filter is detected with one scan of the `m / 64` backing words
+  when its effective probe walk is wider than that word array, after which
+  queries short-circuit to `true` and conditional insertions to `false`. Set
+  operations scan the `m / 64` backing words.
 - `CountingBloomFilter` and `CompactCountingBloomFilter` update `k` counters,
   deduplicating positions selected more than once, and store 16 bits or 4 bits
   per slot respectively. Inserts and removals reuse a per-filter probe workspace

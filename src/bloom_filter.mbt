@@ -62,17 +62,17 @@ fn BloomFilter::all_bits_set(self : BloomFilter) -> Bool {
 }
 
 ///|
-/// Whether the filter combines a wide hash count with a non-power-of-two bit
-/// count.
+/// Whether a full-filter scan is cheaper than walking `probes` positions.
 ///
-/// The double-hash cycle shortcut only applies to power-of-two bit counts. For
-/// other layouts a wide hash count can otherwise probe the same small set of
-/// positions billions of times. When every bit is already set, none of those
-/// probes can change an answer, so callers can replace the walk with one scan of
-/// the backing words.
-fn BloomFilter::has_unbounded_probe_walk(self : BloomFilter) -> Bool {
-  self.hash_count > self.bit_count &&
-  (self.bit_count & (self.bit_count - 1)) != 0
+/// A completely full filter cannot change, so one scan of the backing words can
+/// replace a long probe walk. Ordinary layouts (a handful of probes over many
+/// words) stay on the probe path; the threshold only selects the scan when the
+/// effective walk is already wider than the word array.
+fn BloomFilter::should_check_full(
+  self : BloomFilter,
+  probes : Int32,
+) -> Bool {
+  probes > 64 && probes > self.words.length()
 }
 
 ///|
@@ -158,15 +158,15 @@ fn BloomFilter::insert_hashes(
   guard self.inserted < 2147483647 else {
     abort("bloom filter insertion count overflow")
   }
+  let bit_count = self.bit_count.to_uint64()
+  let probes = bloom_effective_probes(self.bit_count, self.hash_count, h2)
   // A completely full filter cannot change, so skip the nominal probe walk.
-  // This matters when a non-power-of-two bit count disables the cycle shortcut
-  // and the configured hash count is very wide.
-  if self.has_unbounded_probe_walk() && self.all_bits_set() {
+  // Besides wide non-power-of-two layouts, this also covers power-of-two
+  // layouts whose double-hash period is long.
+  if self.should_check_full(probes) && self.all_bits_set() {
     self.inserted += 1
     return
   }
-  let bit_count = self.bit_count.to_uint64()
-  let probes = bloom_effective_probes(self.bit_count, self.hash_count, h2)
   let mut state = h1
   for i = 0; i < probes; i = i + 1 {
     let pos = (state % bit_count).to_int()
@@ -196,12 +196,12 @@ fn BloomFilter::insert_if_absent_hashes(
   h2 : UInt64,
 ) -> Bool {
   // Every selected bit is set on a full filter, so the conditional insertion
-  // must report a false positive without walking a very wide probe sequence.
-  if self.has_unbounded_probe_walk() && self.all_bits_set() {
-    return false
-  }
+  // must report a false positive without walking a wide probe sequence.
   let bit_count = self.bit_count.to_uint64()
   let probes = bloom_effective_probes(self.bit_count, self.hash_count, h2)
+  if self.should_check_full(probes) && self.all_bits_set() {
+    return false
+  }
   let mut state = h1
   for i = 0; i < probes; i = i + 1 {
     let pos = (state % bit_count).to_int()
@@ -252,13 +252,13 @@ fn BloomFilter::contains_hashes(
   if self.inserted == 0 {
     return false
   }
-  // A full filter reports every key present; avoid probing a wide, non-cyclic
-  // position sequence just to rediscover bits that are already set.
-  if self.has_unbounded_probe_walk() && self.all_bits_set() {
-    return true
-  }
+  // A full filter reports every key present; avoid probing a wide position
+  // sequence just to rediscover bits that are already set.
   let bit_count = self.bit_count.to_uint64()
   let probes = bloom_effective_probes(self.bit_count, self.hash_count, h2)
+  if self.should_check_full(probes) && self.all_bits_set() {
+    return true
+  }
   let mut state = h1
   for i = 0; i < probes; i = i + 1 {
     let pos = (state % bit_count).to_int()
