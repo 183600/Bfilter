@@ -5,16 +5,52 @@ fn counting_full_probe_minimum(
 ) -> Int32 {
   let (h1, h2) = key_hashes(key)
   let slot_count = filter.slot_count.to_uint64()
+  let occurrences : FixedArray[Int32] = FixedArray::make(
+    filter.slot_count,
+    0,
+  )
   let mut state = h1
-  let mut minimum = CountingBloomFilter::counter_max().to_uint64()
   for i = 0; i < filter.hash_count; i = i + 1 {
-    let value = filter.counter_at((state % slot_count).to_int())
-    if value < minimum {
-      minimum = value
-    }
+    let position = (state % slot_count).to_int()
+    occurrences[position] = occurrences[position] + 1
     state = state + h2
   }
-  minimum.to_int()
+  let limit = CountingBloomFilter::counter_max()
+  let limit_u64 = limit.to_uint64()
+  let mut minimum = limit
+  let mut fallback = limit
+  let mut have_estimate = false
+  for position = 0; position < filter.slot_count; position = position + 1 {
+    if occurrences[position] == 0 {
+      continue
+    }
+    let value = filter.counter_at(position)
+    if value == 0UL {
+      return 0
+    }
+    let raw = if value > limit_u64 { limit } else { value.to_int() }
+    if raw < fallback {
+      fallback = raw
+    }
+    let count = occurrences[position].to_uint64()
+    if count <= limit_u64 {
+      let estimate_u64 = if value < count { 1UL } else { value / count }
+      let estimate = if estimate_u64 > limit_u64 {
+        limit
+      } else {
+        estimate_u64.to_int()
+      }
+      if !have_estimate || estimate < minimum {
+        minimum = estimate
+        have_estimate = true
+      }
+    }
+  }
+  if have_estimate {
+    minimum
+  } else {
+    fallback
+  }
 }
 
 ///|
@@ -24,16 +60,52 @@ fn compact_full_probe_minimum(
 ) -> Int32 {
   let (h1, h2) = key_hashes(key)
   let slot_count = filter.slot_count.to_uint64()
+  let occurrences : FixedArray[Int32] = FixedArray::make(
+    filter.slot_count,
+    0,
+  )
   let mut state = h1
-  let mut minimum = CompactCountingBloomFilter::counter_max().to_uint64()
   for i = 0; i < filter.hash_count; i = i + 1 {
-    let value = filter.counter_at((state % slot_count).to_int())
-    if value < minimum {
-      minimum = value
-    }
+    let position = (state % slot_count).to_int()
+    occurrences[position] = occurrences[position] + 1
     state = state + h2
   }
-  minimum.to_int()
+  let limit = CompactCountingBloomFilter::counter_max()
+  let limit_u64 = limit.to_uint64()
+  let mut minimum = limit
+  let mut fallback = limit
+  let mut have_estimate = false
+  for position = 0; position < filter.slot_count; position = position + 1 {
+    if occurrences[position] == 0 {
+      continue
+    }
+    let value = filter.counter_at(position)
+    if value == 0UL {
+      return 0
+    }
+    let raw = if value > limit_u64 { limit } else { value.to_int() }
+    if raw < fallback {
+      fallback = raw
+    }
+    let count = occurrences[position].to_uint64()
+    if count <= limit_u64 {
+      let estimate_u64 = if value < count { 1UL } else { value / count }
+      let estimate = if estimate_u64 > limit_u64 {
+        limit
+      } else {
+        estimate_u64.to_int()
+      }
+      if !have_estimate || estimate < minimum {
+        minimum = estimate
+        have_estimate = true
+      }
+    }
+  }
+  if have_estimate {
+    minimum
+  } else {
+    fallback
+  }
 }
 
 ///|

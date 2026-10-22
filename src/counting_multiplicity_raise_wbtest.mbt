@@ -17,7 +17,15 @@ test "counting multiplicity raise advances every selected lane together" {
   filter.raise_positions_at(positions, 600)
   filter.inserted = 508
 
-  assert_eq(filter.count_of(key), 65024)
+  let mut minimum_counter = 65535UL
+  for i = 0; i < positions.length; i = i + 1 {
+    let value = filter.counter_at(positions.positions[i])
+    if value < minimum_counter {
+      minimum_counter = value
+    }
+  }
+  assert_eq(minimum_counter, 65024UL)
+  assert_eq(filter.count_of(key), 508)
   for i = 0; i < 508; i = i + 1 {
     assert_true(filter.remove(key))
   }

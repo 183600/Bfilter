@@ -115,3 +115,36 @@ test "compact counting conditional insert handles duplicate positions once" {
   assert_true(filter.insert_if_absent(0))
   assert_eq(filter.count(), 1)
 }
+
+///|
+test "counting filters report insertions when probes repeat positions" {
+  let counting = @src.CountingBloomFilter::with_size(16, 128)
+  counting.insert("repeat")
+  assert_eq(counting.count_of("repeat"), 1)
+  counting.insert("repeat")
+  assert_eq(counting.count_of("repeat"), 2)
+  assert_true(counting.remove("repeat"))
+  assert_eq(counting.count_of("repeat"), 1)
+  assert_true(counting.remove("repeat"))
+  assert_eq(counting.count_of("repeat"), 0)
+  assert_false(counting.contains("repeat"))
+
+  let uneven = @src.CountingBloomFilter::with_size(16, 17)
+  for i = 0; i < 3; i = i + 1 {
+    uneven.insert("uneven")
+  }
+  assert_eq(uneven.count_of("uneven"), 3)
+
+  let compact = @src.CompactCountingBloomFilter::with_size(16, 128)
+  compact.insert("repeat")
+  assert_eq(compact.count_of("repeat"), 1)
+  assert_true(compact.remove("repeat"))
+  assert_eq(compact.count_of("repeat"), 0)
+  assert_false(compact.contains("repeat"))
+
+  let compact_uneven = @src.CompactCountingBloomFilter::with_size(16, 17)
+  for i = 0; i < 3; i = i + 1 {
+    compact_uneven.insert("uneven")
+  }
+  assert_eq(compact_uneven.count_of("uneven"), 3)
+}

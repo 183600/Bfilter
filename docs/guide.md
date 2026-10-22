@@ -309,15 +309,23 @@ assert_false(filter.contains("task"))
 Counters saturate at 65535. `CountingBloomFilter::counter_max()` exposes that
 limit (and the concurrent and scalable counting wrappers expose the same
 constant), which is useful when deciding whether a multiplicity query can still
-distinguish additional insertions. Removing a key that was never inserted can
+distinguish additional insertions. A lane selected several times by one key
+stores a weighted contribution per insertion, so it can reach its removable cap
+after fewer than 65535 insertions. Removing a key that was never inserted can
 return `true` on a false positive and disturb other entries, so only remove keys
 that are known to be present. `remove_all` returns `true` only if every removal
 succeeded; it continues removing the remaining keys after a failure.
 
-`count_of(key)` estimates the current multiplicity of a key by taking the
-smallest counter it selects. Other keys that share those slots can make the
+`count_of(key)` estimates the current multiplicity of a key from the counters it
+selects. When the double-hash sequence visits a slot more than once, that slot
+receives one weighted contribution per insertion, so the estimate divides the
+smallest counter by the number of times the key selects that position and takes
+the smallest normalized value. Other keys that share those slots can make the
 estimate too high, but it never drops below the number of insertions unless a
-counter has saturated:
+counter has saturated. A position selected more often than a counter can hold
+saturates after its first contribution; if every selected position is that wide,
+the result falls back to the raw saturated counter because those counters can no
+longer distinguish additional insertions:
 
 ```moonbit
 let filter = @src.CountingBloomFilter::new(1000, 0.01)
@@ -373,7 +381,9 @@ The API mirrors `CountingBloomFilter`: `insert`, `contains`, `remove`,
 trade-off is the counter width: counters saturate at `counter_max()`, which is
 15, so the filter cannot record more than 15 insertions of the same key.
 Insertions past the cap still advance `count()` but leave the counters
-unchanged, and `remove` decrements one recorded insertion at a time:
+unchanged, and `remove` decrements one recorded insertion at a time. When a key's
+probes repeat a slot, each insertion adds that repeat count to the lane, so the
+lane can reach its removable cap after fewer than 15 insertions:
 
 ```moonbit
 let filter = @src.CompactCountingBloomFilter::new(1000, 0.01)

@@ -444,11 +444,12 @@ pub fn[K : Hash] CompactCountingBloomFilter::contains(
 ///|
 /// Estimate how many insertions of `key` the filter currently represents.
 ///
-/// The result is the smallest counter selected by `key`, capped at 15 because
-/// counters saturate. It can exceed the true multiplicity when other keys share
-/// those slots, and it is never lower than the number of insertions unless a
-/// counter has saturated. A key that hashes to a zero counter is reported as
-/// `0`.
+/// The result is the smallest counter selected by `key`, normalized by the
+/// number of times that slot is selected when the double-hash sequence repeats
+/// a position, and capped at 15 because counters saturate. It can exceed the
+/// true multiplicity when other keys share those slots, and it is never lower
+/// than the number of insertions unless a counter has saturated. A key that
+/// hashes to a zero counter is reported as `0`.
 pub fn[K : Hash] CompactCountingBloomFilter::count_of(
   self : CompactCountingBloomFilter,
   key : K,
@@ -459,21 +460,50 @@ pub fn[K : Hash] CompactCountingBloomFilter::count_of(
     return 0
   }
   let (h1, h2) = key_hashes(key)
-  let slot_count = self.slot_count.to_uint64()
-  let probes = counting_effective_probes(self.hash_count, h2, slot_count)
-  let mut state = h1
-  let mut minimum = COMPACT_COUNTER_MAX
-  for i = 0; i < probes; i = i + 1 {
-    let value = self.counter_at((state % slot_count).to_int())
+  let positions = self.positions_for(h1, h2)
+  let limit = CompactCountingBloomFilter::counter_max()
+  let limit_u64 = limit.to_uint64()
+  let mut minimum = limit
+  let mut fallback = limit
+  let mut have_estimate = false
+  for i = 0; i < positions.length; i = i + 1 {
+    let value = self.counter_at(positions.positions[i])
     if value == 0UL {
       return 0
     }
-    if value < minimum {
-      minimum = value
+    // Repeated probes of one key add the same weighted contribution to a
+    // slot on every insertion, so normalize by that count to report the
+    // insertion multiplicity that remove also decrements.
+    let raw = if value > limit_u64 { limit } else { value.to_int() }
+    if raw < fallback {
+      fallback = raw
     }
-    state = state + h2
+    let occurrences = positions.counts[i].to_uint64()
+    // A slot selected more often than a nibble can hold saturates after the
+    // first contribution, so it cannot reveal the multiplicity. Fall back to
+    // the raw minimum when no selected slot can be normalized.
+    if occurrences <= limit_u64 {
+      let estimate_u64 = if value < occurrences {
+        1UL
+      } else {
+        value / occurrences
+      }
+      let estimate = if estimate_u64 > limit_u64 {
+        limit
+      } else {
+        estimate_u64.to_int()
+      }
+      if !have_estimate || estimate < minimum {
+        minimum = estimate
+        have_estimate = true
+      }
+    }
   }
-  minimum.to_int()
+  if have_estimate {
+    minimum
+  } else {
+    fallback
+  }
 }
 
 ///|

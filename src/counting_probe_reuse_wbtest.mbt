@@ -173,35 +173,14 @@ test "counting query probes stop at the double-hash cycle length" {
 
   let counting = CountingBloomFilter::with_size(16, 100_000)
   counting.insert("wide")
-  let (h1, h2) = key_hashes("wide")
-  let slot_count = counting.slot_count.to_uint64()
-  let mut state = h1
-  let mut full_minimum = 65535UL
-  for i = 0; i < counting.hash_count; i = i + 1 {
-    let value = counting.counter_at((state % slot_count).to_int())
-    if value < full_minimum {
-      full_minimum = value
-    }
-    state = state + h2
-  }
-  assert_eq(counting.count_of("wide"), full_minimum.to_int())
+  assert_eq(counting.count_of("wide"), counting_full_probe_minimum(counting, "wide"))
   assert_true(counting.contains("wide"))
   assert_true(counting.remove("wide"))
   assert_false(counting.contains("wide"))
 
   let compact = CompactCountingBloomFilter::with_size(16, 100_000)
   compact.insert("wide")
-  let compact_slots = compact.slot_count.to_uint64()
-  let mut compact_state = h1
-  let mut compact_minimum = COMPACT_COUNTER_MAX
-  for i = 0; i < compact.hash_count; i = i + 1 {
-    let value = compact.counter_at((compact_state % compact_slots).to_int())
-    if value < compact_minimum {
-      compact_minimum = value
-    }
-    compact_state = compact_state + h2
-  }
-  assert_eq(compact.count_of("wide"), compact_minimum.to_int())
+  assert_eq(compact.count_of("wide"), compact_full_probe_minimum(compact, "wide"))
   assert_true(compact.contains("wide"))
   assert_true(compact.remove("wide"))
   assert_false(compact.contains("wide"))
