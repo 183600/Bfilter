@@ -570,8 +570,18 @@ pub fn ScalableCountingBloomFilter::from_bytes(
     filter.locations.set(id, (slice_index, occurrences))
     offset = offset + 24
   }
-  guard total_occurrences == inserted.to_int64() else {
-    abort("scalable counting bloom metadata does not match its insertion count")
+  if total_occurrences != inserted.to_int64() {
+    // A count-only filter can carry a conservative insertion count in its
+    // slices without tracking any key. This form has no metadata and no
+    // positive counters, so it cannot hide a lost tracked occurrence. A
+    // filter with positive counters but no metadata, on the other hand, is
+    // inconsistent and must still be rejected.
+    let count_only_state = entry_count == 0 && filter.occupied_slot_count() == 0L
+    guard count_only_state else {
+      abort(
+        "scalable counting bloom metadata does not match its insertion count",
+      )
+    }
   }
   filter.inserted = inserted
   filter
