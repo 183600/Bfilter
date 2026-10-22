@@ -508,6 +508,12 @@ pub fn ScalableBloomFilter::intersection(
 ) -> ScalableBloomFilter {
   self.ensure_same_policy(other)
   let slice_count = self.slices.length().min(other.slices.length())
+  // A filter can reach this state through whitebox construction with an empty
+  // slice list. There is no shared slice layout to intersect, so return a fresh
+  // filter with the same growth policy instead of indexing an empty result.
+  if slice_count == 0 {
+    return ScalableBloomFilter::new(self.initial_capacity, self.target_rate)
+  }
   let mut result_bits = 0L
   for i = 0; i < slice_count; i = i + 1 {
     result_bits = result_bits + self.slices[i].bit_count().to_int64()
