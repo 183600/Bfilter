@@ -370,13 +370,31 @@ fn CountingBloomFilter::raise_positions_at(
   positions : CountingPositionSet,
   multiplicity : Int32,
 ) -> Unit {
-  // All counters of one key must advance together. Saturation is per position,
-  // so capping the lanes that still have room independently makes one lane run
-  // out of recorded insertions before the others. The later removals then stop
-  // early and leave positive residue on the remaining lanes forever. Find how
-  // many complete contributions fit in every selected lane and add the same
-  // number to all of them.
   let wanted = multiplicity.to_uint64()
+  if multiplicity > 1 {
+    // A merge records several occurrences at once. A saturated lane keeps its
+    // existing value, which can still fund the shared removals, so record as
+    // many complete contributions as every other lane can hold, up to the
+    // requested multiplicity. Capping those lanes to the most saturated lane
+    // would leave the tracked occurrences removable only in part.
+    for i = 0; i < positions.length; i = i + 1 {
+      let pos = positions.positions[i]
+      let occurrences = positions.counts[i].to_uint64()
+      let limit = counting_position_limit(occurrences)
+      let value = self.counter_at(pos)
+      if value < limit {
+        let raised = value + wanted * occurrences
+        self.set_counter(pos, if raised > limit { limit } else { raised })
+      }
+    }
+    return
+  }
+  // A single insertion advances all counters of the key together. Saturation is
+  // per position, so capping the lanes that still have room independently makes
+  // one lane run out of recorded insertions before the others. The later
+  // removals then stop early and leave positive residue on the remaining lanes
+  // forever. Find how many complete contributions fit in every selected lane
+  // and add the same number to all of them.
   let mut common = wanted
   let mut any_zero = false
   for i = 0; i < positions.length; i = i + 1 {
