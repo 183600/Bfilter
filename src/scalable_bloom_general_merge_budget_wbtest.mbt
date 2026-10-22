@@ -47,3 +47,13 @@ test "panic scalable bloom serialization checks aggregate bit budget" {
   let receiver = oversized_grown_bloom_receiver()
   receiver.to_bytes() |> ignore
 }
+
+///|
+test "scalable bloom intersection ignores oversized extra slices" {
+  let receiver = oversized_grown_bloom_receiver()
+  let other = ScalableBloomFilter::new(2, 0.01)
+  other.insert("other")
+  let common = receiver.intersection(other)
+  assert_eq(common.slice_count(), 1)
+  assert_eq(common.count(), 1)
+}
