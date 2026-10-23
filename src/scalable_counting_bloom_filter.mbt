@@ -975,10 +975,16 @@ pub fn ScalableCountingBloomFilter::is_subset_of(
   // metadata alone is not enough when the other counters have drained.
   for entry in self.locations.iter() {
     let (id, (_, occurrences)) = entry
+    // A tracked key whose counters have drained is not reported by `self`, so
+    // it cannot make the membership subset check fail even when `other` does
+    // not track it. Only keys that `self` still reports must also be reported
+    // by `other` with at least the same tracked multiplicity.
+    if !self.contains_hashes(id) {
+      continue
+    }
     match other.locations.get(id) {
       Some((_, other_occurrences)) =>
-        if other_occurrences < occurrences ||
-          (self.contains_hashes(id) && !other.contains_hashes(id)) {
+        if other_occurrences < occurrences || !other.contains_hashes(id) {
           return false
         }
       None => return false
