@@ -437,11 +437,22 @@ pub fn ScalableCountingBloomFilter::copy(
 pub fn ScalableCountingBloomFilter::clear(
   self : ScalableCountingBloomFilter,
 ) -> Unit {
-  self.slices = []
-  self.capacities = []
   self.locations.clear()
   self.inserted = 0
-  self.append_slice()
+  if self.slices.length() == 0 {
+    self.capacities = []
+    self.append_slice()
+    return
+  }
+  // Reuse the initial slice instead of allocating a new counter array. The
+  // first slice always uses the initial capacity and growth policy, so clearing
+  // it and dropping every later slice yields the same state as a fresh filter.
+  let first = self.slices[0]
+  first.clear()
+  let slices : Array[CountingBloomFilter] = [first]
+  let capacities : Array[Int32] = [self.initial_capacity]
+  self.slices = slices
+  self.capacities = capacities
 }
 
 ///|

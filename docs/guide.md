@@ -202,7 +202,9 @@ assert_true(filter.false_positive_rate() < 0.01)
 `capacity()` reports the sum of the current slice capacities, while
 `bit_count()`, `set_bit_count()`, `fill_ratio()`, and `memory_bytes()` aggregate
 the slices. `copy` is independent, and `clear` returns the filter to a single
-empty slice with the original initial capacity. `ConcurrentScalableBloomFilter`
+empty slice with the original initial capacity. It reuses the first slice's
+backing array and drops any later slices instead of allocating a new slice.
+`ConcurrentScalableBloomFilter`
 provides the same operations with one mutex and a `snapshot()` method.
 
 Scalable bloom filters can also be combined when they share the same initial
@@ -274,6 +276,8 @@ was never inserted, even when `contains` reports a false positive. This metadata
 grows with the number of distinct keys and is not included in `memory_bytes()`,
 which reports only the counter arrays. `insert_if_absent`, the batch helpers,
 `copy`, `clear`, and the occupancy statistics mirror the other filters.
+`clear` reuses the first slice's counter array, drops later slices, and empties
+the tracked-key metadata.
 `union` and `merge` rebuild counters from the tracked multiplicities: a key
 tracked by both filters keeps the larger multiplicity when both stored it in
 the same slice and the sum when they stored it in different slices. Combining a
@@ -631,7 +635,9 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   Set checks skip slices whose insertion count is zero, so an empty slice does
   not add an occupancy scan. The scalable counting variant tests each slice's
   exact counter mass instead of scanning its packed counters, and merging or
-  checking a count-only source does not walk its counter arrays. The scalable
+  checking a count-only source does not walk its counter arrays. Clearing either
+  scalable filter reuses the initial slice's backing array and drops later
+  slices. The scalable
   counting map grows with the number of
   distinct tracked keys and is not included in `memory_bytes()`, which reports
   only counter storage.

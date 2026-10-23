@@ -283,10 +283,21 @@ pub fn ScalableBloomFilter::copy(
 /// Remove every slice and restart from a single empty slice with the original
 /// initial capacity and target rate.
 pub fn ScalableBloomFilter::clear(self : ScalableBloomFilter) -> Unit {
-  self.slices = []
-  self.capacities = []
   self.inserted = 0
-  self.append_slice()
+  if self.slices.length() == 0 {
+    self.capacities = []
+    self.append_slice()
+    return
+  }
+  // Reuse the initial slice instead of allocating a new backing array. The
+  // first slice always uses the initial capacity and growth policy, so clearing
+  // it and dropping every later slice yields the same state as a fresh filter.
+  let first = self.slices[0]
+  first.clear()
+  let slices : Array[BloomFilter] = [first]
+  let capacities : Array[Int32] = [self.initial_capacity]
+  self.slices = slices
+  self.capacities = capacities
 }
 
 ///|

@@ -497,6 +497,10 @@ pub fn[K : Hash] BloomFilter::contains_any(
 ///|
 /// Clear every bit and reset the insertion counter.
 pub fn BloomFilter::clear(self : BloomFilter) -> Unit {
+  // A valid empty filter has no set bit, so there is nothing to zero.
+  if self.inserted == 0 {
+    return
+  }
   for i = 0; i < self.words.length(); i = i + 1 {
     self.words[i] = 0UL
   }

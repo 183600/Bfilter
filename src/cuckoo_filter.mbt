@@ -26,6 +26,16 @@ fn next_power_of_two(n : Int32) -> Int32 {
 }
 
 ///|
+/// Deterministic initial eviction state for a bucket layout.
+fn cuckoo_initial_random_state(
+  bucket_count : Int32,
+  bucket_size : Int32,
+) -> UInt64 {
+  let seed = (bucket_count.to_uint64() << 32) | bucket_size.to_uint64() | 1UL
+  mix64(seed)
+}
+
+///|
 fn fingerprint_hash(fingerprint : Byte) -> UInt64 {
   mix64(fingerprint.to_uint64() * 0x9E3779B97F4A7C15UL)
 }
@@ -76,13 +86,12 @@ pub fn CuckooFilter::with_size(
     abort("cuckoo filter size is too large")
   }
   let slot_count = bucket_count * bucket_size
-  let seed = (bucket_count.to_uint64() << 32) | bucket_size.to_uint64() | 1UL
   {
     buckets: FixedArray::make(slot_count, b'\x00'),
     bucket_count,
     bucket_size,
     inserted: 0,
-    random_state: mix64(seed),
+    random_state: cuckoo_initial_random_state(bucket_count, bucket_size),
   }
 }
 
@@ -928,14 +937,21 @@ pub fn CuckooFilter::copy(self : CuckooFilter) -> CuckooFilter {
 ///|
 /// Remove all fingerprints and reset the insertion counter.
 pub fn CuckooFilter::clear(self : CuckooFilter) -> Unit {
+  let initial_state = cuckoo_initial_random_state(
+    self.bucket_count,
+    self.bucket_size,
+  )
+  // A valid empty filter has no stored fingerprint, so only the eviction state
+  // has to return to its deterministic starting point.
+  if self.inserted == 0 {
+    self.random_state = initial_state
+    return
+  }
   for i = 0; i < self.buckets.length(); i = i + 1 {
     self.buckets[i] = b'\x00'
   }
   self.inserted = 0
-  let seed = (self.bucket_count.to_uint64() << 32) |
-    self.bucket_size.to_uint64() |
-    1UL
-  self.random_state = mix64(seed)
+  self.random_state = initial_state
 }
 
 ///|
