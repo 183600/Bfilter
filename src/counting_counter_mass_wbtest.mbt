@@ -231,3 +231,43 @@ test "count-only compact counting sources merge without touching counters" {
   assert_true(combined.contains("kept"))
 }
 
+
+///|
+test "counting subset checks use exact counter mass without false positives" {
+  let smaller = CountingBloomFilter::with_size(256, 4)
+  smaller.insert("alpha")
+  let larger = CountingBloomFilter::with_size(256, 4)
+  larger.insert_all(["alpha", "beta", "gamma"])
+  assert_true(smaller.counter_mass < larger.counter_mass)
+  assert_true(smaller.is_subset_of(larger))
+  assert_false(larger.is_subset_of(smaller))
+
+  // Equal mass must still fall through to the packed lane comparison; two
+  // different keys can occupy disjoint slots with the same total mass.
+  let left = CountingBloomFilter::with_size(256, 4)
+  left.insert("left-key")
+  let right = CountingBloomFilter::with_size(256, 4)
+  right.insert("right-key")
+  assert_eq(left.counter_mass, right.counter_mass)
+  assert_false(left.is_subset_of(right))
+  assert_true(left.is_subset_of(left.union(right)))
+}
+
+///|
+test "compact counting subset checks use exact counter mass without false positives" {
+  let smaller = CompactCountingBloomFilter::with_size(256, 4)
+  smaller.insert("alpha")
+  let larger = CompactCountingBloomFilter::with_size(256, 4)
+  larger.insert_all(["alpha", "beta", "gamma"])
+  assert_true(smaller.counter_mass < larger.counter_mass)
+  assert_true(smaller.is_subset_of(larger))
+  assert_false(larger.is_subset_of(smaller))
+
+  let left = CompactCountingBloomFilter::with_size(256, 4)
+  left.insert("left-key")
+  let right = CompactCountingBloomFilter::with_size(256, 4)
+  right.insert("right-key")
+  assert_eq(left.counter_mass, right.counter_mass)
+  assert_false(left.is_subset_of(right))
+  assert_true(left.is_subset_of(left.union(right)))
+}

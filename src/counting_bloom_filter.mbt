@@ -1191,6 +1191,12 @@ pub fn CountingBloomFilter::is_subset_of(
   if other.counter_mass == 0UL {
     return false
   }
+  // Every counter in a subset is at most the corresponding counter in
+  // `other`, so its exact total mass cannot exceed the other filter's mass.
+  // This rejects most oversized operands without scanning the packed words.
+  if self.counter_mass > other.counter_mass {
+    return false
+  }
   for i = 0; i < self.counters.length(); i = i + 1 {
     let left = self.counters[i]
     let right = other.counters[i]
