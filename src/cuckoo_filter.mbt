@@ -670,8 +670,14 @@ fn CuckooFilter::min_bucket_fingerprints(
     return result
   }
   let mut stored = 0
-  let visited : @hashmap.HashMap[(Int32, Byte), Unit] = @hashmap.HashMap([])
+  let seen = FixedArray::make(4, 0UL)
   for bucket = 0; bucket < result.bucket_count; bucket = bucket + 1 {
+    // Fingerprints are one byte, so four words track the pairs already handled
+    // in this bucket without allocating a hash map for the whole intersection.
+    seen[0] = 0UL
+    seen[1] = 0UL
+    seen[2] = 0UL
+    seen[3] = 0UL
     let base = bucket * result.bucket_size
     for slot = 0; slot < result.bucket_size; slot = slot + 1 {
       let fingerprint = self.buckets[base + slot]
@@ -680,13 +686,20 @@ fn CuckooFilter::min_bucket_fingerprints(
       }
       let alternate = self.alternate_index(bucket, fingerprint)
       let canonical = bucket.min(alternate)
-      let pair = (canonical, fingerprint)
-      // A fingerprint repeated in this bucket maps to the same candidate pair,
-      // so the visited set already skips it without rescanning earlier slots.
-      if visited.contains(pair) {
+      // The lower bucket of a candidate pair handles both buckets' copies. When
+      // the current bucket is the higher one and the lower bucket also holds
+      // this fingerprint, the pair was already processed while scanning the
+      // lower bucket.
+      if bucket != canonical && self.bucket_contains(canonical, fingerprint) {
         continue
       }
-      visited.set(pair, ())
+      let value = fingerprint.to_int()
+      let word = value / 64
+      let mask = 1UL << (value % 64)
+      if (seen[word] & mask) != 0UL {
+        continue
+      }
+      seen[word] = seen[word] | mask
       let keep = self
         .pair_fingerprint_count(canonical, fingerprint)
         .min(other.pair_fingerprint_count(canonical, fingerprint))
