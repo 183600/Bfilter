@@ -709,12 +709,16 @@ pub fn CompactCountingBloomFilter::intersection(
   self.ensure_compatible(other)
   // A filter with no positive counter is truly empty, so the intersection has
   // no positive counters regardless of the other filter. Keep the shared layout
-  // but skip the packed-counter scan.
+  // but skip the packed-counter scan. The insertion count stays the smaller of
+  // the inputs, even when one input only carries a conservative count after
+  // saturation drained its counters.
   if self.counter_mass == 0UL || other.counter_mass == 0UL {
-    return CompactCountingBloomFilter::with_size(
+    let result = CompactCountingBloomFilter::with_size(
       self.slot_count,
       self.hash_count,
     )
+    result.inserted = self.inserted.min(other.inserted)
+    return result
   }
   let result = CompactCountingBloomFilter::with_size(
     self.slot_count,

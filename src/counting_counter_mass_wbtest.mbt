@@ -271,3 +271,51 @@ test "compact counting subset checks use exact counter mass without false positi
   assert_false(left.is_subset_of(right))
   assert_true(left.is_subset_of(left.union(right)))
 }
+
+///|
+test "counting empty intersections keep the smaller conservative count" {
+  let drained = CountingBloomFilter::with_size(16, 65535)
+  for i = 0; i < 40; i = i + 1 {
+    drained.insert(0)
+  }
+  while drained.remove(0) {}
+  assert_eq(drained.counter_mass, 0UL)
+  assert_true(drained.count() > 0)
+
+  let other = CountingBloomFilter::with_size(16, 65535)
+  other.insert("kept")
+  let expected = drained.count().min(other.count())
+  let forward = drained.intersection(other)
+  assert_eq(forward.occupied_slot_count(), 0)
+  assert_eq(forward.count(), expected)
+  let backward = other.intersection(drained)
+  assert_eq(backward.occupied_slot_count(), 0)
+  assert_eq(backward.count(), expected)
+  let restored = CountingBloomFilter::from_bytes(forward.to_bytes())
+  assert_eq(restored.count(), expected)
+  assert_eq(restored.occupied_slot_count(), 0)
+}
+
+///|
+test "compact counting empty intersections keep the smaller conservative count" {
+  let drained = CompactCountingBloomFilter::with_size(16, 17)
+  for i = 0; i < 40; i = i + 1 {
+    drained.insert(0)
+  }
+  while drained.remove(0) {}
+  assert_eq(drained.counter_mass, 0UL)
+  assert_true(drained.count() > 0)
+
+  let other = CompactCountingBloomFilter::with_size(16, 17)
+  other.insert("kept")
+  let expected = drained.count().min(other.count())
+  let forward = drained.intersection(other)
+  assert_eq(forward.occupied_slot_count(), 0)
+  assert_eq(forward.count(), expected)
+  let backward = other.intersection(drained)
+  assert_eq(backward.occupied_slot_count(), 0)
+  assert_eq(backward.count(), expected)
+  let restored = CompactCountingBloomFilter::from_bytes(forward.to_bytes())
+  assert_eq(restored.count(), expected)
+  assert_eq(restored.occupied_slot_count(), 0)
+}
