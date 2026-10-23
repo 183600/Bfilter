@@ -80,8 +80,10 @@ pub fn CuckooFilter::with_size(
   }
   guard bucket_size > 0 else { abort("bucket_size must be positive") }
   let bucket_count = next_power_of_two(bucket_count)
-  // Leave room for the 20-byte header and the 8-byte eviction state appended by
-  // the serialized form.
+  // Check the size against the rounded bucket count: rounding an explicit
+  // bucket count up can more than double the slot capacity that the original
+  // argument would allow. Leaving room for the 20-byte header and the 8-byte
+  // eviction state also keeps the serialized length representable.
   guard bucket_size <= 2147483619 / bucket_count else {
     abort("cuckoo filter size is too large")
   }

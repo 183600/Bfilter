@@ -29,6 +29,15 @@ test "panic cuckoo optimal size rejects one item past the limit" {
 }
 
 ///|
+test "panic cuckoo with_size checks capacity after rounding buckets up" {
+  // Both explicit bucket counts are just above a power of two, so the rounded
+  // layout is twice as large as the argument suggests. The resulting slot count
+  // would overflow, and the constructor must reject it before allocating.
+  @src.CuckooFilter::with_size(536870913, 2) |> ignore
+  @src.CuckooFilter::with_size(1073741823, 2) |> ignore
+}
+
+///|
 test "fixed-size filters size the maximum expected count with a near-one rate" {
   // A rate close to one keeps the required bit and slot counts tiny even for
   // the largest accepted expected-item count, so this exercises the sizing
