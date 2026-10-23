@@ -407,13 +407,9 @@ pub fn BloomFilter::intersection(
 ) -> BloomFilter {
   self.ensure_compatible(other)
   // An empty operand has no set bits, so the intersection is empty regardless
-  // of the other filter. The result still keeps the shared layout. The
-  // insertion count stays the smaller of the inputs, even when an input only
-  // carries a conservative count with no set bits after deserialization.
+  // of the other filter. The result still keeps the shared layout.
   if self.inserted == 0 || other.inserted == 0 {
-    let result = BloomFilter::with_size(self.bit_count, self.hash_count)
-    result.inserted = self.inserted.min(other.inserted)
-    return result
+    return BloomFilter::with_size(self.bit_count, self.hash_count)
   }
   let result = BloomFilter::with_size(self.bit_count, self.hash_count)
   for i = 0; i < result.words.length(); i = i + 1 {
