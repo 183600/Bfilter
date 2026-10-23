@@ -156,3 +156,78 @@ test "scalable counting positivity follows exact slice masses" {
   live.merge(count_only)
   assert_eq(live.to_bytes(), before)
 }
+
+///|
+test "count-only counting sources merge without touching counters" {
+  let count_only : CountingBloomFilter = {
+    counters: FixedArray::make(4, 0UL),
+    slot_count: 16,
+    hash_count: 1,
+    inserted: 5,
+    counter_mass: 0UL,
+    probe_positions: FixedArray::make(1, 0),
+    probe_counts: FixedArray::make(1, 0),
+  }
+  assert_false(count_only.has_positive_counter())
+  assert_true(count_only.is_subset_of(CountingBloomFilter::with_size(16, 1)))
+  assert_true(
+    count_only.is_disjoint_from(CountingBloomFilter::with_size(16, 1)),
+  )
+
+  let receiver = CountingBloomFilter::with_size(16, 1)
+  receiver.insert("kept")
+  let before_mass = receiver.counter_mass
+  let before_occupied = receiver.occupied_slot_count()
+  let before_count = receiver.count()
+  receiver.merge(count_only)
+  assert_eq(receiver.counter_mass, before_mass)
+  assert_eq(receiver.occupied_slot_count(), before_occupied)
+  assert_eq(receiver.count(), before_count + 5)
+  assert_true(receiver.contains("kept"))
+  assert_true(count_only.is_subset_of(receiver))
+  assert_false(receiver.is_subset_of(count_only))
+  assert_true(count_only.is_disjoint_from(receiver))
+
+  let merged_count = receiver.count()
+  let combined = count_only.union(receiver)
+  assert_eq(combined.count(), merged_count + 5)
+  assert_true(combined.contains("kept"))
+}
+
+///|
+test "count-only compact counting sources merge without touching counters" {
+  let count_only : CompactCountingBloomFilter = {
+    counters: FixedArray::make(1, 0UL),
+    slot_count: 16,
+    hash_count: 1,
+    inserted: 5,
+    counter_mass: 0UL,
+    probe_positions: FixedArray::make(1, 0),
+    probe_counts: FixedArray::make(1, 0),
+  }
+  assert_true(
+    count_only.is_subset_of(CompactCountingBloomFilter::with_size(16, 1)),
+  )
+  assert_true(
+    count_only.is_disjoint_from(CompactCountingBloomFilter::with_size(16, 1)),
+  )
+
+  let receiver = CompactCountingBloomFilter::with_size(16, 1)
+  receiver.insert("kept")
+  let before_mass = receiver.counter_mass
+  let before_occupied = receiver.occupied_slot_count()
+  let before_count = receiver.count()
+  receiver.merge(count_only)
+  assert_eq(receiver.counter_mass, before_mass)
+  assert_eq(receiver.occupied_slot_count(), before_occupied)
+  assert_eq(receiver.count(), before_count + 5)
+  assert_true(receiver.contains("kept"))
+  assert_false(receiver.is_subset_of(count_only))
+  assert_true(count_only.is_disjoint_from(receiver))
+
+  let merged_count = receiver.count()
+  let combined = count_only.union(receiver)
+  assert_eq(combined.count(), merged_count + 5)
+  assert_true(combined.contains("kept"))
+}
+
