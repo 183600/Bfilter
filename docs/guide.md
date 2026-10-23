@@ -288,7 +288,10 @@ multiplicity, even when the inputs stored them in different slices.
 `is_subset_of` also consults the tracked multiplicities across slices, so a
 shared key counts as contained even when the two filters placed it in different
 slices; `is_disjoint_from` still compares the slice counters because it must
-prove that no key can be reported by both. Count-only slices, which carry a
+prove that no key can be reported by both. A tracked key whose counters have
+drained is no longer reported by `contains`, so the subset check ignores it
+instead of requiring the other filter to track the same entry. Count-only
+slices, which carry a
 conservative insertion count without tracked keys or positive counters, are
 treated as empty by set operations: merging such a filter leaves a non-empty
 receiver's counters untouched, and a count-only receiver copies the source's
