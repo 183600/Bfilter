@@ -107,13 +107,19 @@ Empty operands are handled without scanning the backing arrays: `intersection`
 returns an empty filter with the shared layout, `is_subset_of` is immediately
 true when `self` is empty, and `is_disjoint_from` is immediately true when
 either input is empty. The same shortcuts apply to the blocked, counting, and
-compact counting variants. The scalable variants keep the shortcut as well:
+compact counting variants. The counting variants also maintain an exact total
+counter mass, so `merge`, `intersection`, `is_subset_of`,
+`is_disjoint_from`, and `clear` can short-circuit an operand with no positive
+counter without scanning its packed counter words. The scalable variants keep
+the shortcut as well:
 their `is_subset_of` and `is_disjoint_from` checks return without scanning the
 slice storage when the relevant insertion count is zero. While checking a
 non-empty scalable filter, a slice whose own insertion count is zero is also
-skipped without scanning its bits or counters. Merging a non-empty filter into
-an empty receiver copies its bits or counters instead of combining them with
-zeroed storage.
+skipped without scanning its bits or counters. The scalable counting variant
+uses each slice's exact counter mass for the same positivity check, and merging
+a count-only source no longer scans that source's counter arrays. Merging a
+non-empty filter into an empty receiver copies its bits or counters instead of
+combining them with zeroed storage.
 
 `merge` performs the same combination as `union` in place, avoiding a new
 allocation. The concurrent wrappers expose `merge`, `union`, `intersection`,
@@ -606,8 +612,12 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   makes `insert_if_absent` return `false` after one occupancy scan instead of a
   full probe walk. The scan is selected when the effective probe count exceeds
   both 64 and the number of packed counter words, so a short cycle keeps the
-  probe path. Set operations scan the packed counter words, and merging into an
-  empty receiver copies the packed words directly.
+  probe path. Set operations scan the packed counter words unless an operand has
+  zero counter mass: the exact mass maintained by every mutation decides
+  emptiness and disjointness in constant time, and `merge` copies only the
+  insertion count from a count-only source. Clearing an already empty filter
+  likewise skips the packed-word scan. Merging into an empty receiver copies the
+  packed words directly.
 - `CuckooFilter` checks two buckets of `B` fingerprints per query, so a lookup
   is `O(B)` expected. An insert may evict fingerprints and, when random eviction
   does not find room, run a bounded breadth-first search for an augmenting path;
@@ -619,7 +629,10 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   amortized. Merges and unions process the slices they combine; merging into an
   empty scalable filter copies the source slices instead of rebuilding them.
   Set checks skip slices whose insertion count is zero, so an empty slice does
-  not add an occupancy scan. The scalable counting map grows with the number of
+  not add an occupancy scan. The scalable counting variant tests each slice's
+  exact counter mass instead of scanning its packed counters, and merging or
+  checking a count-only source does not walk its counter arrays. The scalable
+  counting map grows with the number of
   distinct tracked keys and is not included in `memory_bytes()`, which reports
   only counter storage.
 - The `optimal_size` helpers compute layouts without allocating, and the

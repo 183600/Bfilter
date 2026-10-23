@@ -1063,10 +1063,14 @@ pub fn CountingBloomFilter::merge(
   other : CountingBloomFilter,
 ) -> Unit {
   self.ensure_compatible(other)
-  // An empty filter contributes no counters. Checking the counter mass as well
-  // as the insertion count keeps the fast path safe even for a hand-built state
-  // whose counters are positive but whose insertion count has already drained.
-  if other.inserted == 0 && other.counter_mass == 0UL {
+  // A source with no positive counter contributes no slot values, so only its
+  // conservative insertion count changes the receiver. `counter_mass` is exact,
+  // which avoids scanning every packed word for a count-only source.
+  if other.counter_mass == 0UL {
+    guard self.inserted <= 2147483647 - other.inserted else {
+      abort("counting bloom filter insertion count overflow")
+    }
+    self.inserted += other.inserted
     return
   }
   // The receiver holds no counters, so lane-wise merging would only copy the
@@ -1137,11 +1141,10 @@ pub fn CountingBloomFilter::intersection(
   other : CountingBloomFilter,
 ) -> CountingBloomFilter {
   self.ensure_compatible(other)
-  // A filter with no insertions and no counter mass is truly empty, so the
-  // intersection has no positive counters regardless of the other filter. Keep
-  // the shared layout but skip the packed-counter scan.
-  if (self.inserted == 0 && self.counter_mass == 0UL) ||
-    (other.inserted == 0 && other.counter_mass == 0UL) {
+  // A filter with no positive counter is truly empty, so the intersection has
+  // no positive counters regardless of the other filter. Keep the shared layout
+  // but skip the packed-counter scan.
+  if self.counter_mass == 0UL || other.counter_mass == 0UL {
     return CountingBloomFilter::with_size(self.slot_count, self.hash_count)
   }
   let result = CountingBloomFilter::with_size(self.slot_count, self.hash_count)
@@ -1178,9 +1181,15 @@ pub fn CountingBloomFilter::is_subset_of(
   other : CountingBloomFilter,
 ) -> Bool {
   self.ensure_compatible(other)
-  // The truly empty filter is a subset of every filter.
-  if self.inserted == 0 && self.counter_mass == 0UL {
+  // A filter with no positive counter is the empty set, regardless of its
+  // conservative insertion count. Conversely, a non-empty filter cannot be a
+  // subset of one whose counters are all zero. The exact counter mass answers
+  // both cases without scanning the packed words.
+  if self.counter_mass == 0UL {
     return true
+  }
+  if other.counter_mass == 0UL {
+    return false
   }
   for i = 0; i < self.counters.length(); i = i + 1 {
     let left = self.counters[i]
@@ -1207,9 +1216,8 @@ pub fn CountingBloomFilter::is_disjoint_from(
   other : CountingBloomFilter,
 ) -> Bool {
   self.ensure_compatible(other)
-  // An empty filter has no positive counter that could overlap.
-  if (self.inserted == 0 && self.counter_mass == 0UL) ||
-    (other.inserted == 0 && other.counter_mass == 0UL) {
+  // A filter with no positive counter cannot overlap anything.
+  if self.counter_mass == 0UL || other.counter_mass == 0UL {
     return true
   }
   for i = 0; i < self.counters.length(); i = i + 1 {
@@ -1273,6 +1281,12 @@ pub fn CountingBloomFilter::copy(
 ///|
 /// Reset every counter and the insertion counter.
 pub fn CountingBloomFilter::clear(self : CountingBloomFilter) -> Unit {
+  // The exact mass is zero only when every packed counter is already zero, so a
+  // clear of an already empty filter can skip the backing-array scan.
+  if self.counter_mass == 0UL {
+    self.inserted = 0
+    return
+  }
   for i = 0; i < self.counters.length(); i = i + 1 {
     self.counters[i] = 0UL
   }
@@ -1320,19 +1334,11 @@ pub fn CountingBloomFilter::occupied_slot_count(
 fn CountingBloomFilter::has_positive_counter(
   self : CountingBloomFilter,
 ) -> Bool {
-  // No counter can be positive when the total counter mass is zero. Scalable
-  // set checks use this helper per slice, so empty slices can avoid a full
-  // packed-counter scan. A count-only slice has zero mass as well, and is
-  // correctly treated as having no positive counter.
-  if self.counter_mass == 0UL {
-    return false
-  }
-  for i = 0; i < self.counters.length(); i = i + 1 {
-    if counting_nonzero_lanes(self.counters[i]) != 0UL {
-      return true
-    }
-  }
-  false
+  // No counter can be positive when the total counter mass is zero, and the
+  // mass is maintained exactly by every mutation and by deserialization. The
+  // scalable set checks use this helper per slice, so they get a constant-time
+  // answer instead of scanning the packed counters.
+  self.counter_mass != 0UL
 }
 
 ///|

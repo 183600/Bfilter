@@ -629,10 +629,14 @@ pub fn CompactCountingBloomFilter::merge(
   other : CompactCountingBloomFilter,
 ) -> Unit {
   self.ensure_compatible(other)
-  // An empty filter contributes no counters. Checking the counter mass as well
-  // as the insertion count keeps the fast path safe even for a hand-built state
-  // whose counters are positive but whose insertion count has already drained.
-  if other.inserted == 0 && other.counter_mass == 0UL {
+  // A source with no positive counter contributes no slot values, so only its
+  // conservative insertion count changes the receiver. `counter_mass` is exact,
+  // which avoids scanning every packed word for a count-only source.
+  if other.counter_mass == 0UL {
+    guard self.inserted <= 2147483647 - other.inserted else {
+      abort("compact counting bloom filter insertion count overflow")
+    }
+    self.inserted += other.inserted
     return
   }
   // The receiver holds no counters, so lane-wise merging would only copy the
@@ -703,11 +707,10 @@ pub fn CompactCountingBloomFilter::intersection(
   other : CompactCountingBloomFilter,
 ) -> CompactCountingBloomFilter {
   self.ensure_compatible(other)
-  // A filter with no insertions and no counter mass is truly empty, so the
-  // intersection has no positive counters regardless of the other filter. Keep
-  // the shared layout but skip the packed-counter scan.
-  if (self.inserted == 0 && self.counter_mass == 0UL) ||
-    (other.inserted == 0 && other.counter_mass == 0UL) {
+  // A filter with no positive counter is truly empty, so the intersection has
+  // no positive counters regardless of the other filter. Keep the shared layout
+  // but skip the packed-counter scan.
+  if self.counter_mass == 0UL || other.counter_mass == 0UL {
     return CompactCountingBloomFilter::with_size(
       self.slot_count,
       self.hash_count,
@@ -750,9 +753,15 @@ pub fn CompactCountingBloomFilter::is_subset_of(
   other : CompactCountingBloomFilter,
 ) -> Bool {
   self.ensure_compatible(other)
-  // The truly empty filter is a subset of every filter.
-  if self.inserted == 0 && self.counter_mass == 0UL {
+  // A filter with no positive counter is the empty set, regardless of its
+  // conservative insertion count. Conversely, a non-empty filter cannot be a
+  // subset of one whose counters are all zero. The exact counter mass answers
+  // both cases without scanning the packed words.
+  if self.counter_mass == 0UL {
     return true
+  }
+  if other.counter_mass == 0UL {
+    return false
   }
   for i = 0; i < self.counters.length(); i = i + 1 {
     let left = self.counters[i]
@@ -779,9 +788,8 @@ pub fn CompactCountingBloomFilter::is_disjoint_from(
   other : CompactCountingBloomFilter,
 ) -> Bool {
   self.ensure_compatible(other)
-  // An empty filter has no positive counter that could overlap.
-  if (self.inserted == 0 && self.counter_mass == 0UL) ||
-    (other.inserted == 0 && other.counter_mass == 0UL) {
+  // A filter with no positive counter cannot overlap anything.
+  if self.counter_mass == 0UL || other.counter_mass == 0UL {
     return true
   }
   for i = 0; i < self.counters.length(); i = i + 1 {
@@ -847,6 +855,12 @@ pub fn CompactCountingBloomFilter::copy(
 pub fn CompactCountingBloomFilter::clear(
   self : CompactCountingBloomFilter,
 ) -> Unit {
+  // The exact mass is zero only when every packed counter is already zero, so a
+  // clear of an already empty filter can skip the backing-array scan.
+  if self.counter_mass == 0UL {
+    self.inserted = 0
+    return
+  }
   for i = 0; i < self.counters.length(); i = i + 1 {
     self.counters[i] = 0UL
   }

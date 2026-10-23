@@ -587,6 +587,22 @@ fn ScalableCountingBloomFilter::ensure_same_policy(
 }
 
 ///|
+/// Whether any slice holds a positive counter.
+///
+/// Each slice maintains its exact counter mass, so summing the slice masses is
+/// enough: no packed counter array needs to be scanned.
+fn ScalableCountingBloomFilter::has_positive_counters(
+  self : ScalableCountingBloomFilter,
+) -> Bool {
+  for slice in self.slices {
+    if slice.counter_mass > 0UL {
+      return true
+    }
+  }
+  false
+}
+
+///|
 /// Merge every slice and tracked key of `other` into `self` in place.
 ///
 /// Both filters must share the same initial capacity and target rate, so slice
@@ -626,7 +642,7 @@ pub fn ScalableCountingBloomFilter::merge(
   // perturb saturated counters, so leave the existing slices untouched. If the
   // empty filter grew further, append the empty slices its layout calls for.
   if other.locations.length() == 0 &&
-    (other.inserted == 0 || other.occupied_slot_count() == 0L) {
+    (other.inserted == 0 || !other.has_positive_counters()) {
     // A zero-slice receiver can still carry a conservative count. Preserve it
     // in a real slice before matching the source's slice count, so the merged
     // filter keeps its insertion count consistent with its slices and remains
@@ -662,7 +678,7 @@ pub fn ScalableCountingBloomFilter::merge(
   // dropped so the merged insertion count stays consistent with its slices.
   let receiver_is_count_only = self.inserted > 0 &&
     self.locations.length() == 0 &&
-    self.occupied_slot_count() == 0L
+    !self.has_positive_counters()
   if (self.inserted == 0 && self.locations.length() == 0) ||
     receiver_is_count_only {
     let self_slice_count = self.slices.length()
@@ -922,9 +938,9 @@ pub fn ScalableCountingBloomFilter::is_subset_of(
 ) -> Bool {
   self.ensure_same_policy(other)
   // An empty filter has no positive counter in any slice, so it is a subset of
-  // every filter. This avoids scanning every slice's counters just to discover
-  // that they are all zero.
-  if self.inserted == 0 {
+  // every filter. Each slice maintains its exact counter mass, so this check
+  // avoids scanning every packed counter array just to discover they are zero.
+  if self.inserted == 0 || !self.has_positive_counters() {
     return true
   }
   let mut counters_are_subset = true
@@ -980,8 +996,12 @@ pub fn ScalableCountingBloomFilter::is_disjoint_from(
 ) -> Bool {
   self.ensure_same_policy(other)
   // An empty filter has no positive counter in any slice, so no key can be
-  // reported by both inputs. Skip the per-slice occupancy scans in that case.
-  if self.inserted == 0 || other.inserted == 0 {
+  // reported by both inputs. The exact per-slice masses answer this without
+  // scanning the packed counter arrays.
+  if self.inserted == 0 ||
+    other.inserted == 0 ||
+    !self.has_positive_counters() ||
+    !other.has_positive_counters() {
     return true
   }
   let self_slices = self.slices
