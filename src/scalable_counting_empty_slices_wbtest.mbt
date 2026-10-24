@@ -29,6 +29,46 @@ test "scalable counting intersection handles a filter with no slices" {
 }
 
 ///|
+test "zero-slice scalable counting intersections keep conservative counts" {
+  let counted : ScalableCountingBloomFilter = {
+    slices: [],
+    capacities: [],
+    locations: @hashmap.HashMap([]),
+    initial_capacity: 2,
+    target_rate: 0.01,
+    inserted: 5,
+  }
+  let other : ScalableCountingBloomFilter = {
+    slices: [],
+    capacities: [],
+    locations: @hashmap.HashMap([]),
+    initial_capacity: 2,
+    target_rate: 0.01,
+    inserted: 3,
+  }
+  let forward = counted.intersection(other)
+  assert_eq(forward.slice_count(), 1)
+  assert_eq(forward.count(), 3)
+  assert_eq(forward.tracked_key_count(), 0)
+  assert_eq(forward.occupied_slot_count(), 0L)
+  let restored = ScalableCountingBloomFilter::from_bytes(forward.to_bytes())
+  assert_eq(restored.count(), 3)
+  assert_eq(restored.to_bytes(), forward.to_bytes())
+
+  let sliced = ScalableCountingBloomFilter::new(2, 0.01)
+  sliced.insert("present")
+  let mixed = counted.intersection(sliced)
+  assert_eq(mixed.slice_count(), 1)
+  assert_eq(mixed.count(), 1)
+  assert_eq(mixed.tracked_key_count(), 0)
+  assert_eq(mixed.occupied_slot_count(), 0L)
+  assert_eq(
+    ScalableCountingBloomFilter::from_bytes(mixed.to_bytes()).count(),
+    1,
+  )
+}
+
+///|
 test "scalable counting statistics handle a filter with no slices" {
   let empty : ScalableCountingBloomFilter = {
     slices: [],

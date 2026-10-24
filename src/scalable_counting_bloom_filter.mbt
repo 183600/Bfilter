@@ -841,13 +841,20 @@ pub fn ScalableCountingBloomFilter::intersection(
   let other_slice_count = other.slices.length()
   let slice_count = self_slice_count.min(other_slice_count)
   // A filter can reach this state through whitebox construction with an empty
-  // slice list. There is no shared slice layout to intersect, so return a fresh
-  // filter with the same growth policy instead of an unusable zero-slice result.
+  // slice list. There is no shared slice layout to intersect, so start from a
+  // fresh filter with the same growth policy. Its conservative insertion count
+  // is still the smaller of the input counts, matching every other layout.
   if slice_count == 0 {
-    return ScalableCountingBloomFilter::new(
+    let result = ScalableCountingBloomFilter::new(
       self.initial_capacity,
       self.target_rate,
     )
+    let inserted = self.inserted.min(other.inserted)
+    if inserted > 0 {
+      result.slices[0].inserted = inserted
+      result.inserted = inserted
+    }
+    return result
   }
   let mut result_slots = 0L
   for i = 0; i < slice_count; i = i + 1 {
