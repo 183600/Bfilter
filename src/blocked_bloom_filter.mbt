@@ -538,6 +538,16 @@ pub fn BlockedBloomFilter::set_bit_count(self : BlockedBloomFilter) -> Int32 {
 }
 
 ///|
+/// Whether every addressable bit is set.
+///
+/// A full blocked filter reports every key as present. Inserting a key still
+/// advances the insertion counter, but it cannot change the filter's membership
+/// state.
+pub fn BlockedBloomFilter::is_full(self : BlockedBloomFilter) -> Bool {
+  self.all_bits_set()
+}
+
+///|
 /// Fraction of addressable bits currently set to one, in `[0, 1]`.
 pub fn BlockedBloomFilter::fill_ratio(self : BlockedBloomFilter) -> Double {
   self.set_bit_count().to_double() / self.bit_count.to_double()

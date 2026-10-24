@@ -1344,6 +1344,19 @@ pub fn CountingBloomFilter::occupied_slot_count(
 }
 
 ///|
+/// Whether every counter slot is positive.
+///
+/// A full counting filter reports every key as present, although removals can
+/// still free slots and insertions still advance counters and the insertion
+/// count.
+pub fn CountingBloomFilter::is_full(self : CountingBloomFilter) -> Bool {
+  if self.counter_mass == 0UL {
+    return false
+  }
+  self.all_slots_positive()
+}
+
+///|
 fn CountingBloomFilter::has_positive_counter(
   self : CountingBloomFilter,
 ) -> Bool {

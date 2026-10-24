@@ -546,6 +546,15 @@ pub fn BloomFilter::set_bit_count(self : BloomFilter) -> Int32 {
 }
 
 ///|
+/// Whether every addressable bit is set.
+///
+/// A full filter reports every key as present. Inserting a key still advances
+/// the insertion counter, but it cannot change the filter's membership state.
+pub fn BloomFilter::is_full(self : BloomFilter) -> Bool {
+  self.all_bits_set()
+}
+
+///|
 fn BloomFilter::has_set_bit(self : BloomFilter) -> Bool {
   // An insertion count of zero implies no bit is set in a valid filter, so the
   // scalable set checks can skip empty slices without touching their words.

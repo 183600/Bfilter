@@ -29,6 +29,7 @@ pub fn[K : Hash] BlockedBloomFilter::insert_if_absent(Self, K) -> Bool
 pub fn BlockedBloomFilter::intersection(Self, Self) -> Self
 pub fn BlockedBloomFilter::is_disjoint_from(Self, Self) -> Bool
 pub fn BlockedBloomFilter::is_empty(Self) -> Bool
+pub fn BlockedBloomFilter::is_full(Self) -> Bool
 pub fn BlockedBloomFilter::is_subset_of(Self, Self) -> Bool
 pub fn BlockedBloomFilter::memory_bytes(Self) -> Int64
 pub fn BlockedBloomFilter::merge(Self, Self) -> Unit
@@ -61,6 +62,7 @@ pub fn[K : Hash] BloomFilter::insert_if_absent(Self, K) -> Bool
 pub fn BloomFilter::intersection(Self, Self) -> Self
 pub fn BloomFilter::is_disjoint_from(Self, Self) -> Bool
 pub fn BloomFilter::is_empty(Self) -> Bool
+pub fn BloomFilter::is_full(Self) -> Bool
 pub fn BloomFilter::is_subset_of(Self, Self) -> Bool
 pub fn BloomFilter::memory_bytes(Self) -> Int64
 pub fn BloomFilter::merge(Self, Self) -> Unit
@@ -94,6 +96,7 @@ pub fn[K : Hash] CompactCountingBloomFilter::insert_if_absent(Self, K) -> Bool
 pub fn CompactCountingBloomFilter::intersection(Self, Self) -> Self
 pub fn CompactCountingBloomFilter::is_disjoint_from(Self, Self) -> Bool
 pub fn CompactCountingBloomFilter::is_empty(Self) -> Bool
+pub fn CompactCountingBloomFilter::is_full(Self) -> Bool
 pub fn CompactCountingBloomFilter::is_subset_of(Self, Self) -> Bool
 pub fn CompactCountingBloomFilter::memory_bytes(Self) -> Int64
 pub fn CompactCountingBloomFilter::merge(Self, Self) -> Unit
@@ -130,6 +133,7 @@ pub fn[K : Hash] ConcurrentBlockedBloomFilter::insert_if_absent(Self, K) -> Bool
 pub fn ConcurrentBlockedBloomFilter::intersection(Self, BlockedBloomFilter) -> BlockedBloomFilter
 pub fn ConcurrentBlockedBloomFilter::is_disjoint_from(Self, BlockedBloomFilter) -> Bool
 pub fn ConcurrentBlockedBloomFilter::is_empty(Self) -> Bool
+pub fn ConcurrentBlockedBloomFilter::is_full(Self) -> Bool
 pub fn ConcurrentBlockedBloomFilter::is_subset_of(Self, BlockedBloomFilter) -> Bool
 pub fn ConcurrentBlockedBloomFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentBlockedBloomFilter::merge(Self, BlockedBloomFilter) -> Unit
@@ -163,6 +167,7 @@ pub fn[K : Hash] ConcurrentBloomFilter::insert_if_absent(Self, K) -> Bool
 pub fn ConcurrentBloomFilter::intersection(Self, BloomFilter) -> BloomFilter
 pub fn ConcurrentBloomFilter::is_disjoint_from(Self, BloomFilter) -> Bool
 pub fn ConcurrentBloomFilter::is_empty(Self) -> Bool
+pub fn ConcurrentBloomFilter::is_full(Self) -> Bool
 pub fn ConcurrentBloomFilter::is_subset_of(Self, BloomFilter) -> Bool
 pub fn ConcurrentBloomFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentBloomFilter::merge(Self, BloomFilter) -> Unit
@@ -197,6 +202,7 @@ pub fn[K : Hash] ConcurrentCompactCountingBloomFilter::insert_if_absent(Self, K)
 pub fn ConcurrentCompactCountingBloomFilter::intersection(Self, CompactCountingBloomFilter) -> CompactCountingBloomFilter
 pub fn ConcurrentCompactCountingBloomFilter::is_disjoint_from(Self, CompactCountingBloomFilter) -> Bool
 pub fn ConcurrentCompactCountingBloomFilter::is_empty(Self) -> Bool
+pub fn ConcurrentCompactCountingBloomFilter::is_full(Self) -> Bool
 pub fn ConcurrentCompactCountingBloomFilter::is_subset_of(Self, CompactCountingBloomFilter) -> Bool
 pub fn ConcurrentCompactCountingBloomFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentCompactCountingBloomFilter::merge(Self, CompactCountingBloomFilter) -> Unit
@@ -234,6 +240,7 @@ pub fn[K : Hash] ConcurrentCountingBloomFilter::insert_if_absent(Self, K) -> Boo
 pub fn ConcurrentCountingBloomFilter::intersection(Self, CountingBloomFilter) -> CountingBloomFilter
 pub fn ConcurrentCountingBloomFilter::is_disjoint_from(Self, CountingBloomFilter) -> Bool
 pub fn ConcurrentCountingBloomFilter::is_empty(Self) -> Bool
+pub fn ConcurrentCountingBloomFilter::is_full(Self) -> Bool
 pub fn ConcurrentCountingBloomFilter::is_subset_of(Self, CountingBloomFilter) -> Bool
 pub fn ConcurrentCountingBloomFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentCountingBloomFilter::merge(Self, CountingBloomFilter) -> Unit
@@ -381,6 +388,7 @@ pub fn[K : Hash] CountingBloomFilter::insert_if_absent(Self, K) -> Bool
 pub fn CountingBloomFilter::intersection(Self, Self) -> Self
 pub fn CountingBloomFilter::is_disjoint_from(Self, Self) -> Bool
 pub fn CountingBloomFilter::is_empty(Self) -> Bool
+pub fn CountingBloomFilter::is_full(Self) -> Bool
 pub fn CountingBloomFilter::is_subset_of(Self, Self) -> Bool
 pub fn CountingBloomFilter::memory_bytes(Self) -> Int64
 pub fn CountingBloomFilter::merge(Self, Self) -> Unit

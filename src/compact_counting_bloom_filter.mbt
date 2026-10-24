@@ -923,6 +923,21 @@ pub fn CompactCountingBloomFilter::occupied_slot_count(
 }
 
 ///|
+/// Whether every counter slot is positive.
+///
+/// A full compact counting filter reports every key as present, although
+/// removals can still free slots and insertions still advance counters and the
+/// insertion count.
+pub fn CompactCountingBloomFilter::is_full(
+  self : CompactCountingBloomFilter,
+) -> Bool {
+  if self.counter_mass == 0UL {
+    return false
+  }
+  self.all_slots_positive()
+}
+
+///|
 /// Fraction of slots with a positive counter, in `[0, 1]`.
 pub fn CompactCountingBloomFilter::fill_ratio(
   self : CompactCountingBloomFilter,

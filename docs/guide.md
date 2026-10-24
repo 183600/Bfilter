@@ -669,6 +669,14 @@ Every filter exposes read-only statistics without scanning keys:
   its slices.
 - `CuckooFilter::load_factor()` divides the stored fingerprint count by the
   total number of slots, which is reported by `capacity()`.
+- `is_full()` reports whether a fixed-size filter has no empty position left:
+  `BloomFilter` and `BlockedBloomFilter` check every bit, the counting variants
+  check every counter slot, and `CuckooFilter` checks whether every slot holds
+  a fingerprint. A full Bloom or counting filter reports every key as present,
+  while a full Cuckoo filter always rejects further insertions. Counting and
+  Cuckoo filters can still remove entries, and inserts continue to advance
+  counters and insertion statistics. The scalable filters grow instead of
+  reporting a final full state.
 - `estimated_item_count()` derives the number of distinct keys from occupancy
   for the Bloom variants; the scalable variant sums its slice estimates. It returns infinity when every slot is occupied.
 - `CuckooFilter::false_positive_rate()` estimates the current rate from the

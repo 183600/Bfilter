@@ -292,6 +292,14 @@ pub fn ConcurrentCountingBloomFilter::occupied_slot_count(
 }
 
 ///|
+/// Whether every counter slot is positive, while holding the lock once.
+pub fn ConcurrentCountingBloomFilter::is_full(
+  self : ConcurrentCountingBloomFilter,
+) -> Bool {
+  self.with_lock(filter => filter.is_full())
+}
+
+///|
 /// Fraction of slots with a positive counter.
 pub fn ConcurrentCountingBloomFilter::fill_ratio(
   self : ConcurrentCountingBloomFilter,

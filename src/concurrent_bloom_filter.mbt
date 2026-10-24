@@ -251,6 +251,14 @@ pub fn ConcurrentBloomFilter::set_bit_count(
 }
 
 ///|
+/// Whether every addressable bit is set, while holding the lock once.
+pub fn ConcurrentBloomFilter::is_full(
+  self : ConcurrentBloomFilter,
+) -> Bool {
+  self.with_lock(filter => filter.is_full())
+}
+
+///|
 /// Fraction of addressable bits currently set to one.
 pub fn ConcurrentBloomFilter::fill_ratio(
   self : ConcurrentBloomFilter,
