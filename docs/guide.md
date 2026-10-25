@@ -283,8 +283,9 @@ tracked by both filters keeps the larger multiplicity when both stored it in
 the same slice and the sum when they stored it in different slices. Combining a
 filter with itself therefore preserves each multiplicity instead of doubling
 it.
-`intersection` keeps the keys tracked by both filters with the smaller
-multiplicity, even when the inputs stored them in different slices.
+`intersection` keeps the keys still reported by both filters with the smaller
+multiplicity, even when the inputs stored them in different slices. A tracked
+key whose counters have drained in either input is treated as absent.
 `is_subset_of` also consults the tracked multiplicities across slices, so a
 shared key counts as contained even when the two filters placed it in different
 slices; `is_disjoint_from` still compares the slice counters because it must

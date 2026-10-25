@@ -825,13 +825,14 @@ pub fn ScalableCountingBloomFilter::union(
 }
 
 ///|
-/// Build a new filter containing keys tracked by both inputs.
+/// Build a new filter containing keys still reported by both inputs.
 ///
 /// Both filters must share the same initial capacity and target rate. A key
-/// present in both keeps the smaller multiplicity and is placed in the slice
-/// recorded by the shorter input, so keys are found even when the inputs
-/// stored them in different slices. The result has as many slices as the
-/// shorter input and leaves both inputs unchanged.
+/// still reported by both inputs keeps the smaller multiplicity and is placed
+/// in the slice recorded by the shorter input, so keys are found even when the
+/// inputs stored them in different slices. A tracked key whose counters have
+/// drained in either input is treated as absent. The result has as many slices
+/// as the shorter input and leaves both inputs unchanged.
 pub fn ScalableCountingBloomFilter::intersection(
   self : ScalableCountingBloomFilter,
   other : ScalableCountingBloomFilter,
@@ -875,6 +876,7 @@ pub fn ScalableCountingBloomFilter::intersection(
   }
   let locations : @hashmap.HashMap[(UInt64, UInt64), (Int32, Int32)] = @hashmap.HashMap([],
   )
+  let mut claimed_inserted = 0L
   let scan_self = self.locations.length() <= other.locations.length()
   let scanned = if scan_self { self.locations } else { other.locations }
   let looked_up = if scan_self { other.locations } else { self.locations }
@@ -891,6 +893,13 @@ pub fn ScalableCountingBloomFilter::intersection(
           self_occurrences
         } else {
           other_occurrences
+        }
+        claimed_inserted = claimed_inserted + occurrences.to_int64()
+        // A tracked key whose counters have drained is no longer reported by
+        // `contains`, so it is not part of the membership intersection even
+        // when both inputs still record its multiplicity.
+        if !self.contains_hashes(id) || !other.contains_hashes(id) {
+          continue
         }
         let slice_index = if self_slice_count < other_slice_count {
           self_slice
@@ -912,6 +921,9 @@ pub fn ScalableCountingBloomFilter::intersection(
       }
       None => ()
     }
+  }
+  guard claimed_inserted <= 2147483647L else {
+    abort("scalable counting bloom filter insertion count overflow")
   }
   let mut inserted = 0L
   for i = 0; i < slice_count; i = i + 1 {
