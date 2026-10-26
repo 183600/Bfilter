@@ -282,7 +282,8 @@ the tracked-key metadata.
 tracked by both filters keeps the larger multiplicity when both stored it in
 the same slice and the sum when they stored it in different slices. Combining a
 filter with itself therefore preserves each multiplicity instead of doubling
-it.
+it. A tracked key whose counters have drained in both inputs stays absent while
+keeping its exact multiplicity, so union and merge do not resurrect it.
 `intersection` keeps the keys still reported by both filters with the smaller
 multiplicity, even when the inputs stored them in different slices. A tracked
 key whose counters have drained in either input is treated as absent.

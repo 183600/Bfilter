@@ -622,9 +622,11 @@ fn ScalableCountingBloomFilter::has_positive_counters(
 /// counter, which keeps every key removable after the merge. Keys present in
 /// both filters in the same slice keep the larger multiplicity; keys in
 /// different slices keep both contributions in the slice recorded for the
-/// merged key, so later removals never have to search other slices. The
-/// insertion counter is recomputed from the merged tracked multiplicities so it
-/// stays consistent with the rebuilt counters and serialization.
+/// merged key, so later removals never have to search other slices. A tracked
+/// key whose counters have drained in both inputs stays drained and keeps its
+/// multiplicity, so merging cannot resurrect it. The insertion counter is
+/// recomputed from the merged tracked multiplicities so it stays consistent
+/// with the rebuilt counters and serialization.
 pub fn ScalableCountingBloomFilter::merge(
   self : ScalableCountingBloomFilter,
   other : ScalableCountingBloomFilter,
@@ -790,7 +792,13 @@ pub fn ScalableCountingBloomFilter::merge(
   let mut total_inserted = 0L
   for entry in merged.iter() {
     let (id, (slice_index, occurrences)) = entry
-    slices[slice_index].raise_positions_for_new_merge(id.0, id.1, occurrences)
+    // Rebuilding a drained key would make `contains` true again even though
+    // neither input still reports it. Preserve the tracked multiplicity for
+    // `count_of` and serialization, but only raise counters when at least one
+    // input still reports the key.
+    if self.contains_hashes(id) || other.contains_hashes(id) {
+      slices[slice_index].raise_positions_for_new_merge(id.0, id.1, occurrences)
+    }
     slice_inserted[slice_index] = slice_inserted[slice_index] +
       occurrences.to_int64()
     total_inserted = total_inserted + occurrences.to_int64()
@@ -808,13 +816,15 @@ pub fn ScalableCountingBloomFilter::merge(
 }
 
 ///|
-/// Build a new filter containing every key tracked by either input.
+/// Build a new filter containing every key still reported by either input.
 ///
 /// Both filters must share the same initial capacity and target rate. The
 /// result rebuilds counters from the merged tracked multiplicities, so every
-/// key tracked by either input remains present and removable. Keys tracked by
-/// both filters keep the larger multiplicity when they share a slice and the
-/// sum otherwise. The inputs are left unchanged.
+/// key still reported by either input remains present and removable. A tracked
+/// key whose counters have drained in both inputs stays absent while keeping
+/// its exact multiplicity. Keys tracked by both filters keep the larger
+/// multiplicity when they share a slice and the sum otherwise. The inputs are
+/// left unchanged.
 pub fn ScalableCountingBloomFilter::union(
   self : ScalableCountingBloomFilter,
   other : ScalableCountingBloomFilter,
