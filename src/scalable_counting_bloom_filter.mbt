@@ -851,6 +851,9 @@ pub fn ScalableCountingBloomFilter::intersection(
   let self_slice_count = self.slices.length()
   let other_slice_count = other.slices.length()
   let slice_count = self_slice_count.min(other_slice_count)
+  let count_only_operand = (self.locations.length() == 0 &&
+    !self.has_positive_counters()) ||
+    (other.locations.length() == 0 && !other.has_positive_counters())
   // A filter can reach this state through whitebox construction with an empty
   // slice list. There is no shared slice layout to intersect, so start from a
   // fresh filter with the same growth policy. Its conservative insertion count
@@ -941,6 +944,12 @@ pub fn ScalableCountingBloomFilter::intersection(
   }
   guard inserted <= 2147483647L else {
     abort("scalable counting bloom filter insertion count overflow")
+  }
+  if count_only_operand {
+    inserted = self.inserted.min(other.inserted).to_int64()
+    if inserted > 0 {
+      slice_inserted[0] = inserted
+    }
   }
   for i = 0; i < slice_count; i = i + 1 {
     slices[i].inserted = slice_inserted[i].to_int()
