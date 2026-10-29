@@ -43,6 +43,7 @@ test "audit scalable set check safety" {
       } else {
         let filter = left.intersection(right)
         let common = left_count.intersection(right_count)
+        assert_true(filter.is_subset_of(left))
         for k = 0; k < 40; k = k + 1 {
           if left_count.count_of(k) > 0 && right_count.count_of(k) > 0 &&
             left_count.contains(k) && right_count.contains(k) {
