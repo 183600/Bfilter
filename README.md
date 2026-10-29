@@ -60,6 +60,17 @@ moon work use ./Bfilter
 moon work use ./path/to/your-app
 ```
 
+A runnable example already ships in `examples/`. It is a separate module wired
+to this checkout through the repository's `moon.work`, so from the repository
+root you can build and run it directly:
+
+```bash
+moon run examples
+```
+
+The example demonstrates filter creation, batch insertion, queries, observing
+the false-positive rate, and a `to_bytes`/`from_bytes` round trip.
+
 Then import the `src` package and use the filters:
 
 ```moonbit
@@ -152,6 +163,11 @@ filters behave the same in a new process.
 ```text
 .
 ├── moon.mod                 # module metadata
+├── moon.work                # workspace linking the library and examples
+├── examples/                # runnable example module
+│   ├── moon.mod
+│   ├── moon.pkg
+│   └── main.mbt
 ├── scripts/                 # hygiene check used by CI
 ├── src/
 │   ├── moon.pkg             # package config, native C stub, test imports

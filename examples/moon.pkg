@@ -1,0 +1,5 @@
+import {
+  "183600/bfilter/src" @src,
+}
+
+pkgtype(kind: "executable")

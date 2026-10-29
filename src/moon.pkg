@@ -17,7 +17,7 @@ options(
     "mutex_single_threaded.mbt": [ "js", "wasm", "wasm-gc" ],
   },
   version: "0.2.0",
-  authors: [ ],
+  authors: [ "183600" ],
   keywords: [
     "bloom-filter",
     "cuckoo-filter",

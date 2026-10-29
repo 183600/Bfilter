@@ -9,6 +9,9 @@
 *.log
 .DS_Store
 
+# Coverage tooling output
+bisect.coverage
+
 # Editor swap files
 *.swp
 *.swo
