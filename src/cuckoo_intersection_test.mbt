@@ -58,6 +58,23 @@ test "cuckoo filter intersection respects duplicate multiplicities" {
 }
 
 ///|
+test "cuckoo intersection fills repeated fingerprints across a large bucket" {
+  let left = @src.CuckooFilter::with_size(2, 16)
+  let right = @src.CuckooFilter::with_size(2, 16)
+  for i = 0; i < 10; i = i + 1 {
+    assert_true(left.insert("shared"))
+    assert_true(right.insert("shared"))
+  }
+  for i = 0; i < 4; i = i + 1 {
+    assert_true(left.insert("left-only"))
+  }
+  let common = left.intersection(right)
+  assert_eq(common.count_of("shared"), 10)
+  assert_eq(common.count(), 10)
+  assert_false(common.contains("left-only"))
+}
+
+///|
 test "cuckoo filter intersection leaves the inputs unchanged" {
   let left = @src.CuckooFilter::with_size(64, 4)
   let right = @src.CuckooFilter::with_size(64, 4)

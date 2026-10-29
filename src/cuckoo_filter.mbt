@@ -146,6 +146,28 @@ fn CuckooFilter::find_empty(self : CuckooFilter, bucket : Int32) -> Int32 {
 }
 
 ///|
+/// Place up to `count` copies of a fingerprint in a bucket's empty slots.
+fn CuckooFilter::fill_empty_slots(
+  self : CuckooFilter,
+  bucket : Int32,
+  fingerprint : Byte,
+  count : Int32,
+) -> Int32 {
+  let base = bucket * self.bucket_size
+  let mut placed = 0
+  for slot = 0; slot < self.bucket_size; slot = slot + 1 {
+    if placed >= count {
+      break
+    }
+    if self.buckets[base + slot].to_int() == 0 {
+      self.buckets[base + slot] = fingerprint
+      placed = placed + 1
+    }
+  }
+  placed
+}
+
+///|
 fn CuckooFilter::bucket_contains(
   self : CuckooFilter,
   bucket : Int32,
@@ -700,31 +722,34 @@ fn CuckooFilter::min_bucket_fingerprints(
         continue
       }
       seen[word] = seen[word] | mask
-      let keep = self
-        .pair_fingerprint_count(canonical, fingerprint)
-        .min(other.pair_fingerprint_count(canonical, fingerprint))
-      let mut remaining = keep
       let pair_bucket = self.alternate_index(canonical, fingerprint)
-      let candidates : Array[Int32] = if pair_bucket == canonical {
-        [canonical]
+      let self_canonical = self.bucket_fingerprint_count(canonical, fingerprint)
+      let other_canonical = other.bucket_fingerprint_count(
+        canonical, fingerprint,
+      )
+      let self_pair = if pair_bucket == canonical {
+        0
       } else {
-        [canonical, pair_bucket]
+        self.bucket_fingerprint_count(pair_bucket, fingerprint)
       }
-      for candidate in candidates {
-        if remaining == 0 {
-          break
-        }
-        let available = self.bucket_fingerprint_count(candidate, fingerprint)
-        let placed = available.min(remaining)
-        for i = 0; i < placed; i = i + 1 {
-          let empty = result.find_empty(candidate)
-          if empty < 0 {
-            break
-          }
-          result.buckets[candidate * result.bucket_size + empty] = fingerprint
-          stored = stored + 1
-        }
+      let other_pair = if pair_bucket == canonical {
+        0
+      } else {
+        other.bucket_fingerprint_count(pair_bucket, fingerprint)
+      }
+      let mut remaining = (self_canonical + self_pair).min(
+        other_canonical + other_pair,
+      )
+      if remaining > 0 {
+        let placed = self_canonical.min(remaining)
+        stored = stored +
+          result.fill_empty_slots(canonical, fingerprint, placed)
         remaining = remaining - placed
+      }
+      if remaining > 0 && pair_bucket != canonical {
+        let placed = self_pair.min(remaining)
+        stored = stored +
+          result.fill_empty_slots(pair_bucket, fingerprint, placed)
       }
     }
   }
