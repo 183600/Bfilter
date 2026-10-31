@@ -72,7 +72,16 @@ moon run examples
 The example demonstrates filter creation, batch insertion, queries, observing
 the false-positive rate, and a `to_bytes`/`from_bytes` round trip.
 
-Then import the `src` package and use the filters:
+In the package that uses the filters, add the `src` package to its `moon.pkg`
+import block with the `@src` alias:
+
+```toml
+import {
+  "183600/bfilter/src" @src,
+}
+```
+
+Then use the filters:
 
 ```moonbit
 ///|
