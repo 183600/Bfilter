@@ -530,6 +530,9 @@ pub fn BlockedBloomFilter::hash_count(self : BlockedBloomFilter) -> Int32 {
 ///|
 /// Number of bits currently set to one.
 pub fn BlockedBloomFilter::set_bit_count(self : BlockedBloomFilter) -> Int32 {
+  if self.inserted == 0 {
+    return 0
+  }
   let mut total = 0
   for i = 0; i < self.words.length(); i = i + 1 {
     total = total + self.words[i].popcnt()
@@ -544,6 +547,9 @@ pub fn BlockedBloomFilter::set_bit_count(self : BlockedBloomFilter) -> Int32 {
 /// advances the insertion counter, but it cannot change the filter's membership
 /// state.
 pub fn BlockedBloomFilter::is_full(self : BlockedBloomFilter) -> Bool {
+  if self.inserted == 0 {
+    return false
+  }
   self.all_bits_set()
 }
 

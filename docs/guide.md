@@ -594,8 +594,10 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
 - `BloomFilter` and `BlockedBloomFilter` probe `k` positions per insert or query
   and store `m` bits in about `m / 8` bytes. `BlockedBloomFilter` keeps every
   probe inside one 512-bit block, so a query touches one cache line regardless
-  of `k`. An empty filter has no set bit, so queries return `false` without
-  probing. A full filter is detected with one scan of the `m / 64` backing words
+  of `k`. An empty filter has no set bit, so queries return `false` and
+  occupancy introspection reports zero set bits and `is_full() == false`
+  without scanning. A full filter is detected with one scan of the `m / 64`
+  backing words
   when its effective probe walk is wider than that word array, after which
   queries short-circuit to `true` and conditional insertions to `false`. Set
   operations scan the `m / 64` backing words.
@@ -615,8 +617,10 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   so a wide hash count does not add a GCD loop to each query. Other slot counts
   keep scanning every probe so later wraparound offsets cannot hide a counter.
   A filter with no positive counters answers `contains` as `false`, `count_of`
-  as `0`, and `remove` as `false` without walking the probe sequence, which also
-  covers wide non-power-of-two layouts where the cycle shortcut does not apply.
+  as `0`, and `remove` as `false` without walking the probe sequence, and
+  occupancy introspection reports zero occupied slots without scanning, which
+  also covers wide non-power-of-two layouts where the cycle shortcut does not
+  apply.
   A wide layout whose every slot is positive answers `contains` as `true` and
   makes `insert_if_absent` return `false` after one occupancy scan instead of a
   full probe walk. The scan is selected when the effective probe count exceeds

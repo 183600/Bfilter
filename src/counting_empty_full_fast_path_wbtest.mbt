@@ -73,3 +73,46 @@ test "empty wide filters still accept keys after a failed removal" {
   assert_true(compact.remove("first"))
   assert_eq(compact.count(), 0)
 }
+
+///|
+test "empty wide filters answer occupancy introspection immediately" {
+  let bloom = BloomFilter::with_size(1_000_000, 1_000_000_000)
+  assert_eq(bloom.set_bit_count(), 0)
+  assert_false(bloom.is_full())
+  assert_eq(bloom.estimated_item_count(), 0.0)
+  assert_eq(bloom.fill_ratio(), 0.0)
+
+  let blocked = BlockedBloomFilter::with_size(1_000_000, 1_000_000_000)
+  assert_eq(blocked.set_bit_count(), 0)
+  assert_false(blocked.is_full())
+  assert_eq(blocked.estimated_item_count(), 0.0)
+  assert_eq(blocked.fill_ratio(), 0.0)
+
+  let counting = CountingBloomFilter::with_size(1_000_000, 1_000_000_000)
+  assert_eq(counting.occupied_slot_count(), 0)
+  assert_eq(counting.fill_ratio(), 0.0)
+
+  let compact = CompactCountingBloomFilter::with_size(
+    1_000_000, 1_000_000_000,
+  )
+  assert_eq(compact.occupied_slot_count(), 0)
+  assert_eq(compact.fill_ratio(), 0.0)
+
+  let live_bloom = BloomFilter::with_size(1_000_000, 4)
+  assert_true(live_bloom.insert_if_absent("first"))
+  assert_true(live_bloom.set_bit_count() > 0)
+  assert_false(live_bloom.is_full())
+
+  let live_blocked = BlockedBloomFilter::with_size(1_000_000, 4)
+  assert_true(live_blocked.insert_if_absent("first"))
+  assert_true(live_blocked.set_bit_count() > 0)
+  assert_false(live_blocked.is_full())
+
+  let live_counting = CountingBloomFilter::with_size(1_000_000, 4)
+  assert_true(live_counting.insert_if_absent("first"))
+  assert_true(live_counting.occupied_slot_count() > 0)
+
+  let live_compact = CompactCountingBloomFilter::with_size(1_000_000, 4)
+  assert_true(live_compact.insert_if_absent("first"))
+  assert_true(live_compact.occupied_slot_count() > 0)
+}

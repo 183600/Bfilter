@@ -538,6 +538,9 @@ pub fn BloomFilter::hash_count(self : BloomFilter) -> Int32 {
 ///|
 /// Number of bits currently set to one.
 pub fn BloomFilter::set_bit_count(self : BloomFilter) -> Int32 {
+  if self.inserted == 0 {
+    return 0
+  }
   let mut total = 0
   for i = 0; i < self.words.length(); i = i + 1 {
     total = total + self.words[i].popcnt()
@@ -551,6 +554,9 @@ pub fn BloomFilter::set_bit_count(self : BloomFilter) -> Int32 {
 /// A full filter reports every key as present. Inserting a key still advances
 /// the insertion counter, but it cannot change the filter's membership state.
 pub fn BloomFilter::is_full(self : BloomFilter) -> Bool {
+  if self.inserted == 0 {
+    return false
+  }
   self.all_bits_set()
 }
 

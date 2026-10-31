@@ -915,6 +915,9 @@ pub fn CompactCountingBloomFilter::hash_count(
 pub fn CompactCountingBloomFilter::occupied_slot_count(
   self : CompactCountingBloomFilter,
 ) -> Int32 {
+  if self.counter_mass == 0UL {
+    return 0
+  }
   let mut total = 0
   for i = 0; i < self.counters.length(); i = i + 1 {
     total = total + compact_nonzero_lanes(self.counters[i]).popcnt()
