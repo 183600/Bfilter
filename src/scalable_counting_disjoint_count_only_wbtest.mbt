@@ -19,4 +19,6 @@ test "count-only scalable counting filters are disjoint" {
   other_count_only.inserted = 2
   assert_true(left.is_disjoint_from(other_count_only))
   assert_true(other_count_only.is_disjoint_from(left))
+  assert_true(left.is_subset_of(right))
+  assert_true(left.is_subset_of(other_count_only))
 }

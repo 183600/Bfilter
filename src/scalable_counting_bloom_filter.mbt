@@ -987,9 +987,9 @@ pub fn ScalableCountingBloomFilter::is_subset_of(
 ) -> Bool {
   self.ensure_same_policy(other)
   // An empty filter has no positive counter in any slice, so it is a subset of
-  // every filter. Each slice maintains its exact counter mass, so this check
-  // avoids scanning every packed counter array just to discover they are zero.
-  if self.inserted == 0 || !self.has_positive_counters() {
+  // every filter. Count-only filters are handled by the per-slice checks below,
+  // which avoid a separate full scan of the slice masses.
+  if self.inserted == 0 {
     return true
   }
   let mut counters_are_subset = true
