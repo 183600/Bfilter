@@ -7,7 +7,7 @@ test "opencode counting remove count delta fuzz" {
   for layout in layouts {
     let (slots, hashes) = layout
     for round = 1; round <= 8; round = round + 1 {
-      let f = CountingBloomFilter::with_size(slots, hashes)
+      let f = @src.CountingBloomFilter::with_size(slots, hashes)
       let mut seed = round * 104729 + slots * 31 + hashes * 17
       for step = 0; step < 200; step = step + 1 {
         seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
