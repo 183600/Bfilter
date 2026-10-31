@@ -8,7 +8,7 @@ test "extreme counting occurrence count deltas" {
     let slots = cfg.0
     let hashes = cfg.1
     for mult = 1; mult <= 3; mult = mult + 1 {
-      let f = CountingBloomFilter::with_size(slots, hashes)
+      let f = @src.CountingBloomFilter::with_size(slots, hashes)
       for i = 0; i < mult; i = i + 1 {
         f.insert("key")
       }
@@ -26,7 +26,7 @@ test "extreme counting occurrence count deltas" {
         panic()
       }
       let bytes = f.to_bytes()
-      let restored = CountingBloomFilter::from_bytes(bytes)
+      let restored = @src.CountingBloomFilter::from_bytes(bytes)
       if restored.to_bytes() != bytes {
         println("counting roundtrip mismatch slots=" + slots.to_string() + " hashes=" + hashes.to_string())
         panic()
@@ -44,7 +44,7 @@ test "extreme compact occurrence count deltas" {
     let slots = cfg.0
     let hashes = cfg.1
     for mult = 1; mult <= 20; mult = mult + 1 {
-      let f = CompactCountingBloomFilter::with_size(slots, hashes)
+      let f = @src.CompactCountingBloomFilter::with_size(slots, hashes)
       for i = 0; i < mult; i = i + 1 {
         f.insert("key")
       }
@@ -62,7 +62,7 @@ test "extreme compact occurrence count deltas" {
         panic()
       }
       let bytes = f.to_bytes()
-      let restored = CompactCountingBloomFilter::from_bytes(bytes)
+      let restored = @src.CompactCountingBloomFilter::from_bytes(bytes)
       if restored.to_bytes() != bytes {
         println("compact roundtrip mismatch slots=" + slots.to_string() + " hashes=" + hashes.to_string())
         panic()

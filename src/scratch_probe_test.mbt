@@ -9,7 +9,7 @@ test "scratch counting single-key removal deltas" {
   for layout in layouts {
     let (slots, hashes) = layout
     for mult = 1; mult <= 25; mult = mult + 1 {
-      let f = CountingBloomFilter::with_size(slots, hashes)
+      let f = @src.CountingBloomFilter::with_size(slots, hashes)
       for i = 0; i < mult; i = i + 1 {
         f.insert("key")
       }
@@ -45,7 +45,7 @@ test "scratch compact single-key removal deltas" {
   for layout in layouts {
     let (slots, hashes) = layout
     for mult = 1; mult <= 25; mult = mult + 1 {
-      let f = CompactCountingBloomFilter::with_size(slots, hashes)
+      let f = @src.CompactCountingBloomFilter::with_size(slots, hashes)
       for i = 0; i < mult; i = i + 1 {
         f.insert("key")
       }
@@ -79,7 +79,7 @@ test "scratch saturated counting remove count deltas" {
     let slots = cfg.0
     let hashes = cfg.1
     for round = 1; round <= 40; round = round + 1 {
-      let f = CountingBloomFilter::with_size(slots, hashes)
+      let f = @src.CountingBloomFilter::with_size(slots, hashes)
       let mut seed = round * 104729 + slots * 17 + hashes
       for step = 0; step < 400; step = step + 1 {
         seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
