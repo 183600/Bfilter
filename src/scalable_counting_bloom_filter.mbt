@@ -1051,12 +1051,10 @@ pub fn ScalableCountingBloomFilter::is_disjoint_from(
 ) -> Bool {
   self.ensure_same_policy(other)
   // An empty filter has no positive counter in any slice, so no key can be
-  // reported by both inputs. The exact per-slice masses answer this without
-  // scanning the packed counter arrays.
-  if self.inserted == 0 ||
-    other.inserted == 0 ||
-    !self.has_positive_counters() ||
-    !other.has_positive_counters() {
+  // reported by both inputs. The per-slice scan below also handles count-only
+  // filters whose conservative insertion count is positive but whose counter
+  // arrays are empty, so no extra full scan is needed here.
+  if self.inserted == 0 || other.inserted == 0 {
     return true
   }
   let self_slices = self.slices
