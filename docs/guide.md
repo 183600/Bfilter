@@ -109,10 +109,10 @@ returns an empty filter with the shared layout, `is_subset_of` is immediately
 true when `self` is empty, and `is_disjoint_from` is immediately true when
 either input is empty. The same shortcuts apply to the blocked, counting, and
 compact counting variants. The counting variants also maintain an exact total
-counter mass, so `merge`, `intersection`, `is_subset_of`,
-`is_disjoint_from`, and `clear` can short-circuit an operand with no positive
-counter without scanning its packed counter words. The scalable variants keep
-the shortcut as well:
+counter mass, so `merge`, `intersection`, `is_subset_of`, and
+`is_disjoint_from` can short-circuit an operand with no positive counter without
+scanning its packed counter words; `clear` also skips that scan when the filter
+is already empty. The scalable variants keep the shortcut as well:
 their `is_subset_of` and `is_disjoint_from` checks return without scanning the
 slice storage when the relevant insertion count is zero. While checking a
 non-empty scalable filter, a slice whose own insertion count is zero is also
@@ -271,12 +271,15 @@ assert_eq(filter.tracked_key_count(), 40)
 ```
 
 The filter tracks a 128-bit hash and the exact multiplicity of every distinct
-key so that `remove` knows which slice to update. `count_of` therefore returns
-the exact number of insertions made through the filter, or `0` for a key that
-was never inserted, even when `contains` reports a false positive. This metadata
-grows with the number of distinct keys and is not included in `memory_bytes()`,
-which reports only the counter arrays. `insert_if_absent`, the batch helpers,
-`copy`, `clear`, and the occupancy statistics mirror the other filters.
+key so that `remove` knows which slice to update. `count_of` returns the tracked
+multiplicity for a key, or `0` for a key that was never inserted, even when
+`contains` reports a false positive. For a filter changed only by direct
+insertions and removals, that multiplicity is the exact number of outstanding
+insertions; set operations store the combined multiplicities described below.
+This metadata grows with the number of distinct keys and is not included in
+`memory_bytes()`, which reports only the counter arrays. `insert_if_absent`,
+the batch helpers, `copy`, `clear`, and the occupancy statistics mirror the
+other filters.
 `clear` reuses the first slice's counter array, drops later slices, and empties
 the tracked-key metadata.
 `union` and `merge` rebuild counters from the tracked multiplicities: a key
@@ -294,11 +297,13 @@ slices; `is_disjoint_from` still compares the slice counters because it must
 prove that no key can be reported by both. A tracked key whose counters have
 drained is no longer reported by `contains`, so the subset check ignores it
 instead of requiring the other filter to track the same entry. Count-only
-slices, which carry a
-conservative insertion count without tracked keys or positive counters, are
-treated as empty by set operations: merging such a filter leaves a non-empty
-receiver's counters untouched, and a count-only receiver copies the source's
-slices and metadata.
+slices, which carry a conservative insertion count without tracked keys or
+positive counters, contain no members: `contains`, `remove`, and `count_of`
+treat them as empty. Set operations also ignore their counters, so merging such
+a filter leaves a non-empty receiver's counters untouched, and a count-only
+receiver copies the source's slices and metadata. Their conservative insertion
+count is still reflected in `count()` and in the conservative count chosen by
+`intersection`; it does not make `contains` report a key.
 The cross-slice fallback covers keys
 inserted through the filters. Because slices at different indices use different
 hash layouts, it cannot rule out an untracked false-positive key that only the
