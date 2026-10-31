@@ -50,7 +50,8 @@ import {
 }
 ```
 
-Clone the repository next to your project and register both modules as
+Clone the repository into a directory that also contains your project, so both
+checkouts share a parent. From that parent directory, register both modules as
 workspace members:
 
 ```bash
@@ -198,9 +199,10 @@ moon test --target all    # every supported backend
 moon bench --release      # benchmarks in src/benchmark_test.mbt
 ```
 
-CI (`.github/workflows/ci.yml`) runs `moon check`, the default test suite, the
-native test suite, and a repository-hygiene check on every push and pull
-request.
+CI (`.github/workflows/ci.yml`) runs on pushes to `main`, on pull requests, and
+on manual dispatch. It resolves dependencies with `moon update`, then runs
+`moon check --target all`, the default and native test suites, and a
+repository-hygiene check.
 
 ## Contributing
 

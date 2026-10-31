@@ -34,8 +34,9 @@ assert_true(filter.contains(123))
 assert_true(filter.false_positive_rate() < 0.01)
 ```
 
-Storage is bit-packed: the filter uses approximately `bit_count / 8` bytes.
-`bit_count()` reports the rounded-up number of addressable bits, and
+Storage is bit-packed: because `bit_count()` is always a multiple of 64, the
+backing array uses exactly `bit_count / 8` bytes. `bit_count()` reports the
+rounded-up number of addressable bits, and
 `false_positive_rate()` estimates the current rate from the insertion count.
 When `bit_count()` is a power of two, a very wide `hash_count` stops after one
 double-hash cycle: every later probe repeats a bit that an earlier probe already
@@ -468,7 +469,7 @@ insertions.
 
 `insert` returns `false` when the filter is full and restores all
 evicted fingerprints before returning, so a failed insert cannot lose existing
-entries. Before reporting a filter as full, insertion also searches for an
+entries. Before reporting an insertion failure, the filter also searches for an
 augmenting path that moves existing fingerprints to their alternate buckets;
 this succeeds whenever a valid placement is reachable within the bounded
 search. `insert_all` and `remove_all` continue after a failure and report
@@ -525,8 +526,13 @@ and respects duplicate multiplicities, so a `true` result means every key
 reported by the first filter is also reported by the second:
 
 ```moonbit
-assert_true(left.is_subset_of(combined))
-assert_true(right.is_subset_of(combined))
+match left.union(right) {
+  Some(combined) => {
+    assert_true(left.is_subset_of(combined))
+    assert_true(right.is_subset_of(combined))
+  }
+  None => abort("combined filter is full")
+}
 ```
 
 ## Concurrent Bloom Filter
@@ -592,15 +598,14 @@ slices, and `B` the bucket size. The bounds below describe the backing data
 structures; hashing a key costs whatever the key's `Hash` implementation costs.
 
 - `BloomFilter` and `BlockedBloomFilter` probe `k` positions per insert or query
-  and store `m` bits in about `m / 8` bytes. `BlockedBloomFilter` keeps every
+  and store `m` bits in `m / 8` bytes. `BlockedBloomFilter` keeps every
   probe inside one 512-bit block, so a query touches one cache line regardless
   of `k`. An empty filter has no set bit, so queries return `false` and
   occupancy introspection reports zero set bits and `is_full() == false`
   without scanning. A full filter is detected with one scan of the `m / 64`
-  backing words
-  when its effective probe walk is wider than that word array, after which
-  queries short-circuit to `true` and conditional insertions to `false`. Set
-  operations scan the `m / 64` backing words.
+  backing words when its effective probe walk is wider than that word array,
+  after which queries short-circuit to `true` and conditional insertions to
+  `false`. Set operations scan the `m / 64` backing words.
 - `CountingBloomFilter` and `CompactCountingBloomFilter` update `k` counters,
   deduplicating positions selected more than once, and store 16 bits or 4 bits
   per slot respectively. Inserts and removals reuse a per-filter probe workspace
@@ -609,10 +614,11 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   slot counts keep that bounded workspace even when `k` is very wide; only
   layouts whose reachable position count exceeds 1,024 fall back to temporary
   arrays, which are themselves capped by the slot count. When the slot count is
-  a power of two and a wider hash count exceeds a cycle of at most 16,384
-  positions, inserts, removals, and conditional inserts enumerate that cycle
-  once and assign each position its exact number of occurrences; `contains` and
-  `count_of` always stop at the cycle. Selecting that window is constant-time:
+  a power of two, inserts, removals, and conditional inserts enumerate one cycle
+  once the hash count exceeds it, provided that cycle has at most 16,384
+  positions, and assign each position its exact number of occurrences;
+  `contains` and `count_of` stop at the cycle without that size limit. Selecting
+  that window is constant-time:
   the power-of-two cycle length comes from the lowest set bit of the probe step,
   so a wide hash count does not add a GCD loop to each query. Other slot counts
   keep scanning every probe so later wraparound offsets cannot hide a counter.
@@ -646,10 +652,9 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   exact counter mass instead of scanning its packed counters, and merging or
   checking a count-only source does not walk its counter arrays. Clearing either
   scalable filter reuses the initial slice's backing array and drops later
-  slices. The scalable
-  counting map grows with the number of
-  distinct tracked keys and is not included in `memory_bytes()`, which reports
-  only counter storage.
+  slices. The scalable counting map grows with the number of distinct tracked
+  keys and is not included in `memory_bytes()`, which reports only counter
+  storage.
 - The `optimal_size` helpers compute layouts without allocating, and the
   concurrent wrappers forward them without taking the mutex. Batch operations on
   the concurrent wrappers take the lock once for the whole batch.
@@ -684,7 +689,8 @@ Every filter exposes read-only statistics without scanning keys:
   counters and insertion statistics. The scalable filters grow instead of
   reporting a final full state.
 - `estimated_item_count()` derives the number of distinct keys from occupancy
-  for the Bloom variants; the scalable variant sums its slice estimates. It returns infinity when every slot is occupied.
+  for the Bloom variants; the scalable variant sums its slice estimates. It
+  returns infinity when every slot is occupied.
 - `CuckooFilter::false_positive_rate()` estimates the current rate from the
   average bucket occupancy and the eight-bit fingerprint size.
 - `memory_bytes()` reports the size of the backing array.
