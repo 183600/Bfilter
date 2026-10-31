@@ -59,7 +59,7 @@ fn serial_write_header(
 }
 
 ///|
-fn serial_read_header(data : Bytes, variant : Byte) -> (Int32, Int32, Int32) {
+fn serial_read_header(data : BytesView, variant : Byte) -> (Int32, Int32, Int32) {
   guard data.length() >= SERIAL_HEADER_BYTES else {
     abort("serialized filter is too short")
   }
@@ -79,7 +79,7 @@ fn serial_read_header(data : Bytes, variant : Byte) -> (Int32, Int32, Int32) {
 }
 
 ///|
-fn serial_check_length(data : Bytes, expected : Int64) -> Unit {
+fn serial_check_length(data : BytesView, expected : Int64) -> Unit {
   guard data.length().to_int64() == expected else {
     abort("serialized filter length mismatch")
   }
@@ -126,11 +126,12 @@ pub fn BloomFilter::to_bytes(self : BloomFilter) -> Bytes {
 }
 
 ///|
-/// Decode a filter produced by `BloomFilter::to_bytes`.
+/// Decode a Bloom filter from a byte view without copying the input first.
 ///
-/// Panics if the data is truncated, uses another format version, or contains an
-/// invalid configuration.
-pub fn BloomFilter::from_bytes(data : Bytes) -> BloomFilter {
+/// The decoded words are copied into a fresh backing array, so the returned
+/// filter never retains the input view. Scalable decoders call this directly on
+/// slice views to avoid an intermediate `to_owned()` copy per slice.
+fn BloomFilter::read_serialized(data : BytesView) -> BloomFilter {
   let (bit_count, hash_count, inserted) = serial_read_header(data, SERIAL_BLOOM)
   guard bit_count > 0 && bit_count <= 2147483584 && bit_count % 64 == 0 else {
     abort("invalid bloom bit count")
@@ -153,6 +154,15 @@ pub fn BloomFilter::from_bytes(data : Bytes) -> BloomFilter {
     abort("bloom insertion count is too small for set bits")
   }
   { words, bit_count, hash_count, inserted, }
+}
+
+///|
+/// Decode a filter produced by `BloomFilter::to_bytes`.
+///
+/// Panics if the data is truncated, uses another format version, or contains an
+/// invalid configuration.
+pub fn BloomFilter::from_bytes(data : Bytes) -> BloomFilter {
+  BloomFilter::read_serialized(data.exact_view())
 }
 
 ///|
@@ -192,8 +202,8 @@ pub fn CountingBloomFilter::to_bytes(self : CountingBloomFilter) -> Bytes {
 }
 
 ///|
-/// Decode a counting filter produced by `CountingBloomFilter::to_bytes`.
-pub fn CountingBloomFilter::from_bytes(data : Bytes) -> CountingBloomFilter {
+/// Decode a counting filter from a byte view without copying the input first.
+fn CountingBloomFilter::read_serialized(data : BytesView) -> CountingBloomFilter {
   let (slot_count, hash_count, inserted) = serial_read_header(
     data,
     SERIAL_COUNTING,
@@ -231,6 +241,15 @@ pub fn CountingBloomFilter::from_bytes(data : Bytes) -> CountingBloomFilter {
 }
 
 ///|
+/// Decode a counting filter produced by `CountingBloomFilter::to_bytes`.
+///
+/// Panics if the data is truncated, uses another format version, or contains an
+/// invalid configuration.
+pub fn CountingBloomFilter::from_bytes(data : Bytes) -> CountingBloomFilter {
+  CountingBloomFilter::read_serialized(data.exact_view())
+}
+
+///|
 /// Trailing bytes that preserve the deterministic eviction state of a cuckoo
 /// filter across a serialization round trip.
 const CUCKOO_STATE_BYTES : Int32 = 8
@@ -264,7 +283,7 @@ pub fn CuckooFilter::to_bytes(self : CuckooFilter) -> Bytes {
 /// Decode a cuckoo filter produced by `CuckooFilter::to_bytes`.
 pub fn CuckooFilter::from_bytes(data : Bytes) -> CuckooFilter {
   let (bucket_count, bucket_size, inserted) = serial_read_header(
-    data,
+    data.exact_view(),
     SERIAL_CUCKOO,
   )
   guard bucket_count > 0 &&
@@ -280,7 +299,7 @@ pub fn CuckooFilter::from_bytes(data : Bytes) -> CuckooFilter {
     abort("invalid cuckoo insertion count")
   }
   serial_check_length(
-    data,
+    data.exact_view(),
     SERIAL_HEADER_BYTES.to_int64() +
     capacity.to_int64() +
     CUCKOO_STATE_BYTES.to_int64(),
@@ -372,7 +391,7 @@ pub fn ScalableBloomFilter::to_bytes(self : ScalableBloomFilter) -> Bytes {
 /// rate or layout, or contains slices that do not match the growth policy.
 pub fn ScalableBloomFilter::from_bytes(data : Bytes) -> ScalableBloomFilter {
   let (slice_count, inserted, initial_capacity) = serial_read_header(
-    data,
+    data.exact_view(),
     SERIAL_SCALABLE,
   )
   guard slice_count > 0 && slice_count <= 64 else {
@@ -410,8 +429,8 @@ pub fn ScalableBloomFilter::from_bytes(data : Bytes) -> ScalableBloomFilter {
     guard length >= SERIAL_HEADER_BYTES && length <= data.length() - offset else {
       abort("serialized scalable bloom slice has invalid length")
     }
-    let slice = BloomFilter::from_bytes(
-      data.exact_view(start=offset, end=offset + length).to_owned(),
+    let slice = BloomFilter::read_serialized(
+      data.exact_view(start=offset, end=offset + length),
     )
     let capacity = if index == 0 {
       initial_capacity
@@ -538,7 +557,7 @@ pub fn ScalableCountingBloomFilter::from_bytes(
   data : Bytes,
 ) -> ScalableCountingBloomFilter {
   let (slice_count, inserted, initial_capacity) = serial_read_header(
-    data,
+    data.exact_view(),
     SERIAL_SCALABLE_COUNTING,
   )
   guard slice_count > 0 && slice_count <= 64 else {
@@ -590,8 +609,8 @@ pub fn ScalableCountingBloomFilter::from_bytes(
     guard length >= SERIAL_HEADER_BYTES && length <= data.length() - offset else {
       abort("serialized scalable counting bloom slice has invalid length")
     }
-    let slice = CountingBloomFilter::from_bytes(
-      data.exact_view(start=offset, end=offset + length).to_owned(),
+    let slice = CountingBloomFilter::read_serialized(
+      data.exact_view(start=offset, end=offset + length),
     )
     let capacity = if index == 0 {
       initial_capacity
@@ -716,7 +735,7 @@ pub fn CompactCountingBloomFilter::from_bytes(
   data : Bytes,
 ) -> CompactCountingBloomFilter {
   let (slot_count, hash_count, inserted) = serial_read_header(
-    data,
+    data.exact_view(),
     SERIAL_COMPACT_COUNTING,
   )
   guard slot_count > 0 && slot_count <= 1073741808 && slot_count % 16 == 0 else {
@@ -730,7 +749,7 @@ pub fn CompactCountingBloomFilter::from_bytes(
   }
   let word_count = slot_count / COMPACT_SLOTS_PER_WORD
   serial_check_length(
-    data,
+    data.exact_view(),
     SERIAL_HEADER_BYTES.to_int64() + word_count.to_int64() * 8L,
   )
   let counters = FixedArray::make(word_count, 0UL)
@@ -780,7 +799,7 @@ pub fn BlockedBloomFilter::to_bytes(self : BlockedBloomFilter) -> Bytes {
 /// invalid configuration.
 pub fn BlockedBloomFilter::from_bytes(data : Bytes) -> BlockedBloomFilter {
   let (bit_count, hash_count, inserted) = serial_read_header(
-    data,
+    data.exact_view(),
     SERIAL_BLOCKED,
   )
   guard bit_count > 0 &&
