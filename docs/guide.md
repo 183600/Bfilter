@@ -614,11 +614,11 @@ structures; hashing a key costs whatever the key's `Hash` implementation costs.
   slot counts keep that bounded workspace even when `k` is very wide; only
   layouts whose reachable position count exceeds 1,024 fall back to temporary
   arrays, which are themselves capped by the slot count. When the slot count is
-  a power of two, inserts, removals, and conditional inserts enumerate one cycle
-  once the hash count exceeds it, provided that cycle has at most 16,384
-  positions, and assign each position its exact number of occurrences;
-  `contains` and `count_of` stop at the cycle without that size limit. Selecting
-  that window is constant-time:
+  a power of two, inserts, removals, conditional inserts, and `count_of`
+  enumerate one cycle once the hash count exceeds it, whether or not that cycle
+  fits in the reusable workspace, and assign each position its exact number of
+  occurrences; `contains` stops at the cycle as well. Selecting that window is
+  constant-time:
   the power-of-two cycle length comes from the lowest set bit of the probe step,
   so a wide hash count does not add a GCD loop to each query. Other slot counts
   keep scanning every probe so later wraparound offsets cannot hide a counter.

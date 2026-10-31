@@ -260,8 +260,13 @@ fn unique_key_positions_into(
   counts : FixedArray[Int32],
 ) -> Int32 {
   if hash_count > 64 {
-    let period = counting_short_cycle_period(h2, slot_count)
-    if period > 0 && period < hash_count {
+    let short_period = counting_short_cycle_period(h2, slot_count)
+    let period = if short_period > 0 {
+      short_period
+    } else {
+      counting_cycle_period(h2, slot_count)
+    }
+    if period > 0 && period < hash_count && period <= positions.length() {
       return unique_positions_cycle_into(
         h1, h2, hash_count, slot_count, period, positions, counts,
       )
@@ -309,18 +314,22 @@ fn unique_key_positions_into(
 }
 
 ///|
-/// Largest power-of-two cycle that insert and removal paths enumerate directly.
+/// Largest power-of-two cycle handled by the short-cycle fast path.
+///
+/// Position enumeration falls back to `counting_cycle_period` when the result
+/// arrays can hold a longer cycle, so this limit only keeps the common case
+/// separate from the general cycle calculation.
 const COUNTING_CYCLE_ENUM_LIMIT : Int32 = 16384
 
 ///|
-/// Length of a short power-of-two double-hash cycle, or zero when the sequence
-/// should be walked probe by probe.
+/// Length of a power-of-two double-hash cycle, or zero when the sequence should
+/// be walked probe by probe.
 ///
 /// Enumerating one cycle lets a very wide hash count assign each distinct
 /// position its exact occurrence count without visiting every hash function.
 /// Non-power-of-two slot counts keep the full walk because a 64-bit wrap can
 /// move later probes outside the first cycle.
-fn counting_short_cycle_period(h2 : UInt64, slot_count : UInt64) -> Int32 {
+fn counting_cycle_period(h2 : UInt64, slot_count : UInt64) -> Int32 {
   if slot_count == 0UL || (slot_count & (slot_count - 1UL)) != 0UL {
     return 0
   }
@@ -331,10 +340,22 @@ fn counting_short_cycle_period(h2 : UInt64, slot_count : UInt64) -> Int32 {
     counting_gcd(step, slot_count)
   }
   let period = slot_count / divisor
-  if period > COUNTING_CYCLE_ENUM_LIMIT.to_uint64() {
+  if period > 2147483647UL {
     0
   } else {
     period.to_int()
+  }
+}
+
+///|
+/// Length of a short power-of-two double-hash cycle, or zero when the cycle is
+/// absent or wider than the short-cycle fast-path limit.
+fn counting_short_cycle_period(h2 : UInt64, slot_count : UInt64) -> Int32 {
+  let period = counting_cycle_period(h2, slot_count)
+  if period <= COUNTING_CYCLE_ENUM_LIMIT {
+    period
+  } else {
+    0
   }
 }
 

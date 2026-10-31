@@ -62,4 +62,34 @@ test "counting cycle helper only enumerates short power-of-two cycles" {
   assert_eq(counting_short_cycle_period(0UL, 16UL), 1)
   assert_eq(counting_short_cycle_period(1UL, 48UL), 0)
   assert_eq(counting_short_cycle_period(1UL, 32768UL), 0)
+  assert_eq(counting_cycle_period(1UL, 32768UL), 32768)
+}
+
+///|
+test "counting cycle enumeration handles cycles above the short-path limit" {
+  assert_cycle_matches_full_scan(
+    0x123456789UL, 0x9E3779B97F4A7C15UL, 70_000, 32_768,
+  )
+
+  let counting = CountingBloomFilter::with_size(32_768, 70_000)
+  counting.insert("wide-cycle")
+  counting.insert("wide-cycle")
+  assert_eq(counting.count_of("wide-cycle"), 2)
+  assert_eq(
+    counting.count_of("wide-cycle"),
+    counting_full_probe_minimum(counting, "wide-cycle"),
+  )
+  assert_true(counting.remove("wide-cycle"))
+  assert_eq(counting.count_of("wide-cycle"), 1)
+
+  let compact = CompactCountingBloomFilter::with_size(32_768, 70_000)
+  compact.insert("wide-cycle")
+  compact.insert("wide-cycle")
+  assert_eq(compact.count_of("wide-cycle"), 2)
+  assert_eq(
+    compact.count_of("wide-cycle"),
+    compact_full_probe_minimum(compact, "wide-cycle"),
+  )
+  assert_true(compact.remove("wide-cycle"))
+  assert_eq(compact.count_of("wide-cycle"), 1)
 }
