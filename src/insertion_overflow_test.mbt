@@ -30,6 +30,20 @@ test "panic compact counting merge rejects count overflow" {
 }
 
 ///|
+test "panic compact counting merge rejects count-only source overflow" {
+  let left = max_inserted_compact_counting()
+  let bytes = @src.CompactCountingBloomFilter::with_size(16, 1)
+    .to_bytes()
+    .to_fixedarray()
+  bytes.unsafe_write_uint32_le(16, 1U)
+  let right = @src.CompactCountingBloomFilter::from_bytes(
+    Bytes::from_array(bytes.exact_view()),
+  )
+  assert_eq(right.count(), 1)
+  left.merge(right)
+}
+
+///|
 fn max_inserted_scalable_bloom() -> @src.ScalableBloomFilter {
   let bytes = @src.ScalableBloomFilter::new(4, 0.01).to_bytes().to_fixedarray()
   bytes.unsafe_write_uint32_le(12, 2147483647U)
