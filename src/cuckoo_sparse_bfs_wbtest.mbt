@@ -121,3 +121,32 @@ test "sparse cuckoo bfs moves an augmenting path without losing fingerprints" {
     restored.bucket_contains(fresh_alternate, fresh))
   assert_true(before != filter.to_bytes())
 }
+
+///|
+test "sparse cuckoo bfs skips a repeated alternate bucket" {
+  let filter = CuckooFilter::with_size(131_072, 2)
+  let fingerprints = sparse_bfs_fingerprints(filter, 4)
+  let start = 0
+  let moved = fingerprints[0]
+  let alternate = filter.alternate_index(start, moved)
+  assert_true(alternate != start)
+  let occupant = fingerprints[1]
+  let fresh = fingerprints[2]
+  filter.buckets[start * filter.bucket_size] = moved
+  filter.buckets[start * filter.bucket_size + 1] = moved
+  filter.buckets[alternate * filter.bucket_size] = occupant
+  filter.buckets[alternate * filter.bucket_size + 1] = occupant
+  filter.inserted = 4
+  let before = filter.to_bytes()
+  let added = filter.insert_fingerprint_bfs(start, fresh)
+  if added {
+    assert_eq(filter.count(), 5)
+    let fresh_alternate = filter.alternate_index(start, fresh)
+    assert_true(
+      filter.bucket_contains(start, fresh) ||
+      filter.bucket_contains(fresh_alternate, fresh),
+    )
+  } else {
+    assert_eq(filter.to_bytes(), before)
+  }
+}
