@@ -504,25 +504,8 @@ pub fn ScalableCountingBloomFilter::to_bytes(
     SERIAL_HEADER_BYTES + 8,
     entry_count.reinterpret_as_uint(),
   )
-  let entries : Array[((UInt64, UInt64), (Int32, Int32))] = []
-  for entry in self.locations.iter() {
-    entries.push(entry)
-  }
-  entries.sort_by(fn(left, right) {
-    let ((left_h1, left_h2), _) = left
-    let ((right_h1, right_h2), _) = right
-    if left_h1 < right_h1 {
-      -1
-    } else if left_h1 > right_h1 {
-      1
-    } else if left_h2 < right_h2 {
-      -1
-    } else if left_h2 > right_h2 {
-      1
-    } else {
-      0
-    }
-  })
+  let entries = self.locations.to_array()
+  entries.sort()
   let mut offset = SERIAL_HEADER_BYTES + 12
   for entry in entries {
     let ((h1, h2), (slice_index, occurrences)) = entry
@@ -590,7 +573,7 @@ pub fn ScalableCountingBloomFilter::from_bytes(
   let filter : ScalableCountingBloomFilter = {
     slices: [],
     capacities: [],
-    locations: @hashmap.HashMap([]),
+    locations: @hashmap.HashMap([], capacity=entry_count),
     initial_capacity,
     target_rate,
     inserted: 0,
@@ -670,10 +653,11 @@ pub fn ScalableCountingBloomFilter::from_bytes(
       abort("invalid scalable counting bloom occurrence count")
     }
     let id = (h1, h2)
-    guard !filter.locations.contains(id) else {
+    let previous_length = filter.locations.length()
+    filter.locations.set(id, (slice_index, occurrences))
+    guard filter.locations.length() == previous_length + 1 else {
       abort("duplicate scalable counting bloom metadata entry")
     }
-    filter.locations.set(id, (slice_index, occurrences))
     offset = offset + 24
   }
   if total_occurrences != inserted.to_int64() {
