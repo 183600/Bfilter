@@ -90,6 +90,22 @@ test "panic concurrent cuckoo filter rejects invalid configuration" {
 }
 
 ///|
+test "concurrent cuckoo filter serialization preserves eviction state" {
+  let filter = @src.ConcurrentCuckooFilter::with_size(8, 2)
+  let keys = [559187, 354192, 64393, 338638, 263727, 750268, 509445]
+  for key in keys {
+    assert_true(filter.insert(key))
+  }
+  let restored = @src.ConcurrentCuckooFilter::from_bytes(filter.to_bytes())
+  assert_eq(restored.count(), filter.count())
+  assert_true(restored.contains(559187))
+  // The restored filter should accept new inserts with the same behavior
+  assert_true(restored.insert(228423))
+  assert_true(restored.contains(228423))
+  assert_eq(restored.count(), filter.count() + 1)
+}
+
+///|
 test "concurrent cuckoo filter survives interleaved workload" {
   let filter = @src.ConcurrentCuckooFilter::new(1000)
   for i = 0; i < 500; i = i + 1 {
