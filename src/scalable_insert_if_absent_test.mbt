@@ -161,6 +161,20 @@ test "concurrent scalable counting filter insert_all_if_absent" {
 }
 
 ///|
+test "concurrent scalable counting filter count_of" {
+  let filter = @src.ConcurrentScalableCountingBloomFilter::new(100, 0.01)
+  filter.insert("key")
+  filter.insert("key")
+  assert_eq(filter.count_of("key"), 2)
+  assert_true(filter.remove("key"))
+  assert_eq(filter.count_of("key"), 1)
+  assert_true(filter.remove("key"))
+  assert_eq(filter.count_of("key"), 0)
+  assert_false(filter.contains("key"))
+  assert_eq(filter.count_of("missing"), 0)
+}
+
+///|
 test "scalable bloom filter insert_if_absent with false positives" {
   let filter = @src.ScalableBloomFilter::new(4, 0.5)
   // Insert many keys to increase false positive rate
