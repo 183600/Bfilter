@@ -108,3 +108,22 @@ test "concurrent counting filter survives interleaved workload" {
   }
   assert_eq(filter.count(), 428)
 }
+
+///|
+test "concurrent counting filter serialization preserves state" {
+  let filter = @src.ConcurrentCountingBloomFilter::with_size(1024, 4)
+  filter.insert("alpha")
+  filter.insert("beta")
+  filter.insert("alpha")
+  ignore(filter.remove("alpha"))
+  let restored = @src.ConcurrentCountingBloomFilter::from_bytes(
+    filter.to_bytes(),
+  )
+  assert_eq(restored.count(), filter.count())
+  assert_eq(restored.slot_count(), filter.slot_count())
+  assert_eq(restored.hash_count(), filter.hash_count())
+  assert_true(restored.contains("alpha"))
+  assert_true(restored.contains("beta"))
+  assert_eq(restored.count_of("alpha"), 1)
+  assert_eq(restored.count_of("beta"), 1)
+}
