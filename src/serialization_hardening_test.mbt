@@ -42,3 +42,19 @@ test "panic cuckoo serialization rejects an oversized bucket size" {
   bytes.unsafe_write_uint32_le(12, 2147483628U)
   @src.CuckooFilter::from_bytes(Bytes::from_array(bytes.exact_view())) |> ignore
 }
+
+///|
+test "panic counting serialization rejects trailing data" {
+  let bytes = @src.CountingBloomFilter::with_size(16, 1)
+    .to_bytes()
+    .add(b"\x00")
+  @src.CountingBloomFilter::from_bytes(bytes) |> ignore
+}
+
+///|
+test "panic cuckoo serialization rejects trailing data" {
+  let bytes = @src.CuckooFilter::with_size(4, 1)
+    .to_bytes()
+    .add(b"\x00")
+  @src.CuckooFilter::from_bytes(bytes) |> ignore
+}
