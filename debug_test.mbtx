@@ -1,7 +1,0 @@
-///|
-fn main raise {
-  let filter = @src.BloomFilter::new(1000, 0.01)
-  println("is_empty: ", String(filter.is_empty()))
-  println("inserted: ", String(filter.inserted))
-  println("count: ", String(filter.count()))
-}
