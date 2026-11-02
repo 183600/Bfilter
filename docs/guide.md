@@ -582,6 +582,60 @@ assert_true(filter.contains("session"))
 assert_true(filter.remove("session"))
 ```
 
+`ConcurrentBlockedBloomFilter` wraps a `BlockedBloomFilter` with the same
+mutex protection. It exposes the same cache-friendly query behavior with
+thread-safe operations:
+
+```moonbit
+let filter = @src.ConcurrentBlockedBloomFilter::new(10_000, 0.001)
+filter.insert_all(["alpha", "beta"])
+assert_true(filter.contains("alpha"))
+assert_true(filter.contains_all(["alpha", "beta"]))
+assert_eq(filter.block_count(), filter.bit_count() / 512)
+```
+
+`ConcurrentCompactCountingBloomFilter` wraps a `CompactCountingBloomFilter`,
+providing atomic `insert`, `remove`, `count_of`, and set operations on the
+memory-efficient 4-bit counters:
+
+```moonbit
+let filter = @src.ConcurrentCompactCountingBloomFilter::new(1_000, 0.01)
+filter.insert("task")
+filter.insert("task")
+assert_eq(filter.count_of("task"), 2)
+assert_true(filter.remove("task"))
+assert_eq(filter.count_of("task"), 1)
+```
+
+`ConcurrentScalableBloomFilter` wraps a `ScalableBloomFilter` with a single
+mutex protecting slice growth and all queries. It exposes `snapshot()` for
+consistent reads and atomic `merge`, `union`, `intersection`, `is_subset_of`,
+and `is_disjoint_from`:
+
+```moonbit
+let filter = @src.ConcurrentScalableBloomFilter::new(100, 0.01)
+for i = 0; i < 1000; i = i + 1 {
+  filter.insert(i)
+}
+assert_true(filter.slice_count() > 1)
+let snapshot = filter.snapshot()
+assert_true(snapshot.contains(42))
+```
+
+`ConcurrentScalableCountingBloomFilter` wraps a `ScalableCountingBloomFilter`
+with atomic slice growth, removals, and tracked-key operations:
+
+```moonbit
+let filter = @src.ConcurrentScalableCountingBloomFilter::new(4, 0.01)
+for i = 0; i < 40; i = i + 1 {
+  filter.insert("key-" + i.to_string())
+}
+filter.insert("key-0")
+assert_eq(filter.count_of("key-0"), 2)
+assert_true(filter.remove("key-0"))
+assert_eq(filter.count_of("key-0"), 1)
+```
+
 Each filter type also has `copy()`, which returns an independent filter. The
 concurrent wrappers expose both `copy()` and `snapshot()`, which copy the
 underlying filter while holding the lock. A copy remains unchanged if other
