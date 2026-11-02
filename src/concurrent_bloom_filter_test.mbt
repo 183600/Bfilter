@@ -44,6 +44,27 @@ test "panic concurrent bloom filter rejects invalid configuration" {
 }
 
 ///|
+test "concurrent bloom filter batch conditional inserts track additions" {
+  let filter = @src.ConcurrentBloomFilter::with_size(4096, 4)
+  let keys = ["a", "b", "c", "d", "e"]
+  assert_eq(filter.insert_all_if_absent(keys), keys.length())
+  assert_eq(filter.count(), keys.length())
+  assert_true(filter.contains_all(keys))
+  // Keys already represented are not added again.
+  assert_eq(filter.insert_all_if_absent(keys), 0)
+  assert_eq(filter.count(), keys.length())
+  // Duplicates within a batch are counted once.
+  assert_eq(filter.insert_all_if_absent(["f", "f", "g"]), 2)
+  assert_eq(filter.count(), keys.length() + 2)
+  assert_true(filter.contains("f"))
+  assert_true(filter.contains("g"))
+  // An empty batch adds nothing.
+  let empty : Array[String] = []
+  assert_eq(filter.insert_all_if_absent(empty), 0)
+  assert_eq(filter.count(), keys.length() + 2)
+}
+
+///|
 test "concurrent bloom filter survives interleaved workload" {
   let filter = @src.ConcurrentBloomFilter::with_size(4096, 4)
   for i = 0; i < 500; i = i + 1 {

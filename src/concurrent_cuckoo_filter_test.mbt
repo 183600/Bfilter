@@ -64,6 +64,27 @@ test "concurrent cuckoo filter reports failed inserts" {
 }
 
 ///|
+test "concurrent cuckoo filter batch conditional inserts track additions" {
+  let filter = @src.ConcurrentCuckooFilter::with_size(256, 4)
+  let keys = ["a", "b", "c", "d", "e"]
+  assert_eq(filter.insert_all_if_absent(keys), keys.length())
+  assert_eq(filter.count(), keys.length())
+  assert_true(filter.contains_all(keys))
+  // Keys already represented are not added again.
+  assert_eq(filter.insert_all_if_absent(keys), 0)
+  assert_eq(filter.count(), keys.length())
+  // Duplicates within a batch are counted once.
+  assert_eq(filter.insert_all_if_absent(["f", "f", "g"]), 2)
+  assert_eq(filter.count(), keys.length() + 2)
+  assert_true(filter.contains("f"))
+  assert_true(filter.contains("g"))
+  // An empty batch adds nothing.
+  let empty : Array[String] = []
+  assert_eq(filter.insert_all_if_absent(empty), 0)
+  assert_eq(filter.count(), keys.length() + 2)
+}
+
+///|
 test "panic concurrent cuckoo filter rejects invalid configuration" {
   @src.ConcurrentCuckooFilter::new(0) |> ignore
 }
