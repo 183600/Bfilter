@@ -175,6 +175,30 @@ test "concurrent scalable counting filter count_of" {
 }
 
 ///|
+test "concurrent scalable bloom filter is_disjoint_from" {
+  let left = @src.ConcurrentScalableBloomFilter::new(100, 0.01)
+  let right = @src.ConcurrentScalableBloomFilter::new(100, 0.01)
+  left.insert("left")
+  right.insert("right")
+  assert_true(left.is_disjoint_from(right.snapshot()))
+  assert_true(right.is_disjoint_from(left.snapshot()))
+  left.merge(right.snapshot())
+  assert_false(left.is_disjoint_from(right.snapshot()))
+}
+
+///|
+test "concurrent scalable counting filter is_disjoint_from" {
+  let left = @src.ConcurrentScalableCountingBloomFilter::new(100, 0.01)
+  let right = @src.ConcurrentScalableCountingBloomFilter::new(100, 0.01)
+  left.insert("left")
+  right.insert("right")
+  assert_true(left.is_disjoint_from(right.snapshot()))
+  assert_true(right.is_disjoint_from(left.snapshot()))
+  left.merge(right.snapshot())
+  assert_false(left.is_disjoint_from(right.snapshot()))
+}
+
+///|
 test "scalable bloom filter insert_if_absent with false positives" {
   let filter = @src.ScalableBloomFilter::new(4, 0.5)
   // Insert many keys to increase false positive rate
