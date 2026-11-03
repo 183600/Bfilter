@@ -163,10 +163,10 @@ fn BloomFilter::insert_hashes(
   // A completely full filter cannot change, so skip the nominal probe walk.
   // Besides wide non-power-of-two layouts, this also covers power-of-two
   // layouts whose double-hash period is long.
-  if self.should_check_full(probes) && self.all_bits_set() {
+if self.should_check_full(probes) && self.all_bits_set() {
     self.inserted += 1
     return
-  }
+}
   let mut state = h1
   for i = 0; i < probes; i = i + 1 {
     let pos = (state % bit_count).to_int()
