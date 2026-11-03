@@ -1,10 +1,10 @@
 ///|
-fn inv_seed(s : Int32) -> Int32 {
+fn layout_seed(s : Int32) -> Int32 {
   (s * 1103515245 + 12345) & 0x7FFFFFFF
 }
 
 ///|
-test "investigate counting filters across layouts" {
+test "counting filters behave across layouts" {
   let configs : Array[(Int32, Int32)] = [
     (16, 3), (48, 5), (100, 7), (16, 17), (48, 65), (16, 65), (64, 129),
   ]
@@ -15,7 +15,7 @@ test "investigate counting filters across layouts" {
       let live : Array[Int32] = Array::make(20, 0)
       let mut seed = round * 101 + slots
       for step = 0; step < 500; step = step + 1 {
-        seed = inv_seed(seed)
+        seed = layout_seed(seed)
         let key = seed % 20
         let action = seed / 31 % 5
         if action == 0 {
@@ -62,7 +62,7 @@ test "investigate counting filters across layouts" {
 }
 
 ///|
-test "investigate compact counting filters across layouts" {
+test "compact counting filters behave across layouts" {
   let configs : Array[(Int32, Int32)] = [
     (16, 3), (48, 5), (100, 7), (16, 17), (48, 65), (16, 65), (64, 129),
   ]
@@ -73,7 +73,7 @@ test "investigate compact counting filters across layouts" {
       let live : Array[Int32] = Array::make(20, 0)
       let mut seed = round * 103 + slots
       for step = 0; step < 300; step = step + 1 {
-        seed = inv_seed(seed)
+        seed = layout_seed(seed)
         let key = seed % 20
         let action = seed / 31 % 5
         if action == 0 {
@@ -125,7 +125,7 @@ test "investigate compact counting filters across layouts" {
 }
 
 ///|
-test "investigate bloom and blocked across layouts" {
+test "bloom and blocked filters behave across layouts" {
   let bloom_configs : Array[(Int32, Int32)] = [
     (64, 1), (64, 4), (128, 7), (192, 9), (64, 65), (128, 129), (4096, 1000),
   ]
@@ -136,7 +136,7 @@ test "investigate bloom and blocked across layouts" {
       let live : Array[Bool] = Array::make(30, false)
       let mut seed = round * 107 + bits
       for step = 0; step < 400; step = step + 1 {
-        seed = inv_seed(seed)
+        seed = layout_seed(seed)
         let key = seed % 30
         let action = seed / 31 % 4
         if action == 0 {
@@ -178,7 +178,7 @@ test "investigate bloom and blocked across layouts" {
       let live : Array[Bool] = Array::make(30, false)
       let mut seed = round * 109 + bits
       for step = 0; step < 400; step = step + 1 {
-        seed = inv_seed(seed)
+        seed = layout_seed(seed)
         let key = seed % 30
         let action = seed / 31 % 4
         if action == 0 {
@@ -213,7 +213,7 @@ test "investigate bloom and blocked across layouts" {
 }
 
 ///|
-test "investigate cuckoo layouts including sparse bfs" {
+test "cuckoo filters behave across layouts including the sparse search" {
   let configs : Array[(Int32, Int32)] = [(1, 1), (2, 2), (4, 4), (8, 3), (16, 2), (64, 4)]
   for config in configs {
     let (bc, bs) = config
@@ -222,7 +222,7 @@ test "investigate cuckoo layouts including sparse bfs" {
       let live : Array[Int32] = Array::make(30, 0)
       let mut seed = round * 113 + bc
       for step = 0; step < 400; step = step + 1 {
-        seed = inv_seed(seed)
+        seed = layout_seed(seed)
         let key = seed % 30
         let action = seed / 31 % 4
         if action == 0 {

@@ -1,5 +1,5 @@
 ///|
-test "opencode counting remove count delta fuzz" {
+test "counting removal count deltas stay consistent" {
   let layouts : Array[(Int32, Int32)] = [
     (16, 1), (16, 7), (16, 65), (16, 70000), (32, 17), (32, 65), (32, 100000), (48, 65), (48, 70000), (80, 130), (96, 200000),
     (256, 70000),

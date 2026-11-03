@@ -1,5 +1,5 @@
 ///|
-test "fuzz optimal size matches constructors" {
+test "optimal size helpers match the constructors" {
   let rates = [0.5, 0.1, 0.05, 0.01, 0.001]
   for n = 1; n <= 2000; n = n + 7 {
     for rate in rates {

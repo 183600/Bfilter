@@ -1,5 +1,5 @@
 ///|
-test "fuzz weighted counting removals drain selected lanes" {
+test "weighted counting removals drain the selected lanes" {
   let layouts = [(16, 1), (16, 7), (16, 31), (16, 65), (48, 70), (512, 4), (512, 100), (4096, 13)]
   for layout in layouts {
     let (slots, hashes) = layout

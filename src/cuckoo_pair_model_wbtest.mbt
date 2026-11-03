@@ -1,5 +1,5 @@
 ///|
-fn fuzz_cuckoo_pairs_subset(left : CuckooFilter, right : CuckooFilter) -> Bool {
+fn cuckoo_pair_subset(left : CuckooFilter, right : CuckooFilter) -> Bool {
   if left.count() == 0 {
     return true
   }
@@ -31,7 +31,7 @@ fn fuzz_cuckoo_pairs_subset(left : CuckooFilter, right : CuckooFilter) -> Bool {
 }
 
 ///|
-fn fuzz_cuckoo_pairs_disjoint(left : CuckooFilter, right : CuckooFilter) -> Bool {
+fn cuckoo_pair_disjoint(left : CuckooFilter, right : CuckooFilter) -> Bool {
   if left.count() == 0 || right.count() == 0 {
     return true
   }
@@ -59,7 +59,7 @@ fn fuzz_cuckoo_pairs_disjoint(left : CuckooFilter, right : CuckooFilter) -> Bool
 }
 
 ///|
-test "fuzz cuckoo subset and disjoint checks match pair model" {
+test "cuckoo subset and disjoint checks match the candidate-pair model" {
   let layouts = [(1, 1), (1, 2), (2, 1), (2, 2), (4, 1), (4, 2), (4, 3), (8, 4)]
   for round = 1; round <= 80; round = round + 1 {
     for layout in layouts {
@@ -84,12 +84,12 @@ test "fuzz cuckoo subset and disjoint checks match pair model" {
           ignore(right.remove(key))
         }
       }
-      let subset = fuzz_cuckoo_pairs_subset(left, right)
+      let subset = cuckoo_pair_subset(left, right)
       if left.is_subset_of(right) != subset {
         println("subset mismatch round=" + round.to_string() + " layout=" + layout.0.to_string() + "x" + layout.1.to_string() + " actual=" + left.is_subset_of(right).to_string() + " expected=" + subset.to_string())
         panic()
       }
-      let disjoint = fuzz_cuckoo_pairs_disjoint(left, right)
+      let disjoint = cuckoo_pair_disjoint(left, right)
       if left.is_disjoint_from(right) != disjoint {
         println("disjoint mismatch round=" + round.to_string() + " layout=" + layout.0.to_string() + "x" + layout.1.to_string() + " actual=" + left.is_disjoint_from(right).to_string() + " expected=" + disjoint.to_string())
         panic()

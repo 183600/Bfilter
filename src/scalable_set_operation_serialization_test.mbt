@@ -1,15 +1,15 @@
 ///|
-fn probe_next(seed : Int32) -> Int32 {
+fn scalable_next(seed : Int32) -> Int32 {
   (seed * 1103515245 + 12345) & 0x7FFFFFFF
 }
 
 ///|
-fn probe_build(seed : Int32, start_key : Int32, key_count : Int32, inserts : Int32) -> (@src.ScalableCountingBloomFilter, Array[Int32]) {
+fn scalable_build(seed : Int32, start_key : Int32, key_count : Int32, inserts : Int32) -> (@src.ScalableCountingBloomFilter, Array[Int32]) {
   let f = @src.ScalableCountingBloomFilter::new(2, 0.01)
   let live : Array[Int32] = Array::make(key_count, 0)
   let mut s = seed
   for i = 0; i < inserts; i = i + 1 {
-    s = probe_next(s)
+    s = scalable_next(s)
     let key = (start_key + s % key_count) % key_count
     f.insert(key)
     live[key] = live[key] + 1
@@ -18,11 +18,11 @@ fn probe_build(seed : Int32, start_key : Int32, key_count : Int32, inserts : Int
 }
 
 ///|
-test "probe scalable counting set operations serialize exactly" {
+test "scalable counting set operations serialize exactly" {
   let key_count = 40
   for round = 1; round <= 30; round = round + 1 {
-    let (left, live_left) = probe_build(round * 17 + 3, 0, key_count, 50 + round)
-    let (right, live_right) = probe_build(round * 29 + 7, 10, key_count, 50 + round * 2)
+    let (left, live_left) = scalable_build(round * 17 + 3, 0, key_count, 50 + round)
+    let (right, live_right) = scalable_build(round * 29 + 7, 10, key_count, 50 + round * 2)
     // remove some live keys from either input
     for key = 0; key < key_count; key = key + 1 {
       if (key + round) % 5 == 0 {

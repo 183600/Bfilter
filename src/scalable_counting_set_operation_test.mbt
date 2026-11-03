@@ -1,5 +1,5 @@
 ///|
-test "fuzz scalable counting set operations" {
+test "scalable counting set operations preserve live keys" {
   let key_count = 18
   for round = 1; round <= 200; round = round + 1 {
     let capacity = round % 5 + 1
@@ -85,7 +85,7 @@ test "fuzz scalable counting set operations" {
 }
 
 ///|
-test "fuzz scalable counting set operations stay removable" {
+test "scalable counting set operations stay removable" {
   let key_count = 16
   for round = 1; round <= 150; round = round + 1 {
     let capacity = round % 4 + 1

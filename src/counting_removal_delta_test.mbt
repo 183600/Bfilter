@@ -1,5 +1,5 @@
 ///|
-test "scratch counting single-key removal deltas" {
+test "counting single-key removal deltas" {
   let layouts : Array[(Int32, Int32)] = [
     (16, 1), (16, 2), (16, 3), (16, 5), (16, 7), (16, 8), (16, 9),
     (16, 15), (16, 16), (16, 17), (16, 32), (16, 33), (16, 63), (16, 64),
@@ -35,7 +35,7 @@ test "scratch counting single-key removal deltas" {
 }
 
 ///|
-test "scratch compact single-key removal deltas" {
+test "compact single-key removal deltas" {
   let layouts : Array[(Int32, Int32)] = [
     (16, 1), (16, 2), (16, 3), (16, 5), (16, 7), (16, 8), (16, 9),
     (16, 15), (16, 16), (16, 17), (16, 32), (16, 33), (16, 63), (16, 64),
@@ -69,7 +69,7 @@ test "scratch compact single-key removal deltas" {
 
 
 ///|
-test "scratch saturated counting remove count deltas" {
+test "saturated counting remove count deltas" {
   let configs : Array[(Int32, Int32)] = [
     (16, 65536), (16, 65537), (16, 70000), (16, 100000),
     (16, 1100000), (16, 2000000), (16, 20000000),

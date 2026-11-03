@@ -1,10 +1,10 @@
 ///|
-fn probe_seed(state : Int32) -> Int32 {
+fn random_set_seed(state : Int32) -> Int32 {
   (state * 1103515245 + 12345) & 0x7FFFFFFF
 }
 
 ///|
-test "probe scalable counting random set operations" {
+test "scalable counting filters keep random set operations consistent" {
   let key_count = 24
   for round = 1; round <= 40; round = round + 1 {
     let left = @src.ScalableCountingBloomFilter::new(2, 0.2)
@@ -13,7 +13,7 @@ test "probe scalable counting random set operations" {
     let rm : Array[Int32] = Array::make(key_count, 0)
     let mut seed = round * 7919 + 1
     for step = 0; step < 240; step = step + 1 {
-      seed = probe_seed(seed)
+      seed = random_set_seed(seed)
       let key = seed % key_count
       let action = seed / 31 % 8
       if action == 0 {
@@ -134,7 +134,7 @@ test "probe scalable counting random set operations" {
 }
 
 ///|
-test "probe cuckoo random set operations" {
+test "cuckoo filters keep random set operations consistent" {
   let key_count = 40
   for round = 1; round <= 40; round = round + 1 {
     let left = @src.CuckooFilter::with_size(64, 4)
@@ -143,7 +143,7 @@ test "probe cuckoo random set operations" {
     let rm : Array[Int32] = Array::make(key_count, 0)
     let mut seed = round * 104729 + 3
     for step = 0; step < 300; step = step + 1 {
-      seed = probe_seed(seed)
+      seed = random_set_seed(seed)
       let key = seed % key_count
       let action = seed / 31 % 8
       if action == 0 {

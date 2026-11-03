@@ -1,10 +1,10 @@
 ///|
-fn audit_set_seed(state : Int32) -> Int32 {
+fn set_safety_seed(state : Int32) -> Int32 {
   (state * 1103515245 + 12345) & 0x7FFFFFFF
 }
 
 ///|
-test "audit scalable set check safety" {
+test "scalable set checks stay safe on empty slices" {
   for round = 1; round <= 200; round = round + 1 {
     let left = @src.ScalableBloomFilter::new(2, 0.3)
     let right = @src.ScalableBloomFilter::new(2, 0.3)
@@ -12,7 +12,7 @@ test "audit scalable set check safety" {
     let right_count = @src.ScalableCountingBloomFilter::new(2, 0.3)
     let mut seed = round * 7919 + 13
     for step = 0; step < 200; step = step + 1 {
-      seed = audit_set_seed(seed)
+      seed = set_safety_seed(seed)
       let key = seed % 40
       let which = seed / 31 % 6
       if which == 0 {

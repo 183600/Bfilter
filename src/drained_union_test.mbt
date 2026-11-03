@@ -1,4 +1,4 @@
-test "probe drained tracked union behavior" {
+test "drained tracked keys stay absent after a union" {
   let drained = @src.ScalableCountingBloomFilter::new(1, 0.5)
   for i = 0; i < 65536; i = i + 1 {
     drained.insert("hot")

@@ -1,10 +1,10 @@
 ///|
-fn audit_extra_seed(state : Int32) -> Int32 {
+fn guarantee_seed(state : Int32) -> Int32 {
   (state * 1103515245 + 12345) & 0x7FFFFFFF
 }
 
 ///|
-fn audit_extra_positions(
+fn guarantee_positions(
   h1 : UInt64,
   h2 : UInt64,
   hash_count : Int32,
@@ -22,7 +22,7 @@ fn audit_extra_positions(
 }
 
 ///|
-test "audit extra counting counters match full probe enumeration" {
+test "counting counters match a full probe enumeration" {
   let layouts : Array[(Int32, Int32)] = [
     (16, 1),
     (16, 2),
@@ -45,11 +45,11 @@ test "audit extra counting counters match full probe enumeration" {
       )
       for key = 0; key < 8; key = key + 1 {
         let id = key_hashes(key)
-        expected[key] = audit_extra_positions(id.0, id.1, hashes, slots)
+        expected[key] = guarantee_positions(id.0, id.1, hashes, slots)
       }
       let mut seed = round * 101 + slots * 3 + hashes
       for step = 0; step < 80; step = step + 1 {
-        seed = audit_extra_seed(seed)
+        seed = guarantee_seed(seed)
         let key = seed % 8
         let action = seed / 31 % 3
         if action == 0 {
@@ -114,7 +114,7 @@ fn audit_extra_bloom_bits(
 }
 
 ///|
-test "audit extra bloom bits match full probe enumeration" {
+test "bloom bits match a full probe enumeration" {
   let layouts : Array[(Int32, Int32)] = [
     (64, 1),
     (64, 5),
@@ -140,7 +140,7 @@ test "audit extra bloom bits match full probe enumeration" {
       }
       let mut seed = round * 103 + bits_count + hashes
       for step = 0; step < 60; step = step + 1 {
-        seed = audit_extra_seed(seed)
+        seed = guarantee_seed(seed)
         let key = seed % 8
         if seed / 31 % 4 == 0 {
           filter.insert(key)
@@ -166,7 +166,7 @@ test "audit extra bloom bits match full probe enumeration" {
 }
 
 ///|
-test "audit extra cuckoo high-load unions and intersections" {
+test "cuckoo high-load unions and intersections" {
   let layouts : Array[(Int32, Int32)] = [
     (1, 1),
     (1, 4),
@@ -187,7 +187,7 @@ test "audit extra cuckoo high-load unions and intersections" {
       let live_right : Array[Int32] = Array::make(keys, 0)
       let mut seed = round * 257 + bucket_count * 11 + bucket_size
       for step = 0; step < 400; step = step + 1 {
-        seed = audit_extra_seed(seed)
+        seed = guarantee_seed(seed)
         let key = seed % keys
         let which = seed / 31 % 4
         if which == 0 {
@@ -269,13 +269,13 @@ test "audit extra cuckoo high-load unions and intersections" {
 }
 
 ///|
-test "audit extra scalable bloom subset and disjoint guarantees" {
+test "scalable bloom subset and disjoint guarantees" {
   for round = 1; round <= 30; round = round + 1 {
     let left = ScalableBloomFilter::new(2, 0.01)
     let right = ScalableBloomFilter::new(2, 0.01)
     let mut seed = round * 397
     for step = 0; step < 120; step = step + 1 {
-      seed = audit_extra_seed(seed)
+      seed = guarantee_seed(seed)
       let key = seed % 40
       if seed / 31 % 2 == 0 {
         left.insert(key)
@@ -306,13 +306,13 @@ test "audit extra scalable bloom subset and disjoint guarantees" {
 }
 
 ///|
-test "audit extra scalable counting subset and disjoint guarantees" {
+test "scalable counting subset and disjoint guarantees" {
   for round = 1; round <= 30; round = round + 1 {
     let left = ScalableCountingBloomFilter::new(2, 0.01)
     let right = ScalableCountingBloomFilter::new(2, 0.01)
     let mut seed = round * 401
     for step = 0; step < 150; step = step + 1 {
-      seed = audit_extra_seed(seed)
+      seed = guarantee_seed(seed)
       let key = seed % 40
       let which = seed / 31 % 4
       if which == 0 {
@@ -345,7 +345,7 @@ test "audit extra scalable counting subset and disjoint guarantees" {
 }
 
 ///|
-test "audit extra cuckoo subset and disjoint guarantees" {
+test "cuckoo subset and disjoint guarantees" {
   let layouts : Array[(Int32, Int32)] = [(4, 4), (8, 2), (16, 4)]
   for layout in layouts {
     let (bc, bs) = layout
@@ -354,7 +354,7 @@ test "audit extra cuckoo subset and disjoint guarantees" {
       let right = CuckooFilter::with_size(bc, bs)
       let mut seed = round * 409 + bc
       for step = 0; step < 150; step = step + 1 {
-        seed = audit_extra_seed(seed)
+        seed = guarantee_seed(seed)
         let key = seed % 60
         let which = seed / 31 % 4
         if which == 0 {
@@ -386,7 +386,7 @@ test "audit extra cuckoo subset and disjoint guarantees" {
 }
 
 ///|
-test "audit extra counting subset and disjoint guarantees" {
+test "counting subset and disjoint guarantees" {
   let layouts : Array[(Int32, Int32)] = [(16, 4), (32, 20), (48, 70), (80, 300)]
   for layout in layouts {
     let (slots, hashes) = layout
@@ -395,7 +395,7 @@ test "audit extra counting subset and disjoint guarantees" {
       let right = CountingBloomFilter::with_size(slots, hashes)
       let mut seed = round * 419 + slots
       for step = 0; step < 150; step = step + 1 {
-        seed = audit_extra_seed(seed)
+        seed = guarantee_seed(seed)
         let key = seed % 40
         let which = seed / 31 % 4
         if which == 0 {
@@ -428,7 +428,7 @@ test "audit extra counting subset and disjoint guarantees" {
 
 
 ///|
-test "audit extra compact set operations preserve reported keys" {
+test "compact set operations preserve reported keys" {
   let layouts : Array[(Int32, Int32)] = [(16, 1), (16, 4), (16, 20), (48, 70), (256, 300)]
   for layout in layouts {
     let (slots, hashes) = layout
@@ -437,7 +437,7 @@ test "audit extra compact set operations preserve reported keys" {
       let right = CompactCountingBloomFilter::with_size(slots, hashes)
       let mut seed = round * 431 + slots + hashes
       for step = 0; step < 160; step = step + 1 {
-        seed = audit_extra_seed(seed)
+        seed = guarantee_seed(seed)
         let key = seed % 32
         let which = seed / 31 % 4
         if which == 0 {
@@ -506,7 +506,7 @@ test "audit extra compact set operations preserve reported keys" {
 }
 
 ///|
-test "audit extra counting set operations preserve reported keys" {
+test "counting set operations preserve reported keys" {
   let layouts : Array[(Int32, Int32)] = [(16, 1), (16, 4), (16, 20), (48, 70), (256, 300)]
   for layout in layouts {
     let (slots, hashes) = layout
@@ -515,7 +515,7 @@ test "audit extra counting set operations preserve reported keys" {
       let right = CountingBloomFilter::with_size(slots, hashes)
       let mut seed = round * 433 + slots + hashes
       for step = 0; step < 140; step = step + 1 {
-        seed = audit_extra_seed(seed)
+        seed = guarantee_seed(seed)
         let key = seed % 32
         let which = seed / 31 % 4
         if which == 0 {
@@ -573,7 +573,7 @@ test "audit extra bloom and blocked set operations preserve reported keys" {
       let blocked_right = BlockedBloomFilter::with_size(bits, hashes)
       let mut seed = round * 439 + bits + hashes
       for step = 0; step < 120; step = step + 1 {
-        seed = audit_extra_seed(seed)
+        seed = guarantee_seed(seed)
         let key = seed % 32
         let which = seed / 31 % 4
         if which == 0 {

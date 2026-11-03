@@ -1,10 +1,10 @@
 ///|
-fn probe_cuckoo_seed(s : Int32) -> Int32 {
+fn small_cuckoo_seed(s : Int32) -> Int32 {
   (s * 1103515245 + 12345) & 0x7FFFFFFF
 }
 
 ///|
-test "probe small cuckoo set operations" {
+test "small cuckoo filters keep set operations consistent" {
   let configs : Array[(Int32, Int32)] = [(1,1),(2,1),(4,1),(1,2),(2,2),(4,2),(2,3),(4,3),(8,4)]
   for cfg in configs {
     let bc = cfg.0
@@ -17,7 +17,7 @@ test "probe small cuckoo set operations" {
       let rl : Array[Int32] = Array::make(nkeys, 0)
       let mut seed = round * 37 + bc * 3 + bs
       for step = 0; step < 50; step = step + 1 {
-        seed = probe_cuckoo_seed(seed)
+        seed = small_cuckoo_seed(seed)
         let k = seed % nkeys
         let act = seed / 31 % 3
         if act == 0 {

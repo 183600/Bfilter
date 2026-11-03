@@ -1,5 +1,5 @@
 ///|
-test "fuzz cuckoo intersection exact pair multiplicities" {
+test "cuckoo intersection keeps exact candidate-pair multiplicities" {
   let layouts = [(1, 1), (1, 2), (2, 1), (2, 2), (4, 1), (4, 2), (4, 3), (8, 4)]
   for round = 1; round <= 60; round = round + 1 {
     for layout in layouts {

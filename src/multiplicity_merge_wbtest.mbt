@@ -1,10 +1,10 @@
 ///|
-fn hunt_seed(state : Int32) -> Int32 {
+fn multiplicity_seed(state : Int32) -> Int32 {
   (state * 1103515245 + 12345) & 0x7FFFFFFF
 }
 
 ///|
-test "hunt scalable counting union and merge multiplicities" {
+test "scalable counting union and merge keep multiplicities" {
   let layouts : Array[(Int32, Double)] = [(2, 0.05), (4, 0.01), (8, 0.5)]
   for layout in layouts {
     let (capacity, rate) = layout
@@ -16,7 +16,7 @@ test "hunt scalable counting union and merge multiplicities" {
       let right_live : Array[Int32] = Array::make(keys, 0)
       let mut seed = round * 977 + capacity
       for step = 0; step < 300; step = step + 1 {
-        seed = hunt_seed(seed)
+        seed = multiplicity_seed(seed)
         let key = seed % keys
         let which = seed / 31 % 4
         if which == 0 {
@@ -63,7 +63,7 @@ test "hunt scalable counting union and merge multiplicities" {
 }
 
 ///|
-test "hunt scalable counting intersection multiplicities and removability" {
+test "scalable counting intersection keeps multiplicities and removability" {
   let layouts : Array[(Int32, Double)] = [(2, 0.05), (4, 0.01), (8, 0.5)]
   for layout in layouts {
     let (capacity, rate) = layout
@@ -75,7 +75,7 @@ test "hunt scalable counting intersection multiplicities and removability" {
       let right_live : Array[Int32] = Array::make(keys, 0)
       let mut seed = round * 1237 + capacity
       for step = 0; step < 300; step = step + 1 {
-        seed = hunt_seed(seed)
+        seed = multiplicity_seed(seed)
         let key = seed % keys
         let which = seed / 31 % 4
         if which == 0 {
@@ -115,7 +115,7 @@ test "hunt scalable counting intersection multiplicities and removability" {
 }
 
 ///|
-test "hunt drained tracked scalable slice stays serializable after insertion" {
+test "a drained tracked scalable slice stays serializable after an insertion" {
   let filter = ScalableCountingBloomFilter::new(65536, 0.5)
   for i = 0; i < 65536; i = i + 1 {
     filter.insert("saturated")
@@ -137,7 +137,7 @@ test "hunt drained tracked scalable slice stays serializable after insertion" {
 }
 
 ///|
-test "hunt cuckoo union and merge agreement under high load" {
+test "cuckoo union and merge agree under high load" {
   let layouts : Array[(Int32, Int32)] = [(1, 1), (1, 4), (2, 2), (4, 1), (4, 4), (8, 2), (16, 4)]
   for layout in layouts {
     let (bucket_count, bucket_size) = layout
@@ -149,7 +149,7 @@ test "hunt cuckoo union and merge agreement under high load" {
       let right_live : Array[Int32] = Array::make(keys, 0)
       let mut seed = round * 211 + bucket_count
       for step = 0; step < 200; step = step + 1 {
-        seed = hunt_seed(seed)
+        seed = multiplicity_seed(seed)
         let key = seed % keys
         let which = seed / 31 % 4
         if which == 0 {

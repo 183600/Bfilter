@@ -1,5 +1,5 @@
 ///|
-fn audit_manual_bloom_contains(filter : BloomFilter, h1 : UInt64, h2 : UInt64) -> Bool {
+fn manual_bloom_contains(filter : BloomFilter, h1 : UInt64, h2 : UInt64) -> Bool {
   let bit_count = filter.bit_count.to_uint64()
   let mut state = h1
   for i = 0; i < filter.hash_count; i = i + 1 {
@@ -13,7 +13,7 @@ fn audit_manual_bloom_contains(filter : BloomFilter, h1 : UInt64, h2 : UInt64) -
 }
 
 ///|
-fn audit_manual_counting_contains(filter : CountingBloomFilter, h1 : UInt64, h2 : UInt64) -> Bool {
+fn manual_counting_contains(filter : CountingBloomFilter, h1 : UInt64, h2 : UInt64) -> Bool {
   let slot_count = filter.slot_count.to_uint64()
   let mut state = h1
   for i = 0; i < filter.hash_count; i = i + 1 {
@@ -27,7 +27,7 @@ fn audit_manual_counting_contains(filter : CountingBloomFilter, h1 : UInt64, h2 
 }
 
 ///|
-fn audit_manual_compact_contains(filter : CompactCountingBloomFilter, h1 : UInt64, h2 : UInt64) -> Bool {
+fn manual_compact_contains(filter : CompactCountingBloomFilter, h1 : UInt64, h2 : UInt64) -> Bool {
   let slot_count = filter.slot_count.to_uint64()
   let mut state = h1
   for i = 0; i < filter.hash_count; i = i + 1 {
@@ -41,7 +41,7 @@ fn audit_manual_compact_contains(filter : CompactCountingBloomFilter, h1 : UInt6
 }
 
 ///|
-fn audit_manual_blocked_contains(filter : BlockedBloomFilter, h1 : UInt64, h2 : UInt64) -> Bool {
+fn manual_blocked_contains(filter : BlockedBloomFilter, h1 : UInt64, h2 : UInt64) -> Bool {
   let base = filter.block_base(h1)
   let step = (h2 % 512UL).to_int()
   let mut offset = (h1 % 512UL).to_int()
@@ -59,7 +59,7 @@ fn audit_manual_blocked_contains(filter : BlockedBloomFilter, h1 : UInt64, h2 : 
 }
 
 ///|
-test "audit probe wide probe shortcuts match full walks" {
+test "wide probe shortcuts match full probe walks" {
   let layouts : Array[(Int32, Int32)] = [
     (64, 65),
     (64, 300),
@@ -86,19 +86,19 @@ test "audit probe wide probe shortcuts match full walks" {
     for i = 0; i < 40; i = i + 1 {
       let key = "wide-" + i.to_string() + "-query"
       let (h1, h2) = key_hashes(key)
-      let expected_bloom = audit_manual_bloom_contains(bloom, h1, h2)
+      let expected_bloom = manual_bloom_contains(bloom, h1, h2)
       if bloom.contains(key) != expected_bloom {
         abort("audit: bloom wide probe mismatch")
       }
-      let expected_counting = audit_manual_counting_contains(counting, h1, h2)
+      let expected_counting = manual_counting_contains(counting, h1, h2)
       if counting.contains(key) != expected_counting {
         abort("audit: counting wide probe mismatch")
       }
-      let expected_compact = audit_manual_compact_contains(compact, h1, h2)
+      let expected_compact = manual_compact_contains(compact, h1, h2)
       if compact.contains(key) != expected_compact {
         abort("audit: compact wide probe mismatch")
       }
-      let expected_blocked = audit_manual_blocked_contains(blocked, h1, h2)
+      let expected_blocked = manual_blocked_contains(blocked, h1, h2)
       if blocked.contains(key) != expected_blocked {
         abort("audit: blocked wide probe mismatch")
       }
@@ -107,7 +107,7 @@ test "audit probe wide probe shortcuts match full walks" {
 }
 
 ///|
-fn audit_counting_expected_count_of(
+fn expected_counting_count_of(
   filter : CountingBloomFilter,
   h1 : UInt64,
   h2 : UInt64,
@@ -147,7 +147,7 @@ fn audit_counting_expected_count_of(
 }
 
 ///|
-fn audit_compact_expected_count_of(
+fn expected_compact_count_of(
   filter : CompactCountingBloomFilter,
   h1 : UInt64,
   h2 : UInt64,
@@ -187,7 +187,7 @@ fn audit_compact_expected_count_of(
 }
 
 ///|
-test "audit probe count_of matches full occurrence walk" {
+test "count_of matches a full occurrence walk" {
   let layouts : Array[(Int32, Int32)] = [
     (16, 1),
     (16, 4),
@@ -218,12 +218,12 @@ test "audit probe count_of matches full occurrence walk" {
           ignore(compact.remove(key))
         } else {
           let c = counting.count_of(key)
-          let expected_c = audit_counting_expected_count_of(counting, key_hashes(key).0, key_hashes(key).1)
+          let expected_c = expected_counting_count_of(counting, key_hashes(key).0, key_hashes(key).1)
           if c != expected_c {
             abort("audit: counting count_of mismatch")
           }
           let p = compact.count_of(key)
-          let expected_p = audit_compact_expected_count_of(compact, key_hashes(key).0, key_hashes(key).1)
+          let expected_p = expected_compact_count_of(compact, key_hashes(key).0, key_hashes(key).1)
           if p != expected_p {
             abort("audit: compact count_of mismatch")
           }
@@ -234,7 +234,7 @@ test "audit probe count_of matches full occurrence walk" {
 }
 
 ///|
-fn audit_manual_bloom_insert_if_absent(filter : BloomFilter, h1 : UInt64, h2 : UInt64) -> Bool {
+fn manual_bloom_insert_if_absent(filter : BloomFilter, h1 : UInt64, h2 : UInt64) -> Bool {
   let bit_count = filter.bit_count.to_uint64()
   let mut state = h1
   let mut index = -1
@@ -262,7 +262,7 @@ fn audit_manual_bloom_insert_if_absent(filter : BloomFilter, h1 : UInt64, h2 : U
 }
 
 ///|
-fn audit_manual_counting_insert_if_absent(filter : CountingBloomFilter, h1 : UInt64, h2 : UInt64) -> Bool {
+fn manual_counting_insert_if_absent(filter : CountingBloomFilter, h1 : UInt64, h2 : UInt64) -> Bool {
   let slots = filter.slot_count
   let occurrences : Array[UInt64] = Array::make(slots, 0UL)
   let state = h1
@@ -317,7 +317,7 @@ fn audit_manual_counting_insert_if_absent(filter : CountingBloomFilter, h1 : UIn
 }
 
 ///|
-fn audit_manual_compact_insert_if_absent(filter : CompactCountingBloomFilter, h1 : UInt64, h2 : UInt64) -> Bool {
+fn manual_compact_insert_if_absent(filter : CompactCountingBloomFilter, h1 : UInt64, h2 : UInt64) -> Bool {
   let slots = filter.slot_count
   let occurrences : Array[Int32] = Array::make(slots, 0)
   let state = h1
@@ -374,7 +374,7 @@ fn audit_manual_compact_insert_if_absent(filter : CompactCountingBloomFilter, h1
 }
 
 ///|
-test "audit probe conditional insertion matches full occurrence walk" {
+test "conditional insertion matches a full occurrence walk" {
   let layouts : Array[(Int32, Int32)] = [
     (16, 1),
     (16, 4),
@@ -415,18 +415,18 @@ test "audit probe conditional insertion matches full occurrence walk" {
           ignore(compact_ref.remove(key))
         } else if action == 2 {
           let a = bloom.insert_if_absent(key)
-          let b = audit_manual_bloom_insert_if_absent(bloom_ref, h1, h2)
+          let b = manual_bloom_insert_if_absent(bloom_ref, h1, h2)
           if a != b {
             abort("audit: bloom conditional insertion mismatch")
           }
         } else {
           let a = counting.insert_if_absent(key)
-          let b = audit_manual_counting_insert_if_absent(counting_ref, h1, h2)
+          let b = manual_counting_insert_if_absent(counting_ref, h1, h2)
           if a != b {
             abort("audit: counting conditional insertion mismatch")
           }
           let c = compact.insert_if_absent(key)
-          let d = audit_manual_compact_insert_if_absent(compact_ref, h1, h2)
+          let d = manual_compact_insert_if_absent(compact_ref, h1, h2)
           if c != d {
             abort("audit: compact conditional insertion mismatch")
           }

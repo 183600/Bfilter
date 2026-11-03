@@ -1,10 +1,10 @@
 ///|
-fn audit_seed(state : Int32) -> Int32 {
+fn invariant_seed(state : Int32) -> Int32 {
   (state * 1103515245 + 12345) & 0x7FFFFFFF
 }
 
 ///|
-test "audit probe counting randomized invariants" {
+test "counting filters keep randomized invariants" {
   let layouts : Array[(Int32, Int32)] = [
     (16, 1),
     (16, 4),
@@ -24,7 +24,7 @@ test "audit probe counting randomized invariants" {
       let live : Array[Int32] = Array::make(24, 0)
       let mut seed = round * 97 + slots
       for step = 0; step < 400; step = step + 1 {
-        seed = audit_seed(seed)
+        seed = invariant_seed(seed)
         let key = seed % 24
         let action = seed / 31 % 5
         if action == 0 {
@@ -73,13 +73,13 @@ test "audit probe counting randomized invariants" {
 }
 
 ///|
-test "audit probe scalable counting randomized invariants" {
+test "scalable counting filters keep randomized invariants" {
   for round = 1; round <= 10; round = round + 1 {
     let filter = @src.ScalableCountingBloomFilter::new(2, 0.01)
     let live : Array[Int32] = Array::make(30, 0)
     let mut seed = round * 1319 + 7
     for step = 0; step < 500; step = step + 1 {
-      seed = audit_seed(seed)
+      seed = invariant_seed(seed)
       let key = seed % 30
       let action = seed / 31 % 6
       if action == 0 {
@@ -143,7 +143,7 @@ test "audit probe scalable counting randomized invariants" {
 }
 
 ///|
-test "audit probe cuckoo randomized invariants" {
+test "cuckoo filters keep randomized invariants" {
   let layouts : Array[(Int32, Int32)] = [(1, 1), (4, 1), (8, 2), (16, 4), (64, 4), (5, 3)]
   for layout in layouts {
     let (buckets, bucket_size) = layout
@@ -154,7 +154,7 @@ test "audit probe cuckoo randomized invariants" {
       let live_right : Array[Int32] = Array::make(24, 0)
       let mut seed = round * 241 + buckets * 7 + bucket_size
       for step = 0; step < 300; step = step + 1 {
-        seed = audit_seed(seed)
+        seed = invariant_seed(seed)
         let key = seed % 24
         let action = seed / 31 % 6
         if action == 0 {

@@ -1,5 +1,5 @@
 ///|
-fn scratch_naive_positions(
+fn naive_probe_positions(
   h1 : UInt64,
   h2 : UInt64,
   hash_count : Int32,
@@ -22,7 +22,7 @@ fn scratch_naive_positions(
 }
 
 ///|
-test "scratch unique positions match naive probe walk" {
+test "unique positions match a naive probe walk" {
   let layouts : Array[(Int32, Int32)] = [
     (16, 1), (16, 63), (16, 64), (16, 65), (16, 1000), (16, 16385),
     (32, 65), (32, 70000), (48, 65), (48, 1000), (64, 65), (64, 16385),
@@ -34,7 +34,7 @@ test "scratch unique positions match naive probe walk" {
     for round = 0; round < 12; round = round + 1 {
       let h1 = mix64((round.to_uint64() + 1UL) * 0x9E3779B97F4A7C15UL)
       let h2 = mix64(h1 ^ (round.to_uint64() * 0xBF58476D1CE4E5B9UL)) | 1UL
-      let expected = scratch_naive_positions(h1, h2, hashes, slots)
+      let expected = naive_probe_positions(h1, h2, hashes, slots)
       let actual = unique_key_positions_fast(
         h1, h2, hashes, slots.to_uint64(),
       )
@@ -58,7 +58,7 @@ test "scratch unique positions match naive probe walk" {
 }
 
 ///|
-test "scratch scalable counting remove count roundtrip" {
+test "scalable counting removal count round trip" {
   let key_count = 10
   for round = 1; round <= 120; round = round + 1 {
     let capacity = round % 5 + 1

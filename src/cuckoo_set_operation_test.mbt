@@ -1,5 +1,5 @@
 ///|
-test "fuzz cuckoo set operations" {
+test "cuckoo set operations preserve live keys" {
   let key_count = 12
   for round = 1; round <= 300; round = round + 1 {
     let bucket_count = 1 << (round % 4)
