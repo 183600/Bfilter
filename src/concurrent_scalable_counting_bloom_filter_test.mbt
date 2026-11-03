@@ -122,3 +122,15 @@ test "panic concurrent scalable counting filter rejects invalid configuration" {
   @src.ConcurrentScalableCountingBloomFilter::new(0, 0.01) |> ignore
   @src.ConcurrentScalableCountingBloomFilter::new(10, 1.0) |> ignore
 }
+
+///|
+test "concurrent scalable counting filter metadata_bytes matches tracked keys" {
+  let filter = @src.ConcurrentScalableCountingBloomFilter::new(4, 0.01)
+  assert_eq(filter.metadata_bytes(), 0L)
+  filter.insert("a")
+  filter.insert("b")
+  assert_eq(filter.tracked_key_count(), 2)
+  assert_eq(filter.metadata_bytes(), 2L * 24L)
+  filter.clear()
+  assert_eq(filter.metadata_bytes(), 0L)
+}

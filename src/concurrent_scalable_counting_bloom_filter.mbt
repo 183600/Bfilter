@@ -336,6 +336,14 @@ pub fn ConcurrentScalableCountingBloomFilter::memory_bytes(
 }
 
 ///|
+/// Approximate bytes used by the location metadata for distinct keys.
+pub fn ConcurrentScalableCountingBloomFilter::metadata_bytes(
+  self : ConcurrentScalableCountingBloomFilter,
+) -> Int64 {
+  self.with_lock(filter => filter.metadata_bytes())
+}
+
+///|
 /// Encode the underlying filter as a portable byte sequence while holding the
 /// lock.
 pub fn ConcurrentScalableCountingBloomFilter::to_bytes(

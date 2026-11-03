@@ -148,3 +148,24 @@ test "scalable counting bloom filter removes keys from older slices" {
     assert_true(filter.contains("fill-" + i.to_string()))
   }
 }
+
+///|
+test "scalable counting bloom filter metadata_bytes reflects tracked keys" {
+  let filter = @src.ScalableCountingBloomFilter::new(4, 0.01)
+  assert_eq(filter.metadata_bytes(), 0L)
+  filter.insert("a")
+  filter.insert("b")
+  filter.insert("a")
+  assert_eq(filter.tracked_key_count(), 2)
+  assert_eq(filter.metadata_bytes(), 2L * 24L)
+  filter.remove("a") |> ignore
+  // occurrences of "a" reduced, key still tracked
+  assert_eq(filter.tracked_key_count(), 2)
+  assert_eq(filter.metadata_bytes(), 2L * 24L)
+  filter.remove("a") |> ignore
+  // key removed entirely when occurrences reach zero
+  assert_eq(filter.tracked_key_count(), 1)
+  assert_eq(filter.metadata_bytes(), 1L * 24L)
+  filter.clear()
+  assert_eq(filter.metadata_bytes(), 0L)
+}

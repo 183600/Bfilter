@@ -585,6 +585,16 @@ pub fn ScalableCountingBloomFilter::memory_bytes(
 }
 
 ///|
+/// Approximate bytes used by the location metadata that tracks slice index and
+/// multiplicity for each distinct key. Each entry is 24 bytes (two 64-bit hashes
+/// plus slice index and multiplicity).
+pub fn ScalableCountingBloomFilter::metadata_bytes(
+  self : ScalableCountingBloomFilter,
+) -> Int64 {
+  self.tracked_key_count().to_int64() * 24L
+}
+
+///|
 fn ScalableCountingBloomFilter::ensure_same_policy(
   self : ScalableCountingBloomFilter,
   other : ScalableCountingBloomFilter,

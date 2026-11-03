@@ -233,6 +233,8 @@ assert_eq(filter.tracked_key_count(), 40)
 
 **Tracking:** A 128-bit hash + multiplicity is stored for each distinct key.
 This metadata grows with distinct keys and is **not** included in `memory_bytes()`.
+Use `metadata_bytes()` to estimate the approximate size of this location metadata
+(24 bytes per distinct key); concurrent wrappers expose the same helper.
 
 **Set operations:**
 - `union`/`merge`: rebuild counters from tracked multiplicities; same slice →
