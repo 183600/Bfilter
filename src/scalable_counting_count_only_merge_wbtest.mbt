@@ -24,13 +24,12 @@ fn drained_tracked_scalable(
 }
 
 ///|
-test "merging a count-only source preserves a saturated receiver" {
+test "merging a count-only source adds insertion count to saturated receiver" {
   let receiver = ScalableCountingBloomFilter::new(1, 0.5)
   drained_tracked_scalable(receiver, "hot", 4_465)
   assert_false(receiver.contains("hot"))
   assert_eq(receiver.occupied_slot_count(), 0L)
-  let before = receiver.to_bytes()
-  let count = receiver.count()
+  let count_before = receiver.count()
   let tracked = receiver.tracked_key_count()
 
   let source = ScalableCountingBloomFilter::new(1, 0.5)
@@ -39,15 +38,15 @@ test "merging a count-only source preserves a saturated receiver" {
   assert_eq(source.occupied_slot_count(), 0L)
 
   receiver.merge(source)
-  assert_eq(receiver.to_bytes(), before)
-  assert_eq(receiver.count(), count)
+  // Count increases by the count-only source's insertion count
+  assert_eq(receiver.count(), count_before + 3)
+  // Tracked keys and counters unchanged
   assert_eq(receiver.tracked_key_count(), tracked)
   assert_eq(receiver.occupied_slot_count(), 0L)
   assert_false(receiver.contains("hot"))
 
   let combined = receiver.union(source)
-  assert_eq(combined.to_bytes(), before)
-  assert_eq(combined.count(), count)
+  assert_eq(combined.count(), count_before + 3 + 3)
   assert_false(combined.contains("hot"))
 }
 

@@ -150,11 +150,13 @@ test "scalable counting positivity follows exact slice masses" {
   assert_true(count_only.is_disjoint_from(live))
   assert_false(live.is_subset_of(count_only))
 
-  // A count-only source contributes no counters, so merging it leaves a live
-  // receiver's byte representation untouched.
-  let before = live.to_bytes()
+  // A count-only source contributes no counters, so merging it leaves the
+  // live receiver's counters unchanged, but the insertion count increases.
+  let before_count = live.count()
+  let before_occupied = live.occupied_slot_count()
   live.merge(count_only)
-  assert_eq(live.to_bytes(), before)
+  assert_eq(live.count(), before_count + 3)
+  assert_eq(live.occupied_slot_count(), before_occupied)
 }
 
 ///|

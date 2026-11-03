@@ -643,8 +643,7 @@ pub fn ScalableCountingBloomFilter::merge(
     self.slices[0].inserted = self.inserted
     return
   }
-  if other.locations.length() == 0 &&
-    (other.inserted == 0 || !other.has_positive_counters()) {
+  if other.locations.length() == 0 && other.inserted == 0 {
     if self.slices.length() == 0 && self.inserted > 0 {
       self.append_slice()
       self.slices[0].inserted = self.inserted
@@ -661,6 +660,41 @@ pub fn ScalableCountingBloomFilter::merge(
     }
     while self.slices.length() < other.slices.length() {
       self.append_slice()
+    }
+    return
+  }
+  if other.locations.length() == 0 && !other.has_positive_counters() && other.inserted > 0 {
+    guard self.inserted <= 2147483647 - other.inserted else {
+      abort("scalable counting bloom filter insertion count overflow")
+    }
+    if self.slices.length() > 0 {
+      let last = self.slices.length() - 1
+      guard self.slices[last].inserted <= 2147483647 - other.inserted else {
+        abort("scalable counting bloom filter insertion count overflow")
+      }
+      self.slices[last].inserted += other.inserted
+    } else if self.inserted > 0 {
+      self.append_slice()
+      guard self.inserted <= 2147483647 - other.inserted else {
+        abort("scalable counting bloom filter insertion count overflow")
+      }
+      self.slices[0].inserted = self.inserted + other.inserted
+    } else {
+      self.append_slice()
+      self.slices[0].inserted = other.inserted
+    }
+    self.inserted += other.inserted
+    if other.slices.length() > self.slices.length() {
+      let mut total_slots = self.slot_count()
+      for i = self.slices.length(); i < other.slices.length(); i = i + 1 {
+        total_slots = total_slots + other.slices[i].slot_count().to_int64()
+      }
+      guard total_slots <= SCALABLE_COUNTING_MAX_SLOTS else {
+        abort("scalable counting bloom filter is too large")
+      }
+      while self.slices.length() < other.slices.length() {
+        self.append_slice()
+      }
     }
     return
   }
