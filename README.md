@@ -1,4 +1,4 @@
-# Bfilter — probabilistic filters for MoonBit
+# Bfilter — Probabilistic Filters for MoonBit
 
 `Bfilter` is a MoonBit library of Bloom-filter-family data structures. It
 implements classic Bloom filters, counting variants, scalable filters, Cuckoo
@@ -12,18 +12,18 @@ wrappers.
 The repository is named `Bfilter`; the MoonBit module is lowercase
 (`183600/bfilter`) to follow package naming conventions.
 
-## Implemented filters
+## Implemented Filters
 
-| Type | Deletion | Notes |
-| --- | --- | --- |
-| `BloomFilter` | no | Bit-packed, standard Bloom filter with configurable false-positive rate. |
-| `BlockedBloomFilter` | no | Cache-friendly blocked layout: every probe of a key lands in one memory block. |
-| `CountingBloomFilter` | yes | 16-bit saturating counters; `remove` and `count_of` are supported. |
-| `CompactCountingBloomFilter` | yes | 4-bit packed counters, about a quarter of the memory of the counting filter. |
-| `ScalableBloomFilter` | no | Grows by adding slices; `merge` combines compatible filters. |
-| `ScalableCountingBloomFilter` | yes | Scalable slices built on counting filters. |
-| `CuckooFilter` | yes | Fingerprint buckets with eviction; different false-positive and capacity model from Bloom filters. |
-| `Concurrent*` wrappers | as wrapped | Native/LLVM use an OS mutex; JS/Wasm targets use a no-op lock because a module runs on one thread. |
+| Type | Deletion | Counter Width | Memory | Use Case |
+| --- | --- | --- | --- | --- |
+| `BloomFilter` | no | 1 bit | ~1.25 bytes/item | General-purpose, lowest memory |
+| `BlockedBloomFilter` | no | 1 bit | ~1.25 bytes/item | Cache-friendly, high-throughput queries |
+| `CountingBloomFilter` | yes | 16-bit | ~8 bytes/item | When deletion and multiplicity tracking needed |
+| `CompactCountingBloomFilter` | yes | 4-bit | ~2 bytes/item | Memory-constrained deletion, low multiplicity |
+| `ScalableBloomFilter` | no | 1 bit | Grows dynamically | Unbounded insertions, known false-positive budget |
+| `ScalableCountingBloomFilter` | yes | 16-bit | Grows dynamically | Unbounded insertions with deletion |
+| `CuckooFilter` | yes | 8-bit fingerprint | ~1 byte/item | High load factor, exact deletion |
+| `Concurrent*` wrappers | as wrapped | — | Same as wrapped | Thread-safe access on native/LLVM |
 
 All filters accept any key type with a `Hash` implementation and expose
 `insert`, `contains`, batch helpers, statistics, and versioned
@@ -35,7 +35,7 @@ first slice they create, which is useful for planning the initial allocation
 before growth begins. The full API, set-operation semantics, and complexity and
 memory bounds are documented in [docs/guide.md](docs/guide.md).
 
-## Quick start
+## Quick Start
 
 The module is not yet published to the Mooncakes registry, so `moon add
 183600/bfilter` is unavailable. Until it is published, consume the module from
@@ -79,7 +79,7 @@ import {
 }
 ```
 
-Then use the filters:
+### Basic Bloom Filter
 
 ```moonbit
 ///|
@@ -98,23 +98,91 @@ test "bloom filter quick start" {
 }
 ```
 
-Counting and Cuckoo filters support deletion:
+### Counting Bloom Filter (Deletion Support)
 
 ```moonbit
 ///|
-test "deletion-capable variants" {
-  let counting = @src.CountingBloomFilter::new(1_000, 0.01)
-  counting.insert("session")
-  assert_true(counting.remove("session"))
+test "counting bloom filter with deletion" {
+  let filter = @src.CountingBloomFilter::new(1_000, 0.01)
+  filter.insert("session")
+  filter.insert("session")  // Duplicate insertions increment multiplicity
 
-  let cuckoo = @src.CuckooFilter::new(1_000)
-  assert_true(cuckoo.insert("session"))
-  assert_true(cuckoo.remove("session"))
-  assert_false(cuckoo.contains("session"))
+  assert_eq(filter.count_of("session"), 2)
+  assert_true(filter.remove("session"))
+  assert_eq(filter.count_of("session"), 1)
+  assert_true(filter.remove("session"))
+  assert_false(filter.contains("session"))
 }
 ```
 
-## Set operations
+### Compact Counting Bloom Filter (Memory Efficient)
+
+```moonbit
+///|
+test "compact counting bloom filter" {
+  let compact = @src.CompactCountingBloomFilter::new(1_000, 0.01)
+  let regular = @src.CountingBloomFilter::new(1_000, 0.01)
+
+  // Compact version uses ~1/4 the memory
+  assert_eq(regular.memory_bytes(), compact.memory_bytes() * 4L)
+
+  compact.insert("task")
+  compact.insert("task")
+  assert_eq(compact.count_of("task"), 2)
+  assert_true(compact.remove("task"))
+  assert_eq(compact.count_of("task"), 1)
+}
+```
+
+### Scalable Filters (Unbounded Growth)
+
+```moonbit
+///|
+test "scalable bloom filter grows automatically" {
+  let filter = @src.ScalableBloomFilter::new(100, 0.01)
+  for i = 0; i < 1000; i = i + 1 {
+    filter.insert(i)
+  }
+  assert_true(filter.slice_count() > 1)
+  assert_true(filter.contains(42))
+  assert_eq(filter.count(), 1000)
+}
+```
+
+### Cuckoo Filter (High Load Factor)
+
+```moonbit
+///|
+test "cuckoo filter insertion and deletion" {
+  let filter = @src.CuckooFilter::new(1_000)
+  assert_true(filter.insert("session-1"))
+  assert_true(filter.contains("session-1"))
+  assert_true(filter.remove("session-1"))
+  assert_false(filter.contains("session-1"))
+}
+```
+
+### Concurrent Filters (Thread-Safe)
+
+```moonbit
+///|
+test "concurrent bloom filter" {
+  let filter = @src.ConcurrentBloomFilter::new(1_000, 0.01)
+  filter.insert("shared")
+  assert_true(filter.contains("shared"))
+
+  let keys = ["a", "b", "c"]
+  filter.insert_all(keys)
+  assert_true(filter.contains_all(keys))
+
+  // Atomic snapshot for consistent reads
+  let snapshot = filter.snapshot()
+  filter.insert("after-snapshot")
+  assert_false(snapshot.contains("after-snapshot"))
+}
+```
+
+## Set Operations
 
 Filters with the same configuration can be combined without re-hashing keys:
 
@@ -130,14 +198,12 @@ assert_true(union.contains("right"))
 assert_true(left.is_subset_of(union))
 ```
 
-`merge` performs the union in place. `intersection`, `is_disjoint_from`, and
-`is_subset_of` are available on the Bloom family; the Cuckoo filter has its own
-set-operation semantics documented in the guide. Mismatched configurations
-panic rather than silently producing a wrong result. Empty operands
-short-circuit without scanning the backing array, including the scalable
-variants' per-slice subset and disjointness checks. Merging a non-empty filter
-into an empty receiver copies its storage directly, and merging into an empty
-scalable filter copies the source slices.
+- `merge` performs the union in place
+- `intersection`, `is_disjoint_from`, and `is_subset_of` are available on the Bloom family
+- The Cuckoo filter has its own set-operation semantics documented in the guide
+- Mismatched configurations panic rather than silently producing a wrong result
+- Empty operands short-circuit without scanning the backing array
+- Merging a non-empty filter into an empty receiver copies storage directly
 
 ## Concurrency
 
@@ -166,20 +232,33 @@ assert_true(restored.contains("saved"))
 version, or an invalid configuration. Hashing uses fixed seeds, so persisted
 filters behave the same in a new process.
 
-## Project layout
+## Choosing a Filter
+
+| Requirement | Recommended Filter |
+| --- | --- |
+| Minimum memory, no deletion | `BloomFilter` |
+| High query throughput, cache-friendly | `BlockedBloomFilter` |
+| Need deletion & multiplicity | `CountingBloomFilter` |
+| Deletion with memory constraints | `CompactCountingBloomFilter` |
+| Unbounded insertions, no deletion | `ScalableBloomFilter` |
+| Unbounded insertions with deletion | `ScalableCountingBloomFilter` |
+| High load factor, exact deletion | `CuckooFilter` |
+| Thread-safe access (native) | `Concurrent*` wrapper |
+
+## Project Layout
 
 ```text
 .
-├── moon.mod                 # module metadata
-├── moon.work                # workspace linking the library and examples
-├── examples/                # runnable example module
+├── moon.mod                 # Module metadata
+├── moon.work                # Workspace linking the library and examples
+├── examples/                # Runnable example module
 │   ├── moon.mod
 │   ├── moon.pkg
 │   └── main.mbt
-├── scripts/                 # hygiene check used by CI
+├── scripts/                 # Hygiene check used by CI
 ├── src/
-│   ├── moon.pkg             # package config, native C stub, test imports
-│   ├── pkg.generated.mbti   # generated public interface (moon info)
+│   ├── moon.pkg             # Package config, native C stub, test imports
+│   ├── pkg.generated.mbti   # Generated public interface (moon info)
 │   ├── bloom_filter.mbt
 │   ├── blocked_bloom_filter.mbt
 │   ├── counting_bloom_filter.mbt
@@ -200,10 +279,10 @@ Requires a recent MoonBit toolchain (the CI installs the latest stable from
 
 ```bash
 moon check
-moon test                 # default target
-moon test --target native # exercise the native mutex + C stub
-moon test --target all    # every supported backend
-moon bench --release      # benchmarks in src/benchmark_test.mbt
+moon test                 # Default target
+moon test --target native # Exercise the native mutex + C stub
+moon test --target all    # Every supported backend
+moon bench --release      # Benchmarks in src/benchmark_test.mbt
 ```
 
 CI (`.github/workflows/ci.yml`) runs on pushes to `main`, on pull requests, and

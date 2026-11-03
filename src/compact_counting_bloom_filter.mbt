@@ -21,11 +21,17 @@ pub struct CompactCountingBloomFilter {
   priv probe_counts : FixedArray[Int32]
 }
 
-///|
+/// Maximum value of a single 4-bit counter.
 const COMPACT_COUNTER_MAX : UInt64 = 0xFUL
 
-///|
+/// Number of 4-bit counters packed into a UInt64.
 const COMPACT_SLOTS_PER_WORD : Int32 = 16
+
+/// Slot counts are rounded up to this multiple (16 counters = 1 UInt64 word) to align with word boundaries.
+const COMPACT_SLOTS_PER_WORD_ALIGN : Int32 = 16
+
+/// Maximum number of counter slots.
+const COMPACT_MAX_SLOTS : Int32 = 1073741808
 
 ///|
 /// Largest value a single packed counter can hold.
@@ -95,7 +101,7 @@ fn compact_lane_at_least(left : UInt64, right : UInt64) -> UInt64 {
 /// Take the larger of the two counters in every 4-bit lane.
 fn compact_lane_max(left : UInt64, right : UInt64) -> UInt64 {
   let at_least = compact_lane_at_least(left, right)
-  let lanes = (at_least >> 3) * 0xFUL
+  let lanes = (at_least >> 3) * COMPACT_COUNTER_MAX
   right ^ ((left ^ right) & lanes)
 }
 
@@ -149,11 +155,11 @@ pub fn CompactCountingBloomFilter::with_size(
   slot_count : Int32,
   hash_count : Int32,
 ) -> CompactCountingBloomFilter {
-  guard slot_count > 0 && slot_count <= 1073741808 else {
+  guard slot_count > 0 && slot_count <= COMPACT_MAX_SLOTS else {
     abort("slot_count must be positive and not too large")
   }
   guard hash_count > 0 else { abort("hash_count must be positive") }
-  let rounded = (slot_count + 15) / 16 * 16
+  let rounded = (slot_count + COMPACT_SLOTS_PER_WORD_ALIGN - 1) / COMPACT_SLOTS_PER_WORD_ALIGN * COMPACT_SLOTS_PER_WORD_ALIGN
   let probe_length = counting_probe_length(hash_count, rounded)
   {
     counters: FixedArray::make(rounded / COMPACT_SLOTS_PER_WORD, 0UL),
@@ -342,7 +348,7 @@ fn CompactCountingBloomFilter::insert_absent_at(
   if !any_zero {
     return false
   }
-  guard self.inserted < 2147483647 else {
+  guard self.inserted < MAX_INSERTIONS else {
     abort("compact counting bloom filter insertion count overflow")
   }
   self.apply_increment_positions_at(positions, common, true)
@@ -358,7 +364,7 @@ pub fn[K : Hash] CompactCountingBloomFilter::insert(
   self : CompactCountingBloomFilter,
   key : K,
 ) -> Unit {
-  guard self.inserted < 2147483647 else {
+  guard self.inserted < MAX_INSERTIONS else {
     abort("compact counting bloom filter insertion count overflow")
   }
   let (h1, h2) = key_hashes(key)
@@ -630,7 +636,7 @@ pub fn CompactCountingBloomFilter::merge(
 ) -> Unit {
   self.ensure_compatible(other)
   if other.counter_mass == 0UL {
-    guard self.inserted <= 2147483647 - other.inserted else {
+    guard self.inserted <= MAX_INSERTIONS - other.inserted else {
       abort("compact counting bloom filter insertion count overflow")
     }
     self.inserted += other.inserted
@@ -644,7 +650,7 @@ pub fn CompactCountingBloomFilter::merge(
     self.inserted = other.inserted
     return
   }
-  guard self.inserted <= 2147483647 - other.inserted else {
+  guard self.inserted <= MAX_INSERTIONS - other.inserted else {
     abort("compact counting bloom filter insertion count overflow")
   }
   let mut merged_mass = 0UL

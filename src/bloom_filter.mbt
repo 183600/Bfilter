@@ -12,24 +12,54 @@ pub struct BloomFilter {
   priv mut inserted : Int32
 }
 
+/// Maximum number of addressable bits (2^31 - 2^6 = 2147483584).
+const BLOOM_MAX_BITS : Int32 = 2147483584
+
+/// All 64 bits set in a word.
+const WORD_ALL_ONES : UInt64 = 0xFFFFFFFFFFFFFFFFUL
+
+/// Word size in bits.
+const WORD_BITS : Int32 = 64
+
+/// Hash seed for the first 64-bit hash.
+const HASH_SEED_1 : Int = 0x243F6A88
+
+/// Hash seed for the second 64-bit hash.
+const HASH_SEED_2 : Int = 0x1B873593
+
+/// Mix64 constant 1.
+const MIX64_CONST_1 : UInt64 = 0xBF58476D1CE4E5B9UL
+
+/// Mix64 constant 2.
+const MIX64_CONST_2 : UInt64 = 0x94D049BB133111EBUL
+
+/// Mix64 constant 3 (golden ratio).
+const MIX64_CONST_3 : UInt64 = 0x9E3779B97F4A7C15UL
+
+/// Maximum insertion count before overflow (Int32::max_value()).
+const MAX_INSERTIONS : Int32 = 2147483647
+
+/// Natural logarithm of 2.
+const LN2 : Double = 0.6931471805599453
+
 ///|
 fn mix64(x : UInt64) -> UInt64 {
   let mut value = x
-  value = (value ^ (value >> 30)) * 0xBF58476D1CE4E5B9UL
-  value = (value ^ (value >> 27)) * 0x94D049BB133111EBUL
+  value = (value ^ (value >> 30)) * MIX64_CONST_1
+  value = (value ^ (value >> 27)) * MIX64_CONST_2
   value = value ^ (value >> 31)
   value
 }
 
 ///|
 fn[T : Hash] key_hashes(key : T) -> (UInt64, UInt64) {
-  let hasher = Hasher(seed=0x243F6A88)
+  let hasher = Hasher(seed=HASH_SEED_1)
   hasher.combine(key)
   let low = hasher.finalize().reinterpret_as_uint().to_uint64()
-  hasher.combine_int(0x1B873593)
+  hasher.combine_int(HASH_SEED_2)
   let high = hasher.finalize().reinterpret_as_uint().to_uint64()
   let h1 = mix64((high << 32) | low)
-  let h2 = mix64(h1 ^ 0x9E3779B97F4A7C15UL) | 1UL
+  let h2 = mix64(h1 ^ MIX64_CONST_3) | 1UL
   (h1, h2)
 }
 
@@ -55,7 +85,7 @@ fn bloom_effective_probes(
 /// Whether every addressable bit is currently set.
 fn BloomFilter::all_bits_set(self : BloomFilter) -> Bool {
   for i = 0; i < self.words.length(); i = i + 1 {
-    if self.words[i] != 0xFFFFFFFFFFFFFFFFUL {
+    if self.words[i] != WORD_ALL_ONES {
       return false
     }
   }
@@ -73,7 +103,7 @@ fn BloomFilter::should_check_full(
   self : BloomFilter,
   probes : Int32,
 ) -> Bool {
-  probes > 64 && probes > self.words.length()
+  probes > WORD_BITS && probes > self.words.length()
 }
 
 ///|
@@ -83,11 +113,10 @@ fn bloom_layout(
   false_positive_rate : Double,
 ) -> (Int32, Int32) {
   let n = expected_items.to_double()
-  let ln2 = 0.6931471805599453
-  let bits = -(n * @math.ln(false_positive_rate)) / (ln2 * ln2)
-  guard bits <= 2147483584.0 else { abort("bloom filter size is too large") }
-  let bit_count = (bits.ceil().to_int() + 63) / 64 * 64
-  let hash_count = (bits / n * ln2).round().to_int().max(1)
+  let bits = -(n * @math.ln(false_positive_rate)) / (LN2 * LN2)
+  guard bits <= BLOOM_MAX_BITS.to_double() else { abort("bloom filter size is too large") }
+  let bit_count = (bits.ceil().to_int() + WORD_BITS - 1) / WORD_BITS * WORD_BITS
+  let hash_count = (bits / n * LN2).round().to_int().max(1)
   (bit_count, hash_count)
 }
 
@@ -136,14 +165,14 @@ pub fn BloomFilter::with_size(
   bit_count : Int32,
   hash_count : Int32,
 ) -> BloomFilter {
-  guard bit_count > 0 && bit_count <= 2147483584 else {
+  guard bit_count > 0 && bit_count <= BLOOM_MAX_BITS else {
     abort("bit_count must be positive and not too large")
   }
   guard hash_count > 0 else { abort("hash_count must be positive") }
-  let word_count = (bit_count + 63) / 64
+  let word_count = (bit_count + WORD_BITS - 1) / WORD_BITS
   {
     words: FixedArray::make(word_count, 0UL),
-    bit_count: word_count * 64,
+    bit_count: word_count * WORD_BITS,
     hash_count,
     inserted: 0,
   }
@@ -156,7 +185,7 @@ fn BloomFilter::insert_hashes(
   h1 : UInt64,
   h2 : UInt64,
 ) -> Unit {
-  guard self.inserted < 2147483647 else {
+  guard self.inserted < MAX_INSERTIONS else {
     abort("bloom filter insertion count overflow")
   }
   let bit_count = self.bit_count.to_uint64()
@@ -164,15 +193,15 @@ fn BloomFilter::insert_hashes(
   // A completely full filter cannot change, so skip the nominal probe walk.
   // Besides wide non-power-of-two layouts, this also covers power-of-two
   // layouts whose double-hash period is long.
-if self.should_check_full(probes) && self.all_bits_set() {
+  if self.should_check_full(probes) && self.all_bits_set() {
     self.inserted += 1
     return
-}
+  }
   let mut probe = h1
   for i = 0; i < probes; i = i + 1 {
     let pos = (probe % bit_count).to_int()
-    let word = pos / 64
-    let bit = pos % 64
+    let word = pos / WORD_BITS
+    let bit = pos % WORD_BITS
     self.words[word] = self.words[word] | (1UL << bit)
     probe = probe + h2
   }
@@ -206,16 +235,16 @@ fn BloomFilter::insert_if_absent_hashes(
   let mut probe = h1
   for i = 0; i < probes; i = i + 1 {
     let pos = (probe % bit_count).to_int()
-    let mask = 1UL << (pos % 64)
-    if (self.words[pos / 64] & mask) == 0UL {
-      guard self.inserted < 2147483647 else {
+    let mask = 1UL << (pos % WORD_BITS)
+    if (self.words[pos / WORD_BITS] & mask) == 0UL {
+      guard self.inserted < MAX_INSERTIONS else {
         abort("bloom filter insertion count overflow")
       }
       let mut remaining_probe = probe
       for j = i; j < probes; j = j + 1 {
         let remaining = (remaining_probe % bit_count).to_int()
-        self.words[remaining / 64] = self.words[remaining / 64] |
-          (1UL << (remaining % 64))
+        self.words[remaining / WORD_BITS] = self.words[remaining / WORD_BITS] |
+          (1UL << (remaining % WORD_BITS))
         remaining_probe = remaining_probe + h2
       }
       self.inserted += 1
@@ -263,8 +292,8 @@ fn BloomFilter::contains_hashes(
   let mut probe = h1
   for i = 0; i < probes; i = i + 1 {
     let pos = (probe % bit_count).to_int()
-    let word = pos / 64
-    let bit = pos % 64
+    let word = pos / WORD_BITS
+    let bit = pos % WORD_BITS
     let mask = 1UL << bit
     let present = self.words[word] & mask
     if present == 0UL {
@@ -364,7 +393,7 @@ pub fn BloomFilter::merge(self : BloomFilter, other : BloomFilter) -> Unit {
     self.inserted = other.inserted
     return
   }
-  guard self.inserted <= 2147483647 - other.inserted else {
+  guard self.inserted <= MAX_INSERTIONS - other.inserted else {
     abort("bloom filter insertion count overflow")
   }
   for i = 0; i < self.words.length(); i = i + 1 {

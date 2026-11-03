@@ -18,6 +18,19 @@ pub struct CountingBloomFilter {
   priv probe_counts : FixedArray[Int32]
 }
 
+/// Number of 16-bit counters packed into a UInt64.
+const COUNTING_SLOTS_PER_WORD : Int32 = 4
+
+/// Number of counters packed into 4 UInt64 words (16 counters = 4 words * 4 counters/word).
+/// Slot counts are rounded up to this multiple to align with word boundaries.
+const COUNTING_SLOTS_PER_WORD_ALIGN : Int32 = 16
+
+/// Maximum value of a single 16-bit counter.
+const COUNTING_COUNTER_MAX : UInt64 = 0xFFFFUL
+
+/// Maximum number of counter slots (2^30 * 16 = 1073741824, but limited by bit budget).
+const COUNTING_MAX_SLOTS : Int32 = 1073741808
+
 ///|
 /// Mark the high bit of every 16-bit lane whose counter is positive.
 ///
@@ -54,10 +67,10 @@ const COUNTING_LANE_LOW : UInt64 = 0x7FFF7FFF7FFF7FFFUL
 /// multiple of that count keeps every removal able to subtract a full
 /// contribution instead of leaving a residue below the required amount.
 fn counting_position_limit(occurrences : UInt64) -> UInt64 {
-  if occurrences > 0xFFFFUL {
-    0xFFFFUL
+  if occurrences > COUNTING_COUNTER_MAX {
+    COUNTING_COUNTER_MAX
   } else {
-    0xFFFFUL - 0xFFFFUL % occurrences
+    COUNTING_COUNTER_MAX - COUNTING_COUNTER_MAX % occurrences
   }
 }
 
@@ -81,7 +94,7 @@ fn counting_lane_at_least(left : UInt64, right : UInt64) -> UInt64 {
 /// Take the larger of the two counters in every 16-bit lane.
 fn counting_lane_max(left : UInt64, right : UInt64) -> UInt64 {
   let at_least = counting_lane_at_least(left, right)
-  let lanes = (at_least >> 15) * 0xFFFFUL
+  let lanes = (at_least >> 15) * COUNTING_COUNTER_MAX
   right ^ ((left ^ right) & lanes)
 }
 
@@ -98,21 +111,20 @@ fn counting_bloom_layout(
   false_positive_rate : Double,
 ) -> (Int32, Int32) {
   let n = expected_items.to_double()
-  let ln2 = 0.6931471805599453
-  let bits = -(n * @math.ln(false_positive_rate)) / (ln2 * ln2)
-  guard bits <= 2147483584.0 else { abort("bloom filter size is too large") }
-  let slot_count = (bits.ceil().to_int() + 15) / 16 * 16
-  guard slot_count <= 1073741808 else {
+  let bits = -(n * @math.ln(false_positive_rate)) / (LN2 * LN2)
+  guard bits <= BLOOM_MAX_BITS.to_double() else { abort("bloom filter size is too large") }
+  let slot_count = (bits.ceil().to_int() + COUNTING_SLOTS_PER_WORD_ALIGN - 1) / COUNTING_SLOTS_PER_WORD_ALIGN * COUNTING_SLOTS_PER_WORD_ALIGN
+  guard slot_count <= COUNTING_MAX_SLOTS else {
     abort("counting bloom filter size is too large")
   }
-  let hash_count = (bits / n * ln2).round().to_int().max(1)
+  let hash_count = (bits / n * LN2).round().to_int().max(1)
   (slot_count, hash_count)
 }
 
 ///|
 /// Largest value a single 16-bit counter can hold.
 pub fn CountingBloomFilter::counter_max() -> Int32 {
-  0xFFFF
+  COUNTING_COUNTER_MAX.to_int()
 }
 
 ///|
@@ -157,14 +169,14 @@ pub fn CountingBloomFilter::with_size(
   slot_count : Int32,
   hash_count : Int32,
 ) -> CountingBloomFilter {
-  guard slot_count > 0 && slot_count <= 1073741808 else {
+  guard slot_count > 0 && slot_count <= COUNTING_MAX_SLOTS else {
     abort("slot_count must be positive and not too large")
   }
   guard hash_count > 0 else { abort("hash_count must be positive") }
-  let rounded = (slot_count + 15) / 16 * 16
+  let rounded = (slot_count + COUNTING_SLOTS_PER_WORD_ALIGN - 1) / COUNTING_SLOTS_PER_WORD_ALIGN * COUNTING_SLOTS_PER_WORD_ALIGN
   let probe_length = counting_probe_length(hash_count, rounded)
   {
-    counters: FixedArray::make(rounded / 4, 0UL),
+    counters: FixedArray::make(rounded / COUNTING_SLOTS_PER_WORD, 0UL),
     slot_count: rounded,
     hash_count,
     inserted: 0,
@@ -179,9 +191,9 @@ fn CountingBloomFilter::counter_at(
   self : CountingBloomFilter,
   position : Int32,
 ) -> UInt64 {
-  let word = position / 4
-  let shift = position % 4 * 16
-  (self.counters[word] >> shift) & 0xFFFFUL
+  let word = position / COUNTING_SLOTS_PER_WORD
+  let shift = position % COUNTING_SLOTS_PER_WORD * 16
+  (self.counters[word] >> shift) & COUNTING_COUNTER_MAX
 }
 
 ///|
@@ -190,10 +202,10 @@ fn CountingBloomFilter::set_counter(
   position : Int32,
   value : UInt64,
 ) -> Unit {
-  let word = position / 4
-  let shift = position % 4 * 16
-  let value = if value > 0xFFFFUL { 0xFFFFUL } else { value }
-  let old = (self.counters[word] >> shift) & 0xFFFFUL
+  let word = position / COUNTING_SLOTS_PER_WORD
+  let shift = position % COUNTING_SLOTS_PER_WORD * 16
+  let value = if value > COUNTING_COUNTER_MAX { COUNTING_COUNTER_MAX } else { value }
+  let old = (self.counters[word] >> shift) & COUNTING_COUNTER_MAX
   let cleared = self.counters[word] ^ (old << shift)
   self.counters[word] = cleared | (value << shift)
   self.counter_mass = self.counter_mass - old + value
@@ -340,7 +352,7 @@ fn counting_cycle_period(h2 : UInt64, slot_count : UInt64) -> Int32 {
     counting_gcd(step, slot_count)
   }
   let period = slot_count / divisor
-  if period > 2147483647UL {
+  if period > MAX_INSERTIONS.to_uint64() {
     0
   } else {
     period.to_int()
@@ -732,7 +744,7 @@ fn CountingBloomFilter::insert_absent_at(
   if !any_zero {
     return false
   }
-  guard self.inserted < 2147483647 else {
+  guard self.inserted < MAX_INSERTIONS else {
     abort("counting bloom filter insertion count overflow")
   }
   self.apply_raise_positions_at(positions, common, true, wanted)
@@ -755,7 +767,7 @@ fn CountingBloomFilter::insert_hashes(
   h1 : UInt64,
   h2 : UInt64,
 ) -> Unit {
-  guard self.inserted < 2147483647 else {
+  guard self.inserted < MAX_INSERTIONS else {
     abort("counting bloom filter insertion count overflow")
   }
   self.increment_positions(h1, h2)
@@ -847,7 +859,7 @@ fn CountingBloomFilter::remove_hashes(
   for i = 0; i < positions.length; i = i + 1 {
     let pos = positions.positions[i]
     let occurrences = positions.counts[i].to_uint64()
-    let required = if occurrences > 0xFFFFUL { 0xFFFFUL } else { occurrences }
+    let required = if occurrences > COUNTING_COUNTER_MAX { COUNTING_COUNTER_MAX } else { occurrences }
     if self.counter_at(pos) < required {
       return false
     }
@@ -1085,7 +1097,7 @@ pub fn CountingBloomFilter::merge(
 ) -> Unit {
   self.ensure_compatible(other)
   if other.counter_mass == 0UL {
-    guard self.inserted <= 2147483647 - other.inserted else {
+    guard self.inserted <= MAX_INSERTIONS - other.inserted else {
       abort("counting bloom filter insertion count overflow")
     }
     self.inserted += other.inserted
@@ -1099,7 +1111,7 @@ pub fn CountingBloomFilter::merge(
     self.inserted = other.inserted
     return
   }
-  guard self.inserted <= 2147483647 - other.inserted else {
+  guard self.inserted <= MAX_INSERTIONS - other.inserted else {
     abort("counting bloom filter insertion count overflow")
   }
   let mut merged_mass = 0UL

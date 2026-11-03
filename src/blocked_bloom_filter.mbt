@@ -14,14 +14,17 @@ pub struct BlockedBloomFilter {
   priv mut inserted : Int32
 }
 
-///|
+/// Block size in bits (512 bits = 64 bytes = one cache line).
 const BLOCKED_BLOCK_BITS : Int32 = 512
 
-///|
+/// Block size in 64-bit words.
 const BLOCKED_BLOCK_WORDS : Int32 = 8
 
-///|
+/// Maximum number of addressable bits (2^31 - 512 = 2147483136).
 const BLOCKED_MAX_BITS : Int32 = 2147483136
+
+/// Block hash seed for selecting the block from the key hash.
+const BLOCK_HASH_SEED : UInt64 = 0xD6E8FEB86659FD93UL
 
 ///|
 /// Number of probes that can select a new bit inside one blocked-filter block.
@@ -40,15 +43,14 @@ fn blocked_bloom_layout(
   false_positive_rate : Double,
 ) -> (Int32, Int32) {
   let n = expected_items.to_double()
-  let ln2 = 0.6931471805599453
-  let bits = -(n * @math.ln(false_positive_rate)) / (ln2 * ln2)
+  let bits = -(n * @math.ln(false_positive_rate)) / (LN2 * LN2)
   guard bits <= BLOCKED_MAX_BITS.to_double() else {
     abort("blocked bloom filter size is too large")
   }
   let bit_count = (bits.ceil().to_int() + BLOCKED_BLOCK_BITS - 1) /
     BLOCKED_BLOCK_BITS *
     BLOCKED_BLOCK_BITS
-  let hash_count = (bits / n * ln2).round().to_int().max(1)
+  let hash_count = (bits / n * LN2).round().to_int().max(1)
   (bit_count, hash_count)
 }
 
@@ -119,7 +121,7 @@ fn BlockedBloomFilter::block_base(
   self : BlockedBloomFilter,
   h1 : UInt64,
 ) -> Int32 {
-  let block_hash = mix64(h1 ^ 0xD6E8FEB86659FD93UL)
+  let block_hash = mix64(h1 ^ BLOCK_HASH_SEED)
   let block_count = (self.bit_count / BLOCKED_BLOCK_BITS).to_uint64()
   (block_hash % block_count).to_int() * BLOCKED_BLOCK_BITS
 }
@@ -128,7 +130,7 @@ fn BlockedBloomFilter::block_base(
 /// Whether every addressable bit is currently set.
 fn BlockedBloomFilter::all_bits_set(self : BlockedBloomFilter) -> Bool {
   for i = 0; i < self.words.length(); i = i + 1 {
-    if self.words[i] != 0xFFFFFFFFFFFFFFFFUL {
+    if self.words[i] != WORD_ALL_ONES {
       return false
     }
   }
@@ -145,7 +147,7 @@ fn BlockedBloomFilter::should_check_full(
   self : BlockedBloomFilter,
   probes : Int32,
 ) -> Bool {
-  probes > 64 && probes > self.words.length()
+  probes > WORD_BITS && probes > self.words.length()
 }
 
 ///|
@@ -157,7 +159,7 @@ pub fn[K : Hash] BlockedBloomFilter::insert(
   self : BlockedBloomFilter,
   key : K,
 ) -> Unit {
-  guard self.inserted < 2147483647 else {
+  guard self.inserted < MAX_INSERTIONS else {
     abort("blocked bloom filter insertion count overflow")
   }
   let (h1, h2) = key_hashes(key)
@@ -173,8 +175,8 @@ pub fn[K : Hash] BlockedBloomFilter::insert(
   }
   for i = 0; i < probes; i = i + 1 {
     let pos = base + offset
-    let word = pos / 64
-    let bit = pos % 64
+    let word = pos / WORD_BITS
+    let bit = pos % WORD_BITS
     self.words[word] = self.words[word] | (1UL << bit)
     offset = offset + step
     if offset >= BLOCKED_BLOCK_BITS {
@@ -207,16 +209,16 @@ pub fn[K : Hash] BlockedBloomFilter::insert_if_absent(
   }
   for i = 0; i < probes; i = i + 1 {
     let pos = base + offset
-    let mask = 1UL << (pos % 64)
-    if (self.words[pos / 64] & mask) == 0UL {
-      guard self.inserted < 2147483647 else {
+    let mask = 1UL << (pos % WORD_BITS)
+    if (self.words[pos / WORD_BITS] & mask) == 0UL {
+      guard self.inserted < MAX_INSERTIONS else {
         abort("blocked bloom filter insertion count overflow")
       }
       let mut remaining = offset
       for j = i; j < probes; j = j + 1 {
         let target = base + remaining
-        self.words[target / 64] = self.words[target / 64] |
-          (1UL << (target % 64))
+        self.words[target / WORD_BITS] = self.words[target / WORD_BITS] |
+          (1UL << (target % WORD_BITS))
         remaining = remaining + step
         if remaining >= BLOCKED_BLOCK_BITS {
           remaining = remaining - BLOCKED_BLOCK_BITS
@@ -259,8 +261,8 @@ pub fn[K : Hash] BlockedBloomFilter::contains(
   }
   for i = 0; i < probes; i = i + 1 {
     let pos = base + offset
-    let mask = 1UL << (pos % 64)
-    if (self.words[pos / 64] & mask) == 0UL {
+    let mask = 1UL << (pos % WORD_BITS)
+    if (self.words[pos / WORD_BITS] & mask) == 0UL {
       return false
     }
     offset = offset + step
@@ -364,7 +366,7 @@ pub fn BlockedBloomFilter::merge(
     self.inserted = other.inserted
     return
   }
-  guard self.inserted <= 2147483647 - other.inserted else {
+  guard self.inserted <= MAX_INSERTIONS - other.inserted else {
     abort("blocked bloom filter insertion count overflow")
   }
   for i = 0; i < self.words.length(); i = i + 1 {
