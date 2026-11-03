@@ -453,10 +453,6 @@ pub fn ScalableBloomFilter::merge(
   other : ScalableBloomFilter,
 ) -> Unit {
   self.ensure_same_policy(other)
-  // A whitebox-constructed filter can have no slices. Merging two such filters
-  // would otherwise leave the receiver in a transient zero-slice state that
-  // cannot be serialized, so normalize it to one empty initial slice carrying
-  // the combined conservative insertion count.
   if self.slices.length() == 0 && other.slices.length() == 0 {
     let total = self.inserted.to_int64() + other.inserted.to_int64()
     guard total >= 0L && total <= 2147483647L else {
@@ -467,20 +463,13 @@ pub fn ScalableBloomFilter::merge(
     self.inserted = total.to_int()
     return
   }
-  // The receiver can also carry a conservative count without any slices even
-  // when the source has slices. Preserve it in an empty slice before merging.
   if self.slices.length() == 0 && self.inserted > 0 {
     self.append_slice()
     self.slices[0].inserted = self.inserted
   }
-  // Merging an empty filter whose slices are already covered by the receiver
-  // cannot change any bit or append a slice. Skip the per-slice OR scans.
   if other.inserted == 0 && other.slices.length() <= self.slices.length() {
     return
   }
-  // The receiver holds no bits, so ORing every slice would only copy the other
-  // filter into empty storage. Copy the slices directly instead, keeping any
-  // extra empty slices the receiver already grew.
   if self.inserted == 0 {
     let self_slice_count = self.slices.length()
     let other_slice_count = other.slices.length()
@@ -533,8 +522,6 @@ pub fn ScalableBloomFilter::merge(
   guard total_bits <= 2147483584L else {
     abort("scalable bloom filter is too large")
   }
-  // A source with no slices but a conservative count still contributes that
-  // count to the merged filter, so record it in the receiver's first slice.
   if other.slices.length() == 0 && other.inserted > 0 {
     let total = self.slices[0].inserted.to_int64() + other.inserted.to_int64()
     guard total <= 2147483647L else {

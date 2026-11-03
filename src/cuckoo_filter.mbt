@@ -642,9 +642,6 @@ pub fn CuckooFilter::union(
     return None
   }
   if self.inserted == 0 {
-    // Unioning two empty filters has no fingerprints to copy. Keep the
-    // receiver's state so the result matches an in-place merge of an empty
-    // source instead of depending on which empty operand happens to be second.
     if other.inserted == 0 {
       return Some(self.copy())
     }
@@ -788,14 +785,9 @@ pub fn CuckooFilter::merge(self : CuckooFilter, other : CuckooFilter) -> Bool {
     self.bucket_size == other.bucket_size else {
     abort("cuckoo filters must have the same bucket count and size")
   }
-  // Unioning with an empty filter copies the receiver and copies it back. The
-  // empty filter contributes no fingerprints, so the merge is already complete.
   if other.inserted == 0 {
     return true
   }
-  // An empty receiver already has no fingerprints, so union would build a copy
-  // of the source and then copy it back. Adopt the source storage directly and
-  // keep the two filters independent by copying each slot.
   if self.inserted == 0 {
     for i = 0; i < self.buckets.length(); i = i + 1 {
       self.buckets[i] = other.buckets[i]

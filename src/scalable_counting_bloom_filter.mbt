@@ -632,11 +632,6 @@ pub fn ScalableCountingBloomFilter::merge(
   other : ScalableCountingBloomFilter,
 ) -> Unit {
   self.ensure_same_policy(other)
-  // A whitebox-constructed filter can have no slices. Merging two such filters
-  // would otherwise leave the receiver in a transient zero-slice state that
-  // cannot be serialized, so normalize it to one empty initial slice. The source
-  // carries no tracked keys, so it is treated like any other count-only source
-  // and the receiver's conservative count is preserved.
   if self.slices.length() == 0 &&
     other.slices.length() == 0 &&
     self.locations.length() == 0 &&
@@ -648,26 +643,12 @@ pub fn ScalableCountingBloomFilter::merge(
     self.slices[0].inserted = self.inserted
     return
   }
-  // An empty filter contributes no tracked keys and no counters. A count-only
-  // filter restored from bytes is also empty in this sense: it carries a
-  // conservative insertion count but no tracked key and no positive counter.
-  // Rebuilding the receiver from its own metadata would be extra work and could
-  // perturb saturated counters, so leave the existing slices untouched. If the
-  // empty filter grew further, append the empty slices its layout calls for.
   if other.locations.length() == 0 &&
     (other.inserted == 0 || !other.has_positive_counters()) {
-    // A zero-slice receiver can still carry a conservative count. Preserve it
-    // in a real slice before matching the source's slice count, so the merged
-    // filter keeps its insertion count consistent with its slices and remains
-    // serializable.
     if self.slices.length() == 0 && self.inserted > 0 {
       self.append_slice()
       self.slices[0].inserted = self.inserted
     }
-    // An empty source with no additional slices cannot change the receiver.
-    // Return before the aggregate budget check so merging an empty filter stays
-    // a no-op even when the receiver already holds an oversized hand-built
-    // layout, just like the empty-merge fast paths on the other filter types.
     if other.slices.length() <= self.slices.length() {
       return
     }
@@ -683,12 +664,6 @@ pub fn ScalableCountingBloomFilter::merge(
     }
     return
   }
-  // The receiver holds no tracked keys and no counters. A count-only receiver
-  // restored from bytes is also empty in this sense. Rebuilding every counter
-  // from the other filter's metadata would rehash all of its keys, so copy the
-  // slices and locations directly. Extra empty slices that the receiver already
-  // grew are preserved; their conservative count-only insertion counts are
-  // dropped so the merged insertion count stays consistent with its slices.
   let receiver_is_count_only = self.inserted > 0 &&
     self.locations.length() == 0 &&
     !self.has_positive_counters()
@@ -764,9 +739,6 @@ pub fn ScalableCountingBloomFilter::merge(
       capacities.push(other.capacities[i])
     }
   }
-  // Resolve each key's final multiplicity before touching the blank slices.
-  // Raising a key in two pieces (self, then the extra multiplicity from other)
-  // can overfill some repeated positions beyond what a later removal can drain.
   let merged = self.locations.copy()
   for entry in other.locations.iter() {
     let (id, (other_slice, other_occurrences)) = entry
@@ -792,10 +764,6 @@ pub fn ScalableCountingBloomFilter::merge(
   let mut total_inserted = 0L
   for entry in merged.iter() {
     let (id, (slice_index, occurrences)) = entry
-    // Rebuilding a drained key would make `contains` true again even though
-    // neither input still reports it. Preserve the tracked multiplicity for
-    // `count_of` and serialization, but only raise counters when at least one
-    // input still reports the key.
     if self.contains_hashes(id) || other.contains_hashes(id) {
       slices[slice_index].raise_positions_for_new_merge(id.0, id.1, occurrences)
     }

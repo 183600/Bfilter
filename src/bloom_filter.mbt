@@ -354,14 +354,9 @@ fn BloomFilter::ensure_compatible(
 /// the sum of the input counts, a conservative upper bound when keys overlap.
 pub fn BloomFilter::merge(self : BloomFilter, other : BloomFilter) -> Unit {
   self.ensure_compatible(other)
-  // An empty filter contributes neither bits nor insertions, so avoid scanning
-  // the whole bit array. `inserted == 0` implies no bit is set in a valid
-  // filter; deserialization rejects a zero count with set bits.
   if other.inserted == 0 {
     return
   }
-  // An empty receiver has no bits to preserve, so copy the source words instead
-  // of OR-ing them into zeroed storage.
   if self.inserted == 0 {
     for i = 0; i < self.words.length(); i = i + 1 {
       self.words[i] = other.words[i]
@@ -407,10 +402,6 @@ pub fn BloomFilter::intersection(
   other : BloomFilter,
 ) -> BloomFilter {
   self.ensure_compatible(other)
-  // An empty operand has no set bits, so the intersection is empty regardless
-  // of the other filter. The result still keeps the shared layout. The
-  // insertion count stays the smaller of the inputs, even when an input only
-  // carries a conservative count with no set bits after deserialization.
   if self.inserted == 0 || other.inserted == 0 {
     let result = BloomFilter::with_size(self.bit_count, self.hash_count)
     result.inserted = self.inserted.min(other.inserted)
@@ -434,7 +425,6 @@ pub fn BloomFilter::is_subset_of(
   other : BloomFilter,
 ) -> Bool {
   self.ensure_compatible(other)
-  // The empty filter is a subset of every filter.
   if self.inserted == 0 {
     return true
   }
@@ -458,7 +448,6 @@ pub fn BloomFilter::is_disjoint_from(
   other : BloomFilter,
 ) -> Bool {
   self.ensure_compatible(other)
-  // An empty filter cannot share a set bit with anything.
   if self.inserted == 0 || other.inserted == 0 {
     return true
   }
