@@ -129,3 +129,61 @@ test "panic scalable counting merge rejects count overflow" {
   right.insert("one")
   left.merge(right)
 }
+
+///|
+fn max_inserted_bloom() -> @src.BloomFilter {
+  let bytes = @src.BloomFilter::with_size(64, 1)
+    .to_bytes()
+    .to_fixedarray()
+  bytes.unsafe_write_uint32_le(16, 2147483647U)
+  @src.BloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
+}
+
+///|
+test "panic bloom insert rejects count overflow" {
+  let filter = max_inserted_bloom()
+  filter.insert("overflow")
+}
+
+///|
+test "panic bloom insert_if_absent rejects count overflow" {
+  let filter = max_inserted_bloom()
+  filter.insert_if_absent("overflow") |> ignore
+}
+
+///|
+test "panic bloom merge rejects count overflow" {
+  let left = max_inserted_bloom()
+  let right = @src.BloomFilter::with_size(64, 1)
+  right.insert("one")
+  left.merge(right)
+}
+
+///|
+fn max_inserted_counting() -> @src.CountingBloomFilter {
+  let bytes = @src.CountingBloomFilter::with_size(16, 1)
+    .to_bytes()
+    .to_fixedarray()
+  bytes.unsafe_write_uint32_le(16, 2147483647U)
+  @src.CountingBloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
+}
+
+///|
+test "panic counting insert rejects count overflow" {
+  let filter = max_inserted_counting()
+  filter.insert("overflow")
+}
+
+///|
+test "panic counting insert_if_absent rejects count overflow" {
+  let filter = max_inserted_counting()
+  filter.insert_if_absent("overflow") |> ignore
+}
+
+///|
+test "panic counting merge rejects count overflow" {
+  let left = max_inserted_counting()
+  let right = @src.CountingBloomFilter::with_size(16, 1)
+  right.insert("one")
+  left.merge(right)
+}
