@@ -187,3 +187,32 @@ test "panic counting merge rejects count overflow" {
   right.insert("one")
   left.merge(right)
 }
+
+///|
+fn max_inserted_blocked_bloom() -> @src.BlockedBloomFilter {
+  let bytes = @src.BlockedBloomFilter::with_size(64, 1)
+    .to_bytes()
+    .to_fixedarray()
+  bytes.unsafe_write_uint32_le(16, 2147483647U)
+  @src.BlockedBloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
+}
+
+///|
+test "panic blocked bloom insert rejects count overflow" {
+  let filter = max_inserted_blocked_bloom()
+  filter.insert("overflow")
+}
+
+///|
+test "panic blocked bloom insert_if_absent rejects count overflow" {
+  let filter = max_inserted_blocked_bloom()
+  filter.insert_if_absent("overflow") |> ignore
+}
+
+///|
+test "panic blocked bloom merge rejects count overflow" {
+  let left = max_inserted_blocked_bloom()
+  let right = @src.BlockedBloomFilter::with_size(64, 1)
+  right.insert("one")
+  left.merge(right)
+}
