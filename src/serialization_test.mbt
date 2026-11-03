@@ -113,3 +113,10 @@ test "panic serialization rejects invalid cuckoo configuration" {
   bytes.unsafe_write_uint32_le(8, 3U)
   @src.CuckooFilter::from_bytes(Bytes::from_array(bytes.exact_view())) |> ignore
 }
+
+///|
+test "panic serialization rejects unknown version" {
+  let bytes = @src.BloomFilter::with_size(64, 1).to_bytes().to_fixedarray()
+  bytes[5] = 0xFF
+  @src.BloomFilter::from_bytes(Bytes::from_array(bytes.exact_view())) |> ignore
+}
