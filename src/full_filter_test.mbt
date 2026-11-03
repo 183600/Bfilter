@@ -127,3 +127,50 @@ test "concurrent fixed-size filters report full storage" {
   compact.clear()
   assert_false(compact.is_full())
 }
+
+///|
+/// A full filter reports every key as present, so a conditional insertion must
+/// report a false positive and refuse to insert. This is checked on each
+/// fixed-size base type directly, not only through its concurrent wrapper.
+test "full bloom filter rejects conditional insertion" {
+  let bloom = @src.BloomFilter::with_size(64, 1)
+  fill_bloom_until_full(bloom)
+  assert_true(bloom.is_full())
+  let before = bloom.count()
+  assert_false(bloom.insert_if_absent("new-key"))
+  assert_eq(bloom.count(), before)
+}
+
+///|
+test "full blocked bloom filter rejects conditional insertion" {
+  let blocked = @src.BlockedBloomFilter::with_size(512, 1)
+  fill_blocked_until_full(blocked)
+  assert_true(blocked.is_full())
+  assert_false(blocked.insert_if_absent("new-key"))
+}
+
+///|
+test "full counting bloom filter rejects conditional insertion" {
+  let counting = @src.CountingBloomFilter::with_size(16, 1)
+  fill_counting_until_full(counting)
+  assert_true(counting.is_full())
+  assert_false(counting.insert_if_absent("new-key"))
+}
+
+///|
+test "full compact counting filter rejects conditional insertion" {
+  let compact = @src.CompactCountingBloomFilter::with_size(16, 1)
+  fill_compact_until_full(compact)
+  assert_true(compact.is_full())
+  assert_false(compact.insert_if_absent("new-key"))
+}
+
+///|
+test "full cuckoo filter rejects conditional insertion" {
+  let cuckoo = @src.CuckooFilter::with_size(1, 1)
+  assert_true(cuckoo.insert("only"))
+  assert_true(cuckoo.is_full())
+  assert_false(cuckoo.insert_if_absent("another"))
+  assert_false(cuckoo.contains("another"))
+  assert_eq(cuckoo.count(), 1)
+}
