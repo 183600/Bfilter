@@ -352,6 +352,7 @@ pub fn ConcurrentScalableCountingBloomFilter::is_empty(Self) -> Bool
 pub fn ConcurrentScalableCountingBloomFilter::is_subset_of(Self, ScalableCountingBloomFilter) -> Bool
 pub fn ConcurrentScalableCountingBloomFilter::memory_bytes(Self) -> Int64
 pub fn ConcurrentScalableCountingBloomFilter::merge(Self, ScalableCountingBloomFilter) -> Unit
+pub fn ConcurrentScalableCountingBloomFilter::metadata_bytes(Self) -> Int64
 pub fn ConcurrentScalableCountingBloomFilter::new(Int32, Double) -> Self
 pub fn ConcurrentScalableCountingBloomFilter::occupied_slot_count(Self) -> Int64
 pub fn ConcurrentScalableCountingBloomFilter::optimal_size(Int32, Double) -> (Int32, Int32)
@@ -497,6 +498,7 @@ pub fn ScalableCountingBloomFilter::is_empty(Self) -> Bool
 pub fn ScalableCountingBloomFilter::is_subset_of(Self, Self) -> Bool
 pub fn ScalableCountingBloomFilter::memory_bytes(Self) -> Int64
 pub fn ScalableCountingBloomFilter::merge(Self, Self) -> Unit
+pub fn ScalableCountingBloomFilter::metadata_bytes(Self) -> Int64
 pub fn ScalableCountingBloomFilter::new(Int32, Double) -> Self
 pub fn ScalableCountingBloomFilter::occupied_slot_count(Self) -> Int64
 pub fn ScalableCountingBloomFilter::optimal_size(Int32, Double) -> (Int32, Int32)
