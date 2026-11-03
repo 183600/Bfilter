@@ -1,7 +1,7 @@
 # Bfilter User Guide
 
-Bfilter provides probabilistic set data structures for MoonBit. All filters
-accept any key type that implements `Hash`, including `String`, integers, and
+Bfilter provides probabilistic set data structures for MoonBit. Every filter
+accepts any key type that implements `Hash`, such as `String`, integers, or
 user-defined types with a `Hash` implementation.
 
 ## Quick Start

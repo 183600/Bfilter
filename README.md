@@ -37,12 +37,12 @@ memory bounds are documented in [docs/guide.md](docs/guide.md).
 
 ## Quick start
 
-The module is not yet published to the mooncakes registry, so `moon add
-183600/bfilter` does not work at the moment. Until it is published, consume
-the module from a git checkout through a MoonBit workspace.
+The module is not yet published to the Mooncakes registry, so `moon add
+183600/bfilter` is unavailable. Until it is published, consume the module from
+a local git checkout via a MoonBit workspace.
 
-Declare the dependency in your application's `moon.mod` (version must match
-the module's `moon.mod`):
+Declare the dependency in your application's `moon.mod`. The version must match
+the library's `moon.mod`:
 
 ```toml
 import {
@@ -50,9 +50,8 @@ import {
 }
 ```
 
-Clone the repository into a directory that also contains your project, so both
-checkouts share a parent. From that parent directory, register both modules as
-workspace members:
+Place the repository alongside your project so both checkouts share a parent
+directory. From that parent directory, register both modules as workspace members:
 
 ```bash
 git clone https://github.com/183600/Bfilter.git
@@ -61,16 +60,15 @@ moon work use ./Bfilter
 moon work use ./path/to/your-app
 ```
 
-A runnable example already ships in `examples/`. It is a separate module wired
-to this checkout through the repository's `moon.work`, so from the repository
-root you can build and run it directly:
+An example is provided in `examples/`. It is a separate module linked through the
+repository's `moon.work`, so you can build and run it from the repository root:
 
 ```bash
 moon run examples
 ```
 
-The example demonstrates filter creation, batch insertion, queries, observing
-the false-positive rate, and a `to_bytes`/`from_bytes` round trip.
+The example shows filter creation, batch insertion, queries, false-positive rate
+observation, and a `to_bytes`/`from_bytes` round trip.
 
 In the package that uses the filters, add the `src` package to its `moon.pkg`
 import block with the `@src` alias:

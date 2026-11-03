@@ -168,13 +168,13 @@ if self.should_check_full(probes) && self.all_bits_set() {
     self.inserted += 1
     return
 }
-  let mut state = h1
+  let mut probe = h1
   for i = 0; i < probes; i = i + 1 {
-    let pos = (state % bit_count).to_int()
+    let pos = (probe % bit_count).to_int()
     let word = pos / 64
     let bit = pos % 64
     self.words[word] = self.words[word] | (1UL << bit)
-    state = state + h2
+    probe = probe + h2
   }
   self.inserted += 1
 }
@@ -203,25 +203,25 @@ fn BloomFilter::insert_if_absent_hashes(
   if self.should_check_full(probes) && self.all_bits_set() {
     return false
   }
-  let mut state = h1
+  let mut probe = h1
   for i = 0; i < probes; i = i + 1 {
-    let pos = (state % bit_count).to_int()
+    let pos = (probe % bit_count).to_int()
     let mask = 1UL << (pos % 64)
     if (self.words[pos / 64] & mask) == 0UL {
       guard self.inserted < 2147483647 else {
         abort("bloom filter insertion count overflow")
       }
-      let mut remaining_state = state
+      let mut remaining_probe = probe
       for j = i; j < probes; j = j + 1 {
-        let remaining = (remaining_state % bit_count).to_int()
+        let remaining = (remaining_probe % bit_count).to_int()
         self.words[remaining / 64] = self.words[remaining / 64] |
           (1UL << (remaining % 64))
-        remaining_state = remaining_state + h2
+        remaining_probe = remaining_probe + h2
       }
       self.inserted += 1
       return true
     }
-    state = state + h2
+    probe = probe + h2
   }
   false
 }
@@ -260,9 +260,9 @@ fn BloomFilter::contains_hashes(
   if self.should_check_full(probes) && self.all_bits_set() {
     return true
   }
-  let mut state = h1
+  let mut probe = h1
   for i = 0; i < probes; i = i + 1 {
-    let pos = (state % bit_count).to_int()
+    let pos = (probe % bit_count).to_int()
     let word = pos / 64
     let bit = pos % 64
     let mask = 1UL << bit
@@ -270,7 +270,7 @@ fn BloomFilter::contains_hashes(
     if present == 0UL {
       return false
     }
-    state = state + h2
+    probe = probe + h2
   }
   true
 }
