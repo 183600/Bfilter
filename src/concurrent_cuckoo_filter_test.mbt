@@ -32,6 +32,13 @@ test "concurrent cuckoo filter tracks duplicate insertions" {
 }
 
 ///|
+test "concurrent cuckoo filter remove_all on missing keys returns false" {
+  let filter = @src.ConcurrentCuckooFilter::new(100)
+  assert_false(filter.remove_all(["missing1", "missing2"]))
+  assert_true(filter.is_empty())
+}
+
+///|
 test "concurrent cuckoo filter batch operations share one lock" {
   let keys = ["a", "b", "c", "d"]
   let filter = @src.ConcurrentCuckooFilter::with_size(16, 4)
