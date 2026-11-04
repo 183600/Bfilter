@@ -126,3 +126,62 @@ test "panic compact counting filter rejects invalid sizes" {
   @src.CompactCountingBloomFilter::with_size(0, 1) |> ignore
   @src.CompactCountingBloomFilter::with_size(16, 0) |> ignore
 }
+
+///|
+test "compact counting filter remove returns false when counter_mass is zero" {
+  let filter = @src.CompactCountingBloomFilter::with_size(256, 4)
+  assert_false(filter.remove("never-inserted"))
+}
+
+///|
+test "compact counting filter remove_all returns true for empty keys" {
+  let filter = @src.CompactCountingBloomFilter::with_size(256, 4)
+  filter.insert("key")
+  let empty : Array[String] = []
+  assert_true(filter.remove_all(empty))
+  assert_true(filter.contains("key"))
+}
+
+///|
+test "compact counting filter insert_if_absent when all counters saturated" {
+  let filter = @src.CompactCountingBloomFilter::with_size(256, 2)
+  for i = 0; i < 40; i = i + 1 {
+    filter.insert("saturated")
+  }
+  // All counters should be at max (15), insert_if_absent should return false
+  assert_false(filter.insert_if_absent("saturated"))
+  assert_eq(filter.count_of("saturated"), 15)
+  assert_eq(filter.count(), 40)
+}
+
+///|
+test "compact counting filter remove_all with mixed present/absent keys" {
+  let filter = @src.CompactCountingBloomFilter::with_size(1024, 4)
+  filter.insert_all(["a", "b", "c"])
+  let present = ["a", "c"]
+  let all_removed = filter.remove_all(present)
+  assert_true(all_removed)
+  assert_eq(filter.count(), 1)
+  assert_true(filter.contains("b"))
+}
+
+///|
+test "compact counting filter count_of returns zero for zero counter" {
+  let filter = @src.CompactCountingBloomFilter::with_size(256, 4)
+  assert_eq(filter.count_of("absent-key"), 0)
+  assert_eq(filter.count(), 0)
+}
+
+///|
+test "compact counting filter serialize roundtrip with saturation" {
+  let filter = @src.CompactCountingBloomFilter::with_size(256, 2)
+  for i = 0; i < 40; i = i + 1 {
+    filter.insert("saturated")
+  }
+  let restored = @src.CompactCountingBloomFilter::from_bytes(filter.to_bytes())
+  assert_eq(restored.count_of("saturated"), 15)
+  assert_eq(restored.count(), 40)
+  assert_true(restored.remove("saturated"))
+  assert_eq(restored.count_of("saturated"), 14)
+  assert_eq(restored.count(), 39)
+}

@@ -161,6 +161,60 @@ test "cuckoo filter remove missing key returns false" {
 }
 
 ///|
+test "cuckoo filter union with empty returns copy" {
+  let filter = @src.CuckooFilter::with_size(16, 4)
+  ignore(filter.insert("key"))
+  let empty = @src.CuckooFilter::with_size(16, 4)
+  ignore(filter.union(empty))
+  assert_true(filter.contains("key"))
+  assert_eq(filter.count(), 1)
+}
+
+///|
+test "cuckoo filter intersection with empty returns empty filter" {
+  let filter = @src.CuckooFilter::with_size(16, 4)
+  ignore(filter.insert("key"))
+  let empty = @src.CuckooFilter::with_size(16, 4)
+  let result = filter.intersection(empty)
+  assert_true(result.is_empty())
+}
+
+///|
+test "cuckoo filter is_subset_of empty returns true" {
+  let filter = @src.CuckooFilter::with_size(16, 4)
+  assert_true(filter.is_subset_of(@src.CuckooFilter::with_size(16, 4)))
+}
+
+///|
+test "cuckoo filter is_disjoint_from empty returns true" {
+  let filter = @src.CuckooFilter::with_size(16, 4)
+  assert_true(filter.is_disjoint_from(@src.CuckooFilter::with_size(16, 4)))
+}
+
+///|
+test "cuckoo filter contains_all empty returns true" {
+  let filter = @src.CuckooFilter::with_size(16, 4)
+  let empty : Array[String] = []
+  assert_true(filter.contains_all(empty))
+}
+
+///|
+test "cuckoo filter contains_any empty returns false" {
+  let filter = @src.CuckooFilter::with_size(16, 4)
+  let empty : Array[String] = []
+  assert_false(filter.contains_any(empty))
+}
+
+///|
+test "cuckoo filter insert_if_absent when full returns false" {
+  let filter = @src.CuckooFilter::with_size(1, 1)
+  assert_true(filter.insert("only"))
+  assert_false(filter.insert_if_absent("only"))  // already present
+  assert_false(filter.insert_if_absent("also-only"))  // filter is full
+  assert_eq(filter.count(), 1)
+}
+
+///|
 test "panic cuckoo filter rejects non-positive expected items" {
   @src.CuckooFilter::new(0) |> ignore
 }
