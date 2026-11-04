@@ -362,6 +362,33 @@ test "compact counting bloom filter hash_count is at least 1" {
 }
 
 ///|
+test "compact counting bloom filter set operations with empty operands" {
+  let left = @src.CompactCountingBloomFilter::with_size(256, 4)
+  let right = @src.CompactCountingBloomFilter::with_size(256, 4)
+  left.insert("shared")
+  right.insert("shared")
+  assert_true(left.is_subset_of(right))
+  assert_true(right.is_subset_of(left))
+  assert_false(left.is_disjoint_from(right))
+  
+  let empty = @src.CompactCountingBloomFilter::with_size(256, 4)
+  assert_true(empty.is_subset_of(left))
+  assert_true(empty.is_disjoint_from(left))
+  
+  let union = left.union(empty)
+  assert_true(union.contains("shared"))
+  
+  let intersection = left.intersection(empty)
+  assert_true(intersection.is_empty())
+}
+
+///|
+test "blocked bloom filter hash_count is at least 1" {
+  let filter = @src.BlockedBloomFilter::new(100, 0.5)
+  assert_true(filter.hash_count() >= 1)
+}
+
+///|
 test "bloom filter copy preserves membership" {
   let original = @src.BloomFilter::new(100, 0.01)
   original.insert("a")
