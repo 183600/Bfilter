@@ -40,6 +40,14 @@ test "cuckoo filter remove_all on empty filter returns false for missing keys" {
 }
 
 ///|
+test "cuckoo filter insert_if_absent rejects already-present key" {
+  let filter = @src.CuckooFilter::new(100)
+  assert_true(filter.insert("key"))
+  assert_false(filter.insert_if_absent("key"))
+  assert_eq(filter.count(), 1)
+}
+
+///|
 test "cuckoo filter remove_all on full filter preserves existing entries" {
   let filter = @src.CuckooFilter::with_size(1, 1)
   assert_true(filter.insert("only"))
@@ -105,12 +113,21 @@ test "cuckoo filter rounds bucket count to a power of two" {
 }
 
 ///|
-test "cuckoo filter failed insert preserves existing entries" {
+test "cuckoo filter remove_all on singleton filter preserves existing entries" {
   let filter = @src.CuckooFilter::with_size(1, 1)
-  assert_true(filter.insert("alpha"))
-  assert_false(filter.insert("beta"))
-  assert_eq(filter.count(), 1)
-  assert_true(filter.contains("alpha"))
+  assert_true(filter.insert("only"))
+  assert_false(filter.insert_all(["other1", "other2"]))
+  assert_true(filter.contains("only"))
+  assert_false(filter.contains("other1"))
+  assert_false(filter.contains("other2"))
+  assert_false(filter.remove_all(["other1", "other2"]))
+}
+
+///|
+test "cuckoo filter remove key never inserted returns false" {
+  let filter = @src.CuckooFilter::new(100)
+  assert_false(filter.remove("never-inserted"))
+  assert_eq(filter.count(), 0)
 }
 
 ///|

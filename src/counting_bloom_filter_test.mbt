@@ -93,3 +93,15 @@ test "counting bloom filter survives many duplicate insertions" {
   assert_true(filter.is_empty())
   assert_false(filter.contains("same"))
 }
+
+///|
+test "counting bloom filter remove key never inserted may false-positive" {
+  // Removing a key never inserted can still succeed (false positive) and
+  // disturb other keys' counters. Only remove keys known to be present.
+  let filter = @src.CountingBloomFilter::with_size(256, 4)
+  filter.insert("key-a")
+  filter.insert("key-b")
+  ignore(filter.remove("never-inserted"))
+  // Removal may succeed or fail; filter state must remain consistent
+  assert_true(filter.contains("key-a") || filter.contains("key-b"))
+}

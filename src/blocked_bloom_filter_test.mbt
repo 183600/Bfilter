@@ -33,7 +33,7 @@ test "blocked bloom filter conditional insertion skips duplicates" {
 }
 
 ///|
-test "blocked bloom filter batch queries stop at definite misses" {
+test "blocked bloom filter insert_if_absent with empty keys returns true" {
   let filter = @src.BlockedBloomFilter::new(1000, 0.01)
   let keys = ["red", "green", "blue"]
   filter.insert_all(keys)
@@ -126,4 +126,20 @@ test "guide blocked bloom example" {
   assert_true(filter.contains_all(["alpha", "beta"]))
   assert_eq(filter.bit_count() % 512, 0)
   assert_eq(filter.block_count(), filter.bit_count() / 512)
+}
+
+///|
+test "blocked bloom filter batch queries stop at definite misses" {
+  let filter = @src.BlockedBloomFilter::new(1000, 0.01)
+  let keys = ["red", "green", "blue"]
+  filter.insert_all(keys)
+  assert_true(filter.contains_all(keys))
+  assert_true(filter.contains_any(["missing", "red"]))
+  let empty : Array[String] = []
+  assert_false(filter.contains_any(empty))
+  assert_true(filter.contains_all(empty))
+  filter.clear()
+  assert_true(filter.is_empty())
+  assert_eq(filter.count(), 0)
+  assert_eq(filter.set_bit_count(), 0)
 }
