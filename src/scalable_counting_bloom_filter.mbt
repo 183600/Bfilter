@@ -190,15 +190,7 @@ fn ScalableCountingBloomFilter::insert_hashes(
         let last = self.slices.length() - 1
         let last_slice = self.slices[last]
         if last_slice.count() > 0 && last_slice.occupied_slot_count() == 0 {
-          let mut has_tracked_key = false
-          for entry in self.locations.iter() {
-            let (_, (slice_index, _)) = entry
-            if slice_index == last {
-              has_tracked_key = true
-              break
-            }
-          }
-          if !has_tracked_key {
+          if !self.slice_has_tracked_key(last) {
             self.append_slice()
           }
         }
@@ -624,6 +616,48 @@ fn ScalableCountingBloomFilter::has_positive_counters(
 }
 
 ///|
+/// Whether any tracked key belongs to `slice_index`.
+///
+/// The location table is the only record of which slice owns a key, so the
+/// check has to walk it.
+fn ScalableCountingBloomFilter::slice_has_tracked_key(
+  self : ScalableCountingBloomFilter,
+  slice_index : Int32,
+) -> Bool {
+  for entry in self.locations.iter() {
+    let (_, (index, _)) = entry
+    if index == slice_index {
+      return true
+    }
+  }
+  false
+}
+
+///|
+/// Find the newest slice that does not track any key, or `-1` when there is
+/// none.
+///
+/// A slice that tracks keys has to report exactly the number of tracked
+/// occurrences it accounts for, so a conservative insertion count that belongs
+/// to no key can only live in a slice without tracked keys. Such a slice also
+/// must not hold positive counters, because those counters would report keys
+/// that the location table does not know about.
+fn ScalableCountingBloomFilter::find_count_only_slice(
+  self : ScalableCountingBloomFilter,
+) -> Int32 {
+  let mut index = self.slices.length() - 1
+  while index >= 0 {
+    let slice = self.slices[index]
+    if slice.occupied_slot_count() == 0 &&
+      !self.slice_has_tracked_key(index) {
+      return index
+    }
+    index = index - 1
+  }
+  -1
+}
+
+///|
 /// Merge every slice and tracked key of `other` into `self` in place.
 ///
 /// Both filters must share the same initial capacity and target rate, so slice
@@ -678,11 +712,24 @@ pub fn ScalableCountingBloomFilter::merge(
       abort("scalable counting bloom filter insertion count overflow")
     }
     if self.slices.length() > 0 {
-      let last = self.slices.length() - 1
-      guard self.slices[last].inserted <= 2147483647 - other.inserted else {
-        abort("scalable counting bloom filter insertion count overflow")
+      // The conservative count belongs to no key, so it has to be stored in a
+      // slice that does not track any key. A slice that tracks keys reports
+      // exactly its tracked occurrences, and adding the extra count to such a
+      // slice would make the merged filter impossible to deserialize.
+      let target = self.find_count_only_slice()
+      if target >= 0 {
+        guard self.slices[target].inserted <= 2147483647 - other.inserted else {
+          abort("scalable counting bloom filter insertion count overflow")
+        }
+        self.slices[target].inserted += other.inserted
+      } else {
+        // Every slice tracks keys, so the conservative count gets a slice of
+        // its own. The new slice follows the growth policy, which keeps the
+        // merged layout verifiable during deserialization.
+        self.append_slice()
+        let last = self.slices.length() - 1
+        self.slices[last].inserted = other.inserted
       }
-      self.slices[last].inserted += other.inserted
     } else if self.inserted > 0 {
       self.append_slice()
       guard self.inserted <= 2147483647 - other.inserted else {

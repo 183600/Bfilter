@@ -638,7 +638,11 @@ pub fn CuckooFilter::union(
     self.bucket_size == other.bucket_size else {
     abort("cuckoo filters must have the same bucket count and size")
   }
-  if self.inserted + other.inserted > self.capacity() {
+  // Both filters can hold close to the maximum slot count, so the combined
+  // fingerprint count has to be compared in 64 bits: an `Int32` sum would wrap
+  // around and wrongly report that a full combination still fits.
+  let combined = self.inserted.to_int64() + other.inserted.to_int64()
+  if combined > self.capacity().to_int64() {
     return None
   }
   if self.inserted == 0 {
