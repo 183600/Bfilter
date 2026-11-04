@@ -1002,7 +1002,7 @@ pub fn[K : Hash] CountingBloomFilter::count_of(
     // positions that can still be normalized; if every selected position is
     // that wide, retain the conservative raw minimum below.
     if occurrences <= limit_u64 {
-      let estimate_u64 = if value < occurrences {
+      let estimate_u64 = if value <= occurrences {
         1UL
       } else {
         value / occurrences
