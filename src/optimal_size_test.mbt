@@ -195,6 +195,7 @@ test "panic scalable optimal size rejects invalid arguments" {
 ///|
 test "panic scalable optimal size rejects an invalid rate" {
   @src.ScalableBloomFilter::optimal_size(10, 1.0) |> ignore
+  @src.ScalableBloomFilter::optimal_size(10, 0.0) |> ignore
 }
 
 ///|
@@ -218,6 +219,8 @@ test "panic scalable counting constructor rejects an aggregate-oversized first s
 ///|
 test "panic concurrent scalable optimal size rejects invalid arguments" {
   @src.ConcurrentScalableBloomFilter::optimal_size(0, 0.01) |> ignore
+  @src.ConcurrentScalableBloomFilter::optimal_size(10, 1.0) |> ignore
+  @src.ConcurrentScalableBloomFilter::optimal_size(10, 0.0) |> ignore
 }
 
 ///|
