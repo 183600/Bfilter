@@ -47,6 +47,12 @@ fn counting_full_probe_minimum(
     }
   }
   if have_estimate {
+    // Ensure the result is never lower than the fallback minimum counter value,
+    // which can occur when positions are selected multiple times per hash cycle
+    // and the division-based estimate underestimates the true insertion count.
+    if minimum > fallback {
+      minimum = fallback
+    }
     minimum
   } else {
     fallback
@@ -102,6 +108,12 @@ fn compact_full_probe_minimum(
     }
   }
   if have_estimate {
+    // Ensure the result is never lower than the fallback minimum counter value,
+    // which can occur when positions are selected multiple times per hash cycle
+    // and the division-based estimate underestimates the true insertion count.
+    if minimum > fallback {
+      minimum = fallback
+    }
     minimum
   } else {
     fallback
