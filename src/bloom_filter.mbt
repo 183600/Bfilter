@@ -224,35 +224,36 @@ fn BloomFilter::insert_if_absent_hashes(
   self : BloomFilter,
   h1 : UInt64,
   h2 : UInt64,
-) -> Bool {
-  // Every selected bit is set on a full filter, so the conditional insertion
-  // must report a false positive without walking a wide probe sequence.
-  let bit_count = self.bit_count.to_uint64()
-  let probes = bloom_effective_probes(self.bit_count, self.hash_count, h2)
-  if self.should_check_full(probes) && self.all_bits_set() {
-    return false
-  }
-  let mut probe = h1
-  for i = 0; i < probes; i = i + 1 {
-    let pos = (probe % bit_count).to_int()
-    let mask = 1UL << (pos % WORD_BITS)
-    if (self.words[pos / WORD_BITS] & mask) == 0UL {
-      guard self.inserted < MAX_INSERTIONS else {
-        abort("bloom filter insertion count overflow")
-      }
-      let mut remaining_probe = probe
-      for j = i; j < probes; j = j + 1 {
-        let remaining = (remaining_probe % bit_count).to_int()
-        self.words[remaining / WORD_BITS] = self.words[remaining / WORD_BITS] |
-          (1UL << (remaining % WORD_BITS))
-        remaining_probe = remaining_probe + h2
-      }
-      self.inserted += 1
-      return true
+  ) -> Bool {
+    // Every selected bit is set on a full filter, so the conditional insertion
+    // must report a false positive without walking a wide probe sequence.
+    let bit_count = self.bit_count.to_uint64()
+    let probes = bloom_effective_probes(self.bit_count, self.hash_count, h2)
+    if self.should_check_full(probes) && self.all_bits_set() {
+      return false
     }
-    probe = probe + h2
-  }
-  false
+    // Check for overflow before entering the probe sequence
+    guard self.inserted < MAX_INSERTIONS else {
+      abort("bloom filter insertion count overflow")
+    }
+    let mut probe = h1
+    for i = 0; i < probes; i = i + 1 {
+      let pos = (probe % bit_count).to_int()
+      let mask = 1UL << (pos % WORD_BITS)
+      if (self.words[pos / WORD_BITS] & mask) == 0UL {
+        let mut remaining_probe = probe
+        for j = i; j < probes; j = j + 1 {
+          let remaining = (remaining_probe % bit_count).to_int()
+          self.words[remaining / WORD_BITS] = self.words[remaining / WORD_BITS] |
+            (1UL << (remaining % WORD_BITS))
+          remaining_probe = remaining_probe + h2
+        }
+        self.inserted += 1
+        return true
+      }
+      probe = probe + h2
+    }
+    false
 }
 
 ///|
