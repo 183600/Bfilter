@@ -209,9 +209,15 @@ assert_true(filter.false_positive_rate() < 0.01)
 - Set operations (`merge`, `union`, `intersection`, `is_subset_of`,
   `is_disjoint_from`) combine slices by index
 
-**Set operation caveat:** `intersection` only compares slices at matching
-indices, so it can omit a key both inputs contain if they placed it in different
-slices. Most useful when inputs grew in lockstep.
+**Set operation caveats:**
+- `intersection` only compares slices at matching indices, so it can omit a key
+  both inputs contain if they placed it in different slices. Most useful when
+  inputs grew in lockstep.
+- `is_disjoint_from` compares slices at different indices with different hash
+  layouts; it returns `true` (provably disjoint) only when no pair of non-empty
+  slices can share a key, which requires both the layout and bit overlap to
+  match. This is a strict check that may return `false` even when no shared key
+  exists, simply because different slice indices use different hash layouts.
 
 ### Scalable Counting Bloom Filter
 
