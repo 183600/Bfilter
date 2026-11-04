@@ -8,7 +8,17 @@ test "compact counting filter batch operations handle empty batches" {
 }
 
 ///|
-test "compact counting filter is_subset_of with empty operands" {
+test "compact counting filter remove_all reports partial failures" {
+  let filter = @src.CompactCountingBloomFilter::with_size(256, 4)
+  filter.insert_all(["a", "b"])
+  assert_false(filter.remove_all(["a", "missing"]))
+  assert_false(filter.contains("a"))
+  assert_true(filter.contains("b"))
+  assert_eq(filter.count(), 1)
+}
+
+///|
+test "compact counting filter set operations with empty operands" {
   let left = @src.CompactCountingBloomFilter::with_size(256, 4)
   let right = @src.CompactCountingBloomFilter::with_size(256, 4)
   left.insert("shared")
@@ -16,24 +26,16 @@ test "compact counting filter is_subset_of with empty operands" {
   assert_true(left.is_subset_of(right))
   assert_true(right.is_subset_of(left))
   assert_false(left.is_disjoint_from(right))
-}
-
-///|
-test "compact counting filter union empty preserves source" {
-  let left = @src.CompactCountingBloomFilter::with_size(256, 4)
-  left.insert("alpha")
+  
   let empty = @src.CompactCountingBloomFilter::with_size(256, 4)
-  let union = left.union(empty)
-  assert_true(union.contains("alpha"))
-  assert_false(empty.contains("alpha"))
-}
-
-///|
-test "compact counting filter intersection empty yields empty result" {
-  let left = @src.CompactCountingBloomFilter::with_size(256, 4)
-  left.insert("key")
-  let empty = @src.CompactCountingBloomFilter::with_size(256, 4)
-  let intersection = left.intersection(empty)
-  assert_true(intersection.is_empty())
-  assert_eq(intersection.count(), 0)
+  assert_true(empty.is_subset_of(left))
+  assert_true(empty.is_disjoint_from(left))
+  
+  let empty_union = left.union(empty)
+  assert_true(empty_union.contains("shared"))
+  assert_eq(empty_union.count(), 1)
+  
+  let empty_intersection = left.intersection(empty)
+  assert_true(empty_intersection.is_empty())
+  assert_eq(empty_intersection.count(), 0)
 }
