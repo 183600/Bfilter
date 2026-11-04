@@ -346,7 +346,7 @@ assert_true(left.is_subset_of(union))
 | Operation | Description | Returns |
 | --- | --- | --- |
 | `merge(other)` | In-place union | `Unit` |
-| `union(other)` | New filter with union | New filter |
+| `union(other)` | New filter with union | New filter or `None` if full |
 | `intersection(other)` | New filter with intersection | New filter |
 | `is_subset_of(other)` | Every bit/counter in self ≤ other | `Bool` |
 | `is_disjoint_from(other)` | No shared bits/counters/fingerprints | `Bool` |
