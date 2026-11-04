@@ -272,6 +272,18 @@ power of two for alternate-index calculation.
 failure. Failed insert restores all evictions. `insert` returns `false` when
 full or no placement found.
 
+**Multiplicity:** `count_of(key)` counts matching fingerprints in both candidate
+buckets. The result can exceed the true multiplicity when hash collisions occur,
+but never falls below the number of successful insertions.
+
+**Capacity:** `capacity()` returns total fingerprints the filter can hold.
+`remaining_capacity()` reports how many fingerprints can still be inserted.
+A filter can reject an insertion before reaching capacity when no augmenting
+path exists. `is_full()` checks whether `inserted >= capacity`.
+
+**Load factor:** `load_factor()` reports the fraction of slots currently
+holding a fingerprint, in `[0, 1]`.
+
 **Set operations:**
 - `union`: copies fingerprints, returns `None` if combined entries don't fit
 - `intersection`: processes unordered candidate pairs, keeps smaller
@@ -415,10 +427,16 @@ Constructors panic on invalid arguments:
 - `false_positive_rate` must satisfy `0 < rate < 1`
 - `hash_count`, `bucket_size` must be positive
 - Overflowing requests panic instead of silently wrapping
+- `from_bytes` panics on truncated data, wrong type tag, unknown version,
+  or configuration that cannot produce the claimed size
 
 **Sizing formula:** For rate `p` and `n` items, Bloom filters need roughly
 `-n * ln(p) / (ln 2)^2` bits and `-log2(p)` hash functions. Larger `n` than
 actual workload lowers false-positive rate; smaller raises it.
+
+**Capacity overflow:** When inserting would exceed the maximum supported size,
+the constructor panics. This can happen during slice growth in scalable filters
+or when merging filters with combined sizes beyond the limit.
 
 ## Testing and Benchmarks
 
