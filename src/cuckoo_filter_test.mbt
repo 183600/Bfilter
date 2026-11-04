@@ -30,6 +30,55 @@ test "cuckoo filter tracks duplicate insertions" {
 }
 
 ///|
+test "cuckoo filter remove_all on empty filter returns false for missing keys" {
+  let filter = @src.CuckooFilter::new(100)
+  // Empty batch returns true, non-empty batch of missing keys returns false
+  let empty : Array[String] = []
+  assert_true(filter.remove_all(empty))
+  assert_false(filter.remove_all(["missing1", "missing2"]))
+  assert_true(filter.is_empty())
+}
+
+///|
+test "cuckoo filter remove_all on full filter preserves existing entries" {
+  let filter = @src.CuckooFilter::with_size(1, 1)
+  assert_true(filter.insert("only"))
+  assert_false(filter.insert_all(["other1", "other2"]))
+  assert_true(filter.contains("only"))
+  assert_false(filter.contains("other1"))
+  assert_false(filter.contains("other2"))
+  assert_false(filter.remove_all(["other1", "other2"]))
+  assert_true(filter.contains("only"))
+  assert_true(filter.remove("only"))
+  assert_true(filter.is_empty())
+}
+
+///|
+test "cuckoo filter batch operations handle empty batches" {
+  let filter = @src.CuckooFilter::with_size(16, 4)
+  let empty : Array[String] = []
+  assert_true(filter.insert_all(empty))
+  assert_true(filter.is_empty())
+  assert_eq(filter.count(), 0)
+  assert_true(filter.remove_all(empty))
+  assert_true(filter.contains_all(empty))
+  assert_eq(filter.count(), 0)
+}
+
+///|
+test "cuckoo filter insert_all returns false on partial batch failure" {
+  let filter = @src.CuckooFilter::with_size(1, 1)
+  assert_true(filter.insert("only"))
+  let keys = ["inserted", "also-inserted"]
+  let result = filter.insert_all(keys)
+  assert_false(result)
+  assert_false(filter.contains("inserted"))
+  assert_false(filter.contains("also-inserted"))
+  assert_eq(filter.count(), 1)
+  assert_true(filter.contains("only"))
+}
+
+///|
 test "cuckoo filter batch operations and clear" {
   let keys = ["a", "b", "c", "d"]
   let filter = @src.CuckooFilter::with_size(16, 4)
