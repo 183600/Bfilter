@@ -241,3 +241,15 @@ test "panic concurrent scalable counting optimal size rejects invalid arguments"
   @src.ConcurrentScalableCountingBloomFilter::optimal_size(10, 0.0) |> ignore
 }
 
+///|
+test "panic optimal size rejects negative expected items and rates" {
+  @src.BloomFilter::optimal_size(-1, 0.01) |> ignore
+  @src.BloomFilter::optimal_size(10, -0.1) |> ignore
+  @src.CountingBloomFilter::optimal_size(-5, 0.01) |> ignore
+  @src.CompactCountingBloomFilter::optimal_size(10, -0.5) |> ignore
+  @src.BlockedBloomFilter::optimal_size(-2, 0.01) |> ignore
+  @src.CuckooFilter::optimal_size(-1) |> ignore
+  @src.ScalableBloomFilter::optimal_size(-10, 0.01) |> ignore
+  @src.ScalableCountingBloomFilter::optimal_size(10, -0.01) |> ignore
+}
+
