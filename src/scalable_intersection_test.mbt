@@ -116,6 +116,30 @@ test "concurrent scalable wrappers expose atomic intersection" {
 }
 
 ///|
+test "scalable bloom intersection misses key in different slices" {
+  let left = @src.ScalableBloomFilter::new(4, 0.000001)
+  let right = @src.ScalableBloomFilter::new(4, 0.000001)
+  left.insert("shared")
+  for i = 0; i < 8; i = i + 1 {
+    left.insert("left-" + i.to_string())
+  }
+  for i = 0; i < 30; i = i + 1 {
+    right.insert("right-" + i.to_string())
+  }
+  right.insert("shared")
+  assert_true(left.slice_count() > 1)
+  assert_true(right.slice_count() > left.slice_count())
+  let common = left.intersection(right)
+  assert_eq(common.slice_count(), left.slice_count().min(right.slice_count()))
+  // The "shared" key is in slice 0 of left but slice 1+ of right due to
+  // different insertion timing. The slice-by-slice intersection misses it.
+  assert_false(common.contains("shared"))
+  assert_true(left.contains("shared"))
+  assert_true(right.contains("shared"))
+}
+
+///
+///|
 test "scalable bloom intersection normalizes merged insertion counts" {
   let left = @src.ScalableBloomFilter::new(4, 0.000001)
   let right = @src.ScalableBloomFilter::new(4, 0.000001)
