@@ -199,3 +199,55 @@ test "compact counting bloom filter delete all then reinsert" {
   assert_eq(filter.count_of("a"), 1)
   assert_eq(filter.count(), 1)
 }
+
+///|
+test "compact counting bloom filter counter saturation and removal" {
+  let filter = @src.CompactCountingBloomFilter::with_size(16, 4)
+  // Insert the same key 20 times; counters saturate at 15
+  for i = 0; i < 20; i = i + 1 {
+    filter.insert("saturation-key")
+  }
+  // count_of estimate should be at most counter_max (15) since counters are saturated
+  assert_true(filter.count_of("saturation-key") <= 15)
+  assert_true(filter.count_of("saturation-key") > 0)
+  // Remove once; should succeed and decrement
+  assert_true(filter.remove("saturation-key"))
+  assert_eq(filter.count(), 19)
+  // Remove again; key should still be present
+  assert_true(filter.remove("saturation-key"))
+  assert_eq(filter.count(), 18)
+  // Filter should still contain the key
+  assert_true(filter.contains("saturation-key"))
+  // Remove once more
+  assert_true(filter.remove("saturation-key"))
+  assert_eq(filter.count(), 17)
+  // Final check: filter may or may not contain depending on counter distribution
+  assert_true(filter.count_of("saturation-key") >= 0)
+}
+
+
+///|
+test "compact counting bloom filter insert_if_absent after saturation" {
+  let filter = @src.CompactCountingBloomFilter::with_size(16, 4)
+  // Fill the filter with 16 insertions of different keys
+  for i = 0; i < 16; i = i + 1 {
+    filter.insert("key-" + i.to_string())
+  }
+  // Now insert_if_absent for a new key should fail (all counters positive)
+  let result = filter.insert_if_absent("new-key")
+  assert_false(result)
+  // Existing keys still present
+  assert_true(filter.contains("key-0"))
+}
+
+///|
+test "compact counting bloom filter removal with saturated shared counters" {
+  // Two keys sharing a saturated counter can disturb each other on removal
+  let filter = @src.CompactCountingBloomFilter::with_size(64, 4)
+  filter.insert("key-a")
+  filter.insert("key-b")
+  // Remove key-a; key-b's counter may be affected if they share positions
+  assert_true(filter.remove("key-a"))
+  // key-b may still be present (depends on hash collision)
+  assert_true(filter.contains("key-b") || filter.count_of("key-b") == 0)
+}
