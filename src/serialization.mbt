@@ -29,6 +29,28 @@ const SERIAL_SCALABLE_COUNTING : Byte = b'\x07'
 const SERIAL_HEADER_BYTES : Int32 = 20
 
 ///|
+/// Size of the target-rate field that follows the header of a scalable filter.
+const SERIAL_RATE_BYTES : Int32 = 8
+
+///|
+/// Size of the metadata-entry count that follows the target rate of a
+/// scalable counting filter.
+const SERIAL_ENTRY_COUNT_BYTES : Int32 = 4
+
+///|
+/// Size of one tracked-key entry: two hashes, a slice index, and a
+/// multiplicity.
+const SERIAL_COUNTING_ENTRY_BYTES : Int32 = 24
+
+///|
+/// Size of the length prefix that precedes every serialized slice.
+const SERIAL_SLICE_LENGTH_BYTES : Int32 = 4
+
+///|
+/// Number of bytes in one 64-bit word.
+const SERIAL_BYTES_PER_WORD : Int32 = 8
+
+///|
 fn serial_write_header_at(
   bytes : FixedArray[Byte],
   offset : Int32,
@@ -86,8 +108,22 @@ fn serial_check_length(data : BytesView, expected : Int64) -> Unit {
 }
 
 ///|
+/// Total length of a serialized filter whose payload is `word_count` 64-bit
+/// words.
+fn serial_word_payload_bytes(word_count : Int32) -> Int64 {
+  SERIAL_HEADER_BYTES.to_int64() +
+  word_count.to_int64() * SERIAL_BYTES_PER_WORD.to_int64()
+}
+
+///|
+/// Offset of the tracked-key table in a serialized scalable counting filter.
+fn serial_counting_metadata_offset() -> Int32 {
+  SERIAL_HEADER_BYTES + SERIAL_RATE_BYTES + SERIAL_ENTRY_COUNT_BYTES
+}
+
+///|
 fn BloomFilter::serialized_size(self : BloomFilter) -> Int32 {
-  SERIAL_HEADER_BYTES + self.words.length() * 8
+  SERIAL_HEADER_BYTES + self.words.length() * SERIAL_BYTES_PER_WORD
 }
 
 ///|
@@ -107,7 +143,7 @@ fn BloomFilter::write_serialized(
   let word_count = self.words.length()
   for i = 0; i < word_count; i = i + 1 {
     data.unsafe_write_uint64_le(
-      offset + SERIAL_HEADER_BYTES + i * 8,
+      offset + SERIAL_HEADER_BYTES + i * SERIAL_BYTES_PER_WORD,
       self.words[i],
     )
   }
@@ -133,15 +169,17 @@ pub fn BloomFilter::to_bytes(self : BloomFilter) -> Bytes {
 /// slice views to avoid an intermediate `to_owned()` copy per slice.
 fn BloomFilter::read_serialized(data : BytesView) -> BloomFilter {
   let (bit_count, hash_count, inserted) = serial_read_header(data, SERIAL_BLOOM)
-  guard bit_count > 0 && bit_count <= 2147483584 && bit_count % 64 == 0 else {
+  guard bit_count > 0 &&
+    bit_count <= BLOOM_MAX_BITS &&
+    bit_count % WORD_BITS == 0 else {
     abort("invalid bloom bit count")
   }
   guard hash_count > 0 else { abort("invalid bloom hash count") }
   guard inserted >= 0 else { abort("invalid bloom insertion count") }
-  let word_count = bit_count / 64
+  let word_count = bit_count / WORD_BITS
   serial_check_length(
     data,
-    SERIAL_HEADER_BYTES.to_int64() + word_count.to_int64() * 8L,
+    serial_word_payload_bytes(word_count),
   )
   let words = FixedArray::make(word_count, 0UL)
   let mut set_bits = 0
@@ -167,7 +205,7 @@ pub fn BloomFilter::from_bytes(data : Bytes) -> BloomFilter {
 
 ///|
 fn CountingBloomFilter::serialized_size(self : CountingBloomFilter) -> Int32 {
-  SERIAL_HEADER_BYTES + self.counters.length() * 8
+  SERIAL_HEADER_BYTES + self.counters.length() * SERIAL_BYTES_PER_WORD
 }
 
 ///|
@@ -187,7 +225,7 @@ fn CountingBloomFilter::write_serialized(
   let word_count = self.counters.length()
   for i = 0; i < word_count; i = i + 1 {
     data.unsafe_write_uint64_le(
-      offset + SERIAL_HEADER_BYTES + i * 8,
+      offset + SERIAL_HEADER_BYTES + i * SERIAL_BYTES_PER_WORD,
       self.counters[i],
     )
   }
@@ -208,15 +246,17 @@ fn CountingBloomFilter::read_serialized(data : BytesView) -> CountingBloomFilter
     data,
     SERIAL_COUNTING,
   )
-  guard slot_count > 0 && slot_count <= 1073741808 && slot_count % 16 == 0 else {
+  guard slot_count > 0 &&
+    slot_count <= COUNTING_MAX_SLOTS &&
+    slot_count % COUNTING_SLOTS_PER_WORD_ALIGN == 0 else {
     abort("invalid counting filter slot count")
   }
   guard hash_count > 0 else { abort("invalid counting filter hash count") }
   guard inserted >= 0 else { abort("invalid counting filter insertion count") }
-  let word_count = slot_count / 4
+  let word_count = slot_count / COUNTING_SLOTS_PER_WORD
   serial_check_length(
     data,
-    SERIAL_HEADER_BYTES.to_int64() + word_count.to_int64() * 8L,
+    serial_word_payload_bytes(word_count),
   )
   let counters = FixedArray::make(word_count, 0UL)
   let mut counter_mass = 0UL
@@ -287,11 +327,11 @@ pub fn CuckooFilter::from_bytes(data : Bytes) -> CuckooFilter {
     SERIAL_CUCKOO,
   )
   guard bucket_count > 0 &&
-    bucket_count <= 1073741824 &&
+    bucket_count <= CUCKOO_MAX_BUCKETS &&
     (bucket_count & (bucket_count - 1)) == 0 else {
     abort("invalid cuckoo bucket count")
   }
-  guard bucket_size > 0 && bucket_size <= 2147483619 / bucket_count else {
+  guard bucket_size > 0 && bucket_size <= CUCKOO_MAX_SLOTS / bucket_count else {
     abort("invalid cuckoo bucket size")
   }
   let capacity = bucket_count * bucket_size
@@ -352,12 +392,12 @@ pub fn ScalableBloomFilter::to_bytes(self : ScalableBloomFilter) -> Bytes {
     normalized.inserted = self.inserted
     return normalized.to_bytes()
   }
-  guard self.total_bits() <= 2147483584L else {
+  guard self.total_bits() <= BLOOM_MAX_BITS.to_int64() else {
     abort("scalable bloom filter is too large")
   }
-  let mut total = SERIAL_HEADER_BYTES + 8
+  let mut total = SERIAL_HEADER_BYTES + SERIAL_RATE_BYTES
   for slice in self.slices {
-    total = total + 4 + slice.serialized_size()
+    total = total + SERIAL_SLICE_LENGTH_BYTES + slice.serialized_size()
   }
   let data = FixedArray::make(total, b'\x00')
   serial_write_header(
@@ -371,13 +411,13 @@ pub fn ScalableBloomFilter::to_bytes(self : ScalableBloomFilter) -> Bytes {
     SERIAL_HEADER_BYTES,
     self.target_rate.reinterpret_as_uint64(),
   )
-  let mut offset = SERIAL_HEADER_BYTES + 8
+  let mut offset = SERIAL_HEADER_BYTES + SERIAL_RATE_BYTES
   for slice in self.slices {
     data.unsafe_write_uint32_le(
       offset,
       slice.serialized_size().reinterpret_as_uint(),
     )
-    offset = offset + 4
+    offset = offset + SERIAL_SLICE_LENGTH_BYTES
     slice.write_serialized(data, offset)
     offset = offset + slice.serialized_size()
   }
@@ -401,7 +441,7 @@ pub fn ScalableBloomFilter::from_bytes(data : Bytes) -> ScalableBloomFilter {
     abort("invalid scalable bloom initial capacity")
   }
   guard inserted >= 0 else { abort("invalid scalable bloom insertion count") }
-  guard data.length() >= SERIAL_HEADER_BYTES + 8 else {
+  guard data.length() >= SERIAL_HEADER_BYTES + SERIAL_RATE_BYTES else {
     abort("serialized scalable bloom filter is too short")
   }
   let target_rate = data
@@ -417,15 +457,15 @@ pub fn ScalableBloomFilter::from_bytes(data : Bytes) -> ScalableBloomFilter {
     target_rate,
     inserted: 0,
   }
-  let mut offset = SERIAL_HEADER_BYTES + 8
+  let mut offset = SERIAL_HEADER_BYTES + SERIAL_RATE_BYTES
   let mut total_inserted = 0L
   let mut total_bits = 0L
   for index = 0; index < slice_count; index = index + 1 {
-    guard offset <= data.length() - 4 else {
+    guard offset <= data.length() - SERIAL_SLICE_LENGTH_BYTES else {
       abort("serialized scalable bloom slice is truncated")
     }
     let length = data.unsafe_read_uint32_le(offset).reinterpret_as_int()
-    offset = offset + 4
+    offset = offset + SERIAL_SLICE_LENGTH_BYTES
     guard length >= SERIAL_HEADER_BYTES && length <= data.length() - offset else {
       abort("serialized scalable bloom slice has invalid length")
     }
@@ -436,7 +476,7 @@ pub fn ScalableBloomFilter::from_bytes(data : Bytes) -> ScalableBloomFilter {
       initial_capacity
     } else {
       let previous = filter.capacities[index - 1]
-      if previous > 2147483647 / SCALABLE_GROWTH {
+      if previous > MAX_INSERTIONS / SCALABLE_GROWTH {
         abort("scalable bloom filter is too large")
       }
       previous * SCALABLE_GROWTH
@@ -450,7 +490,7 @@ pub fn ScalableBloomFilter::from_bytes(data : Bytes) -> ScalableBloomFilter {
       abort("scalable bloom slice does not match its layout")
     }
     total_bits = total_bits + slice.bit_count().to_int64()
-    guard total_bits <= 2147483584L else {
+    guard total_bits <= BLOOM_MAX_BITS.to_int64() else {
       abort("scalable bloom filter is too large")
     }
     total_inserted = total_inserted + slice.count().to_int64()
@@ -498,15 +538,16 @@ pub fn ScalableCountingBloomFilter::to_bytes(
   guard self.slot_count() <= SCALABLE_COUNTING_MAX_SLOTS else {
     abort("scalable counting bloom filter is too large")
   }
-  let mut total = SERIAL_HEADER_BYTES + 12
+  let mut total = serial_counting_metadata_offset()
   for slice in self.slices {
-    total = total + 4 + slice.serialized_size()
+    total = total + SERIAL_SLICE_LENGTH_BYTES + slice.serialized_size()
   }
   let entry_count = self.locations.length()
-  guard entry_count >= 0 && entry_count <= (2147483647 - total) / 24 else {
+  guard entry_count >= 0 &&
+    entry_count <= (MAX_INSERTIONS - total) / SERIAL_COUNTING_ENTRY_BYTES else {
     abort("scalable counting bloom filter is too large to serialize")
   }
-  total = total + entry_count * 24
+  total = total + entry_count * SERIAL_COUNTING_ENTRY_BYTES
   let data = FixedArray::make(total, b'\x00')
   serial_write_header(
     data,
@@ -520,26 +561,32 @@ pub fn ScalableCountingBloomFilter::to_bytes(
     self.target_rate.reinterpret_as_uint64(),
   )
   data.unsafe_write_uint32_le(
-    SERIAL_HEADER_BYTES + 8,
+    SERIAL_HEADER_BYTES + SERIAL_RATE_BYTES,
     entry_count.reinterpret_as_uint(),
   )
   let entries = self.locations.to_array()
   entries.sort()
-  let mut offset = SERIAL_HEADER_BYTES + 12
+  let mut offset = serial_counting_metadata_offset()
   for entry in entries {
     let ((h1, h2), (slice_index, occurrences)) = entry
     data.unsafe_write_uint64_le(offset, h1)
     data.unsafe_write_uint64_le(offset + 8, h2)
-    data.unsafe_write_uint32_le(offset + 16, slice_index.reinterpret_as_uint())
-    data.unsafe_write_uint32_le(offset + 20, occurrences.reinterpret_as_uint())
-    offset = offset + 24
+    data.unsafe_write_uint32_le(
+      offset + 16,
+      slice_index.reinterpret_as_uint(),
+    )
+    data.unsafe_write_uint32_le(
+      offset + 20,
+      occurrences.reinterpret_as_uint(),
+    )
+    offset = offset + SERIAL_COUNTING_ENTRY_BYTES
   }
   for slice in self.slices {
     data.unsafe_write_uint32_le(
       offset,
       slice.serialized_size().reinterpret_as_uint(),
     )
-    offset = offset + 4
+    offset = offset + SERIAL_SLICE_LENGTH_BYTES
     slice.write_serialized(data, offset)
     offset = offset + slice.serialized_size()
   }
@@ -569,7 +616,7 @@ pub fn ScalableCountingBloomFilter::from_bytes(
   guard inserted >= 0 else {
     abort("invalid scalable counting bloom insertion count")
   }
-  guard data.length() >= SERIAL_HEADER_BYTES + 12 else {
+  guard data.length() >= serial_counting_metadata_offset() else {
     abort("serialized scalable counting bloom filter is too short")
   }
   let target_rate = data
@@ -579,16 +626,18 @@ pub fn ScalableCountingBloomFilter::from_bytes(
     abort("invalid scalable counting bloom false positive rate")
   }
   let entry_count = data
-    .unsafe_read_uint32_le(SERIAL_HEADER_BYTES + 8)
+    .unsafe_read_uint32_le(SERIAL_HEADER_BYTES + SERIAL_RATE_BYTES)
     .reinterpret_as_int()
   guard entry_count >= 0 && entry_count <= inserted else {
     abort("invalid scalable counting bloom metadata count")
   }
-  let metadata_offset = SERIAL_HEADER_BYTES + 12
-  guard entry_count <= (data.length() - metadata_offset) / 24 else {
+  let metadata_offset = serial_counting_metadata_offset()
+  guard entry_count <=
+    (data.length() - metadata_offset) / SERIAL_COUNTING_ENTRY_BYTES else {
     abort("serialized scalable counting bloom metadata is truncated")
   }
-  let slices_offset = metadata_offset + entry_count * 24
+  let slices_offset = metadata_offset + entry_count *
+    SERIAL_COUNTING_ENTRY_BYTES
   let filter : ScalableCountingBloomFilter = {
     slices: [],
     capacities: [],
@@ -601,11 +650,11 @@ pub fn ScalableCountingBloomFilter::from_bytes(
   let mut total_inserted = 0L
   let mut total_slots = 0L
   for index = 0; index < slice_count; index = index + 1 {
-    guard offset <= data.length() - 4 else {
+    guard offset <= data.length() - SERIAL_SLICE_LENGTH_BYTES else {
       abort("serialized scalable counting bloom slice is truncated")
     }
     let length = data.unsafe_read_uint32_le(offset).reinterpret_as_int()
-    offset = offset + 4
+    offset = offset + SERIAL_SLICE_LENGTH_BYTES
     guard length >= SERIAL_HEADER_BYTES && length <= data.length() - offset else {
       abort("serialized scalable counting bloom slice has invalid length")
     }
@@ -616,10 +665,10 @@ pub fn ScalableCountingBloomFilter::from_bytes(
       initial_capacity
     } else {
       let previous = filter.capacities[index - 1]
-      if previous > 2147483647 / SCALABLE_COUNTING_GROWTH {
+      if previous > MAX_INSERTIONS / SCALABLE_GROWTH {
         abort("scalable counting bloom filter is too large")
       }
-      previous * SCALABLE_COUNTING_GROWTH
+      previous * SCALABLE_GROWTH
     }
     let (expected_slots, expected_hashes) = counting_bloom_layout(
       capacity,
@@ -677,7 +726,7 @@ pub fn ScalableCountingBloomFilter::from_bytes(
     guard filter.locations.length() == previous_length + 1 else {
       abort("duplicate scalable counting bloom metadata entry")
     }
-    offset = offset + 24
+    offset = offset + SERIAL_COUNTING_ENTRY_BYTES
   }
   if total_occurrences != inserted.to_int64() {
     // Slices without tracked keys may carry conservative count-only insertions.
@@ -711,7 +760,10 @@ pub fn CompactCountingBloomFilter::to_bytes(
   self : CompactCountingBloomFilter,
 ) -> Bytes {
   let word_count = self.counters.length()
-  let data = FixedArray::make(SERIAL_HEADER_BYTES + word_count * 8, b'\x00')
+  let data = FixedArray::make(
+    SERIAL_HEADER_BYTES + word_count * SERIAL_BYTES_PER_WORD,
+    b'\x00',
+  )
   serial_write_header(
     data,
     SERIAL_COMPACT_COUNTING,
@@ -720,7 +772,10 @@ pub fn CompactCountingBloomFilter::to_bytes(
     self.inserted,
   )
   for i = 0; i < word_count; i = i + 1 {
-    data.unsafe_write_uint64_le(SERIAL_HEADER_BYTES + i * 8, self.counters[i])
+    data.unsafe_write_uint64_le(
+      SERIAL_HEADER_BYTES + i * SERIAL_BYTES_PER_WORD,
+      self.counters[i],
+    )
   }
   Bytes::from_array(data.exact_view())
 }
@@ -738,7 +793,9 @@ pub fn CompactCountingBloomFilter::from_bytes(
     data.exact_view(),
     SERIAL_COMPACT_COUNTING,
   )
-  guard slot_count > 0 && slot_count <= 1073741808 && slot_count % 16 == 0 else {
+  guard slot_count > 0 &&
+    slot_count <= COMPACT_MAX_SLOTS &&
+    slot_count % COMPACT_SLOTS_PER_WORD == 0 else {
     abort("invalid compact counting filter slot count")
   }
   guard hash_count > 0 else {
@@ -750,7 +807,7 @@ pub fn CompactCountingBloomFilter::from_bytes(
   let word_count = slot_count / COMPACT_SLOTS_PER_WORD
   serial_check_length(
     data.exact_view(),
-    SERIAL_HEADER_BYTES.to_int64() + word_count.to_int64() * 8L,
+    serial_word_payload_bytes(word_count),
   )
   let counters = FixedArray::make(word_count, 0UL)
   let mut counter_mass = 0UL
@@ -778,7 +835,10 @@ pub fn CompactCountingBloomFilter::from_bytes(
 /// Encode the blocked filter as a portable byte sequence.
 pub fn BlockedBloomFilter::to_bytes(self : BlockedBloomFilter) -> Bytes {
   let word_count = self.words.length()
-  let data = FixedArray::make(SERIAL_HEADER_BYTES + word_count * 8, b'\x00')
+  let data = FixedArray::make(
+    SERIAL_HEADER_BYTES + word_count * SERIAL_BYTES_PER_WORD,
+    b'\x00',
+  )
   serial_write_header(
     data,
     SERIAL_BLOCKED,
@@ -787,7 +847,10 @@ pub fn BlockedBloomFilter::to_bytes(self : BlockedBloomFilter) -> Bytes {
     self.inserted,
   )
   for i = 0; i < word_count; i = i + 1 {
-    data.unsafe_write_uint64_le(SERIAL_HEADER_BYTES + i * 8, self.words[i])
+    data.unsafe_write_uint64_le(
+      SERIAL_HEADER_BYTES + i * SERIAL_BYTES_PER_WORD,
+      self.words[i],
+    )
   }
   Bytes::from_array(data.exact_view())
 }
@@ -809,10 +872,10 @@ pub fn BlockedBloomFilter::from_bytes(data : Bytes) -> BlockedBloomFilter {
   }
   guard hash_count > 0 else { abort("invalid blocked bloom hash count") }
   guard inserted >= 0 else { abort("invalid blocked bloom insertion count") }
-  let word_count = bit_count / 64
+  let word_count = bit_count / WORD_BITS
   serial_check_length(
     data,
-    SERIAL_HEADER_BYTES.to_int64() + word_count.to_int64() * 8L,
+    serial_word_payload_bytes(word_count),
   )
   let words = FixedArray::make(word_count, 0UL)
   let mut set_bits = 0

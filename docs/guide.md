@@ -4,11 +4,19 @@ Bfilter provides probabilistic set data structures for MoonBit. Every filter
 accepts any key type that implements `Hash`, such as `String`, integers, or
 user-defined types with a `Hash` implementation.
 
-## Table of Contents
+This guide walks through the shared API, describes each filter type, and
+documents the guarantees and caveats that matter when you pick one.
+
+## Contents
 
 - [Quick Start](#quick-start)
 - [Choosing a Filter](#choosing-a-filter)
 - [Core Concepts](#core-concepts)
+  - [False Positives and False Negatives](#false-positives-and-false-negatives)
+  - [Hashing](#hashing)
+  - [Shared API](#shared-api)
+  - [Batch Operations](#batch-operations)
+  - [Statistics](#statistics)
 - [Filter Types](#filter-types)
   - [Bloom Filter](#bloom-filter)
   - [Blocked Bloom Filter](#blocked-bloom-filter)
@@ -28,12 +36,15 @@ user-defined types with a `Hash` implementation.
 ## Quick Start
 
 ```moonbit
-let filter = @src.BloomFilter::new(1000, 0.01)
-filter.insert("alpha")
-filter.insert("beta")
+///|
+test "quick start" {
+  let filter = @src.BloomFilter::new(1_000, 0.01)
+  filter.insert("alpha")
+  filter.insert("beta")
 
-assert_true(filter.contains("alpha"))
-assert_false(filter.contains("gamma"))
+  assert_true(filter.contains("alpha"))
+  assert_false(filter.contains("gamma"))
+}
 ```
 
 `contains` never returns `false` for a successfully inserted key. It can
@@ -53,6 +64,13 @@ by the requested false-positive rate.
 | High load factor, exact deletion | `CuckooFilter` | Yes | ~1 byte |
 | Thread-safe access (native/LLVM) | `Concurrent*` wrapper | As wrapped | Same as wrapped |
 
+Two questions settle most choices:
+
+1. **Do you need to remove keys?** Only the counting filters, the scalable
+   counting filter, and the Cuckoo filter support deletion.
+2. **Do you know how many keys to expect?** The scalable filters keep
+   accepting insertions by adding slices; the fixed-size filters do not grow.
+
 ## Core Concepts
 
 ### False Positives and False Negatives
@@ -67,9 +85,46 @@ at runtime with `false_positive_rate()`.
 ### Hashing
 
 All filters use a fixed-seed hashing scheme. This means:
+
 - Filters serialized with `to_bytes()` can be restored in a different process
   and will produce the same results for the same keys.
 - The hash function is derived from the key's `Hash` implementation.
+- Two filters that use the same layout derive the same positions for the same
+  key, which is what makes set operations possible without re-hashing.
+
+### Shared API
+
+Every filter exposes the same core operations. The table lists the method and
+the filters that provide it.
+
+| Operation | Provided by | Result |
+| --- | --- | --- |
+| `insert(key)` | all filters | Adds the key; counting filters raise its multiplicity |
+| `insert_if_absent(key)` | all filters | `true` when the key was added |
+| `contains(key)` | all filters | `true` when the key may be present |
+| `insert_all(keys)` | all filters | Adds every key (`Bool` for the Cuckoo filter) |
+| `insert_all_if_absent(keys)` | all filters | Number of keys added |
+| `contains_all(keys)` | all filters | `true` when every key may be present |
+| `contains_any(keys)` | all filters | `true` when at least one key may be present |
+| `remove(key)` | counting, scalable counting, Cuckoo | `true` when one occurrence was removed |
+| `remove_all(keys)` | counting, scalable counting, Cuckoo | `true` when every key was removed |
+| `count_of(key)` | counting, scalable counting, Cuckoo | Multiplicity of one key |
+| `count()` | all filters | Number of insertions since the last `clear` |
+| `is_empty()` | all filters | `true` when nothing has been inserted |
+| `clear()` | all filters | Removes every key and resets the counters |
+| `copy()` | all filters | Independent copy of the filter |
+| `merge(other)` | all filters | In-place union (`Bool` for the Cuckoo filter) |
+| `union(other)` | all filters | New filter holding the union (`None` if it does not fit) |
+| `intersection(other)` | all filters | New filter holding the intersection |
+| `is_subset_of(other)` | all filters | `true` when `self` is covered by `other` |
+| `is_disjoint_from(other)` | all filters | `true` when the filters provably share no key |
+| `memory_bytes()` | all filters | Bytes used by the backing storage |
+| `false_positive_rate()` | all filters | Estimated false-positive rate |
+| `to_bytes()` / `from_bytes(data)` | all filters | Versioned binary round trip |
+
+`count()` counts insertion calls, not distinct keys: inserting the same key
+twice increments it twice. Use `count_of(key)` when you need the multiplicity
+of a single key.
 
 ### Batch Operations
 
@@ -79,9 +134,31 @@ Every filter exposes batch helpers for efficiency:
 - `insert_all_if_absent(keys)` — inserts only absent keys, returns count added
 - `contains_all(keys)` — returns `true` only if all keys are present
 - `contains_any(keys)` — returns `true` if at least one key is present
-- `remove_all(keys)` — removes all keys (counting/cuckoo filters only)
+- `remove_all(keys)` — removes all keys (counting and Cuckoo filters only)
 
-Empty batches are no-ops and never touch the backing storage.
+Empty batches are no-ops and never touch the backing storage. Batch helpers
+continue after a failure instead of aborting the batch; `remove_all` and the
+Cuckoo filter's `insert_all` report the overall result as a `Bool`.
+
+### Statistics
+
+| Method | Provided by | Meaning |
+| --- | --- | --- |
+| `count()` | all filters | Insertion calls since creation or the last `clear` |
+| `is_empty()` | all filters | Whether nothing has been inserted |
+| `is_full()` | fixed-size filters | Whether every bit or counter slot is occupied |
+| `set_bit_count()` | Bloom family | Number of bits currently set |
+| `occupied_slot_count()` | counting family | Number of counter slots currently positive |
+| `fill_ratio()` | Bloom and counting families | Fraction of the storage that is occupied |
+| `estimated_item_count()` | Bloom and counting families | Estimated number of distinct keys represented |
+| `load_factor()` | Cuckoo filter | Fraction of slots that hold a fingerprint |
+| `memory_bytes()` | all filters | Bytes used by the backing storage |
+| `false_positive_rate()` | all filters | Estimated false-positive rate for the current state |
+
+The Bloom family uses bit counts, the counting family uses occupied slots, and
+the Cuckoo filter uses `load_factor()` for the fraction of slots that hold a
+fingerprint. The scalable filters have no fixed size, so they report
+`slice_count()` and `capacity()` instead of `is_full()`.
 
 ## Filter Types
 
@@ -92,12 +169,15 @@ the standard Bloom filter formulas. `BloomFilter::with_size(bit_count,
 hash_count)` is available when a configuration is already known.
 
 ```moonbit
-let filter = @src.BloomFilter::new(10_000, 0.001)
-for i = 0; i < 10_000; i = i + 1 {
-  filter.insert(i)
+///|
+test "bloom filter" {
+  let filter = @src.BloomFilter::new(10_000, 0.001)
+  for i = 0; i < 10_000; i = i + 1 {
+    filter.insert(i)
+  }
+  assert_true(filter.contains(123))
+  assert_true(filter.false_positive_rate() < 0.01)
 }
-assert_true(filter.contains(123))
-assert_true(filter.false_positive_rate() < 0.01)
 ```
 
 **Storage:** Bit-packed; `bit_count()` is always a multiple of 64, so the
@@ -118,12 +198,15 @@ query touches at most one cache line instead of scattering accesses across the
 whole bit array.
 
 ```moonbit
-let filter = @src.BlockedBloomFilter::new(10_000, 0.001)
-filter.insert_all(["alpha", "beta"])
-assert_true(filter.contains("alpha"))
-assert_true(filter.contains_all(["alpha", "beta"]))
-assert_eq(filter.bit_count() % 512, 0)
-assert_eq(filter.block_count(), filter.bit_count() / 512)
+///|
+test "blocked bloom filter" {
+  let filter = @src.BlockedBloomFilter::new(10_000, 0.001)
+  filter.insert_all(["alpha", "beta"])
+  assert_true(filter.contains("alpha"))
+  assert_true(filter.contains_all(["alpha", "beta"]))
+  assert_eq(filter.bit_count() % 512, 0)
+  assert_eq(filter.block_count(), filter.bit_count() / 512)
+}
 ```
 
 **Trade-off:** Blocks fill unevenly, which can raise the observed false-positive
@@ -139,15 +222,18 @@ whole blocks, so `bit_count()` is always a multiple of 512.
 `CountingBloomFilter` stores a 16-bit counter per slot, allowing deletion.
 
 ```moonbit
-let filter = @src.CountingBloomFilter::new(1000, 0.01)
-filter.insert("task")
-filter.insert("task")
-assert_eq(filter.count(), 2)
+///|
+test "counting bloom filter" {
+  let filter = @src.CountingBloomFilter::new(1_000, 0.01)
+  filter.insert("task")
+  filter.insert("task")
+  assert_eq(filter.count(), 2)
 
-assert_true(filter.remove("task"))
-assert_true(filter.contains("task"))
-assert_true(filter.remove("task"))
-assert_false(filter.contains("task"))
+  assert_true(filter.remove("task"))
+  assert_true(filter.contains("task"))
+  assert_true(filter.remove("task"))
+  assert_false(filter.contains("task"))
+}
 ```
 
 **Counters:** Saturate at 65535 (`counter_max()`). A lane selected multiple times
@@ -166,15 +252,18 @@ positive and disturb other entries—only remove keys known to be present.
 ~1/4 the memory of `CountingBloomFilter`.
 
 ```moonbit
-let compact = @src.CompactCountingBloomFilter::new(1000, 0.01)
-let regular = @src.CountingBloomFilter::new(1000, 0.01)
-assert_eq(regular.memory_bytes(), compact.memory_bytes() * 4L)
+///|
+test "compact counting bloom filter" {
+  let compact = @src.CompactCountingBloomFilter::new(1_000, 0.01)
+  let regular = @src.CountingBloomFilter::new(1_000, 0.01)
+  assert_eq(regular.memory_bytes(), compact.memory_bytes() * 4L)
 
-compact.insert("task")
-compact.insert("task")
-assert_eq(compact.count_of("task"), 2)
-assert_true(compact.remove("task"))
-assert_eq(compact.count_of("task"), 1)
+  compact.insert("task")
+  compact.insert("task")
+  assert_eq(compact.count_of("task"), 2)
+  assert_true(compact.remove("task"))
+  assert_eq(compact.count_of("task"), 1)
+}
 ```
 
 **Limitations:**
@@ -191,15 +280,18 @@ newest reaches its planned capacity. Each new slice doubles capacity and halves
 its false-positive budget.
 
 ```moonbit
-let filter = @src.ScalableBloomFilter::new(100, 0.01)
-for i = 0; i < 1000; i = i + 1 {
-  filter.insert(i)
+///|
+test "scalable bloom filter" {
+  let filter = @src.ScalableBloomFilter::new(100, 0.01)
+  for i = 0; i < 1000; i = i + 1 {
+    filter.insert(i)
+  }
+  assert_true(filter.slice_count() > 1)
+  assert_true(filter.contains(42))
+  assert_eq(filter.count(), 1000)
+  assert_true(filter.target_false_positive_rate() == 0.01)
+  assert_true(filter.false_positive_rate() < 0.01)
 }
-assert_true(filter.slice_count() > 1)
-assert_true(filter.contains(42))
-assert_eq(filter.count(), 1000)
-assert_true(filter.target_false_positive_rate() == 0.01)
-assert_true(filter.false_positive_rate() < 0.01)
 ```
 
 **Key properties:**
@@ -225,16 +317,19 @@ assert_true(filter.false_positive_rate() < 0.01)
 Each key is tracked with its exact multiplicity and owning slice.
 
 ```moonbit
-let filter = @src.ScalableCountingBloomFilter::new(4, 0.01)
-for i = 0; i < 40; i = i + 1 {
-  filter.insert("key-" + i.to_string())
+///|
+test "scalable counting bloom filter" {
+  let filter = @src.ScalableCountingBloomFilter::new(4, 0.01)
+  for i = 0; i < 40; i = i + 1 {
+    filter.insert("key-" + i.to_string())
+  }
+  filter.insert("key-0")
+  assert_true(filter.slice_count() > 1)
+  assert_eq(filter.count_of("key-0"), 2)
+  assert_true(filter.remove("key-0"))
+  assert_eq(filter.count_of("key-0"), 1)
+  assert_eq(filter.tracked_key_count(), 40)
 }
-filter.insert("key-0")
-assert_true(filter.slice_count() > 1)
-assert_eq(filter.count_of("key-0"), 2)
-assert_true(filter.remove("key-0"))
-assert_eq(filter.count_of("key-0"), 1)
-assert_eq(filter.tracked_key_count(), 40)
 ```
 
 **Tracking:** A 128-bit hash + multiplicity is stored for each distinct key.
@@ -264,11 +359,14 @@ Supports deletion with typically less memory than counting Bloom at comparable
 false-positive rates.
 
 ```moonbit
-let filter = @src.CuckooFilter::new(10_000)
-assert_true(filter.insert("session-1"))
-assert_true(filter.contains("session-1"))
-assert_true(filter.remove("session-1"))
-assert_false(filter.contains("session-1"))
+///|
+test "cuckoo filter" {
+  let filter = @src.CuckooFilter::new(10_000)
+  assert_true(filter.insert("session-1"))
+  assert_true(filter.contains("session-1"))
+  assert_true(filter.remove("session-1"))
+  assert_false(filter.contains("session-1"))
+}
 ```
 
 **Layout:** `with_size(bucket_count, bucket_size)` — bucket count rounded to
@@ -301,18 +399,21 @@ holding a fingerprint, in `[0, 1]`.
 `Concurrent*` wrappers serialize every operation with a mutex.
 
 ```moonbit
-let filter = @src.ConcurrentBloomFilter::new(1000, 0.01)
-filter.insert("shared")
-assert_true(filter.contains("shared"))
+///|
+test "concurrent bloom filter" {
+  let filter = @src.ConcurrentBloomFilter::new(1_000, 0.01)
+  filter.insert("shared")
+  assert_true(filter.contains("shared"))
 
-let keys = ["a", "b", "c"]
-filter.insert_all(keys)
-assert_true(filter.contains_all(keys))
+  let keys = ["a", "b", "c"]
+  filter.insert_all(keys)
+  assert_true(filter.contains_all(keys))
 
-// Atomic snapshot for consistent reads
-let snapshot = filter.snapshot()
-filter.insert("after-snapshot")
-assert_false(snapshot.contains("after-snapshot"))
+  // Atomic snapshot for consistent reads
+  let snapshot = filter.snapshot()
+  filter.insert("after-snapshot")
+  assert_false(snapshot.contains("after-snapshot"))
+}
 ```
 
 **Target behavior:**
@@ -338,24 +439,30 @@ All expose `copy()` (lock held during copy) and `snapshot()` (alias for
 Filters with identical configuration can be combined without re-hashing:
 
 ```moonbit
-let left = @src.BloomFilter::with_size(4096, 4)
-let right = @src.BloomFilter::with_size(4096, 4)
-left.insert("left")
-right.insert("right")
+///|
+test "bloom filter set operations" {
+  let left = @src.BloomFilter::with_size(4096, 4)
+  let right = @src.BloomFilter::with_size(4096, 4)
+  left.insert("left")
+  right.insert("right")
 
-let union = left.union(right)
-assert_true(union.contains("left"))
-assert_true(union.contains("right"))
-assert_true(left.is_subset_of(union))
+  let union = left.union(right)
+  assert_true(union.contains("left"))
+  assert_true(union.contains("right"))
+  assert_true(left.is_subset_of(union))
+}
 ```
 
 | Operation | Description | Returns |
 | --- | --- | --- |
-| `merge(other)` | In-place union | `Unit` |
-| `union(other)` | New filter with union | New filter or `None` if full |
+| `merge(other)` | In-place union | `Unit` (Cuckoo: `Bool`) |
+| `union(other)` | New filter with union | New filter (`None` for the Cuckoo filter when the entries do not fit) |
 | `intersection(other)` | New filter with intersection | New filter |
-| `is_subset_of(other)` | Every bit/counter in self ≤ other | `Bool` |
+| `is_subset_of(other)` | Every element reported by self is also reported by other | `Bool` |
 | `is_disjoint_from(other)` | No shared bits/counters/fingerprints | `Bool` |
+
+**Compatibility:** The two operands must share the same layout. A mismatch
+panics instead of silently producing a wrong result.
 
 **Shortcuts:**
 - Empty operands return immediately without scanning
@@ -372,10 +479,13 @@ the operation.
 Every filter supports versioned binary serialization:
 
 ```moonbit
-let original = @src.ScalableBloomFilter::new(1_000, 0.01)
-original.insert("saved")
-let restored = @src.ScalableBloomFilter::from_bytes(original.to_bytes())
-assert_true(restored.contains("saved"))
+///|
+test "serialization round trip" {
+  let original = @src.ScalableBloomFilter::new(1_000, 0.01)
+  original.insert("saved")
+  let restored = @src.ScalableBloomFilter::from_bytes(original.to_bytes())
+  assert_true(restored.contains("saved"))
+}
 ```
 
 **Format:** Configuration, insertion count, backing array + type tag + version.
@@ -385,16 +495,22 @@ version, or invalid config.
 **Cuckoo:** Eviction state preserved; zero state rejected (would break
 placement).
 
+The concurrent wrappers expose the same `to_bytes` / `from_bytes` pair and hold
+the lock while encoding.
+
 ## Sizing Before Allocation
 
 `optimal_size` helpers compute layouts without allocating:
 
 ```moonbit
-let (bits, hashes) = @src.BloomFilter::optimal_size(10_000, 0.01)
-let filter = @src.BloomFilter::new(10_000, 0.01)
-assert_eq(bits, filter.bit_count())
-assert_eq(hashes, filter.hash_count())
-assert_eq(bits.to_int64() / 8L, filter.memory_bytes())
+///|
+test "sizing before allocation" {
+  let (bits, hashes) = @src.BloomFilter::optimal_size(10_000, 0.01)
+  let filter = @src.BloomFilter::new(10_000, 0.01)
+  assert_eq(bits, filter.bit_count())
+  assert_eq(hashes, filter.hash_count())
+  assert_eq(bits.to_int64() / 8L, filter.memory_bytes())
+}
 ```
 
 | Filter | Returns |

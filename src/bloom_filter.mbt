@@ -39,9 +39,6 @@ const MIX64_CONST_3 : UInt64 = 0x9E3779B97F4A7C15UL
 /// Maximum insertion count before overflow (Int32::max_value()).
 const MAX_INSERTIONS : Int32 = 2147483647
 
-/// Natural logarithm of 2.
-const LN2 : Double = 0.6931471805599453
-
 ///|
 fn mix64(x : UInt64) -> UInt64 {
   let mut value = x
@@ -82,14 +79,32 @@ fn bloom_effective_probes(
 }
 
 ///|
-/// Whether every addressable bit is currently set.
-fn BloomFilter::all_bits_set(self : BloomFilter) -> Bool {
-  for i = 0; i < self.words.length(); i = i + 1 {
-    if self.words[i] != WORD_ALL_ONES {
+/// Whether every bit in a bit-packed word array is set.
+fn words_all_set(words : FixedArray[UInt64]) -> Bool {
+  for i = 0; i < words.length(); i = i + 1 {
+    if words[i] != WORD_ALL_ONES {
       return false
     }
   }
   true
+}
+
+///|
+/// Whether scanning the whole backing array is cheaper than walking `probes`
+/// positions.
+///
+/// A completely full filter cannot change, so one scan of the backing words can
+/// replace a long probe walk. Ordinary layouts (a handful of probes over many
+/// words) stay on the probe path; the threshold only selects the scan when the
+/// effective walk is already wider than the word array.
+fn probe_walk_exceeds_words(probes : Int32, word_count : Int32) -> Bool {
+  probes > WORD_BITS && probes > word_count
+}
+
+///|
+/// Whether every addressable bit is currently set.
+fn BloomFilter::all_bits_set(self : BloomFilter) -> Bool {
+  words_all_set(self.words)
 }
 
 ///|
@@ -103,7 +118,7 @@ fn BloomFilter::should_check_full(
   self : BloomFilter,
   probes : Int32,
 ) -> Bool {
-  probes > WORD_BITS && probes > self.words.length()
+  probe_walk_exceeds_words(probes, self.words.length())
 }
 
 ///|
@@ -112,11 +127,12 @@ fn bloom_layout(
   expected_items : Int32,
   false_positive_rate : Double,
 ) -> (Int32, Int32) {
-  let n = expected_items.to_double()
-  let bits = -(n * @math.ln(false_positive_rate)) / (LN2 * LN2)
-  guard bits <= BLOOM_MAX_BITS.to_double() else { abort("bloom filter size is too large") }
-  let bit_count = (bits.ceil().to_int() + WORD_BITS - 1) / WORD_BITS * WORD_BITS
-  let hash_count = (bits / n * LN2).round().to_int().max(1)
+  let raw_bits = bloom_raw_bit_count(expected_items, false_positive_rate)
+  guard raw_bits <= BLOOM_MAX_BITS.to_double() else {
+    abort("bloom filter size is too large")
+  }
+  let bit_count = round_up_to_alignment(raw_bits.ceil().to_int(), WORD_BITS)
+  let hash_count = bloom_hash_count(raw_bits, expected_items)
   (bit_count, hash_count)
 }
 
@@ -131,10 +147,8 @@ pub fn BloomFilter::optimal_size(
   expected_items : Int32,
   false_positive_rate : Double,
 ) -> (Int32, Int32) {
-  guard expected_items > 0 else { abort("expected_items must be positive") }
-  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
-    abort("false_positive_rate must be between 0 and 1")
-  }
+  validate_expected_items(expected_items)
+  validate_false_positive_rate(false_positive_rate)
   bloom_layout(expected_items, false_positive_rate)
 }
 
@@ -168,11 +182,11 @@ pub fn BloomFilter::with_size(
   guard bit_count > 0 && bit_count <= BLOOM_MAX_BITS else {
     abort("bit_count must be positive and not too large")
   }
-  guard hash_count > 0 else { abort("hash_count must be positive") }
-  let word_count = (bit_count + WORD_BITS - 1) / WORD_BITS
+  validate_hash_count(hash_count)
+  let rounded = round_up_to_alignment(bit_count, WORD_BITS)
   {
-    words: FixedArray::make(word_count, 0UL),
-    bit_count: word_count * WORD_BITS,
+    words: FixedArray::make(rounded / WORD_BITS, 0UL),
+    bit_count: rounded,
     hash_count,
     inserted: 0,
   }

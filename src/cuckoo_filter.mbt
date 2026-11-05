@@ -17,6 +17,25 @@ pub struct CuckooFilter {
 const CUCKOO_BFS_BUCKET_LIMIT : Int32 = 65536
 
 ///|
+/// Largest number of keys a cuckoo filter can be sized for.
+///
+/// The limit keeps the bucket count computation inside the signed 32-bit range:
+/// the constructor derives the bucket count from twice the expected items.
+const CUCKOO_MAX_EXPECTED_ITEMS : Int32 = 536870912
+
+///|
+/// Largest number of buckets a cuckoo filter can hold.
+const CUCKOO_MAX_BUCKETS : Int32 = 1073741824
+
+///|
+/// Largest number of fingerprint slots a cuckoo filter can hold.
+///
+/// The bound leaves room for the 20-byte serialization header and the 8-byte
+/// eviction state so a full filter still has a representable serialized
+/// length.
+const CUCKOO_MAX_SLOTS : Int32 = 2147483619
+
+///|
 fn next_power_of_two(n : Int32) -> Int32 {
   let mut result = 1
   while result < n {
@@ -47,8 +66,8 @@ fn fingerprint_hash(fingerprint : Byte) -> UInt64 {
 /// matches `bucket_count()` on a filter built with the same arguments. Panics
 /// for the same invalid arguments as `CuckooFilter::new`.
 pub fn CuckooFilter::optimal_size(expected_items : Int32) -> (Int32, Int32) {
-  guard expected_items > 0 else { abort("expected_items must be positive") }
-  guard expected_items <= 536870912 else {
+  validate_expected_items(expected_items)
+  guard expected_items <= CUCKOO_MAX_EXPECTED_ITEMS else {
     abort("expected_items is too large")
   }
   let bucket_size = 4
@@ -75,7 +94,7 @@ pub fn CuckooFilter::with_size(
   bucket_count : Int32,
   bucket_size : Int32,
 ) -> CuckooFilter {
-  guard bucket_count > 0 && bucket_count <= 1073741824 else {
+  guard bucket_count > 0 && bucket_count <= CUCKOO_MAX_BUCKETS else {
     abort("bucket_count must be positive and not too large")
   }
   guard bucket_size > 0 else { abort("bucket_size must be positive") }
@@ -84,7 +103,7 @@ pub fn CuckooFilter::with_size(
   // bucket count up can more than double the slot capacity that the original
   // argument would allow. Leaving room for the 20-byte header and the 8-byte
   // eviction state also keeps the serialized length representable.
-  guard bucket_size <= 2147483619 / bucket_count else {
+  guard bucket_size <= CUCKOO_MAX_SLOTS / bucket_count else {
     abort("cuckoo filter size is too large")
   }
   let slot_count = bucket_count * bucket_size
@@ -621,6 +640,18 @@ fn CuckooFilter::retry_union(
 }
 
 ///|
+/// Reject a set operation between two filters with different layouts.
+fn CuckooFilter::ensure_compatible(
+  self : CuckooFilter,
+  other : CuckooFilter,
+) -> Unit {
+  guard self.bucket_count == other.bucket_count &&
+    self.bucket_size == other.bucket_size else {
+    abort("cuckoo filters must have the same bucket count and size")
+  }
+}
+
+///|
 /// Build a new filter that reports every key present in either input.
 ///
 /// Both filters must use the same bucket count and bucket size. Fingerprints
@@ -634,10 +665,7 @@ pub fn CuckooFilter::union(
   self : CuckooFilter,
   other : CuckooFilter,
 ) -> CuckooFilter? {
-  guard self.bucket_count == other.bucket_count &&
-    self.bucket_size == other.bucket_size else {
-    abort("cuckoo filters must have the same bucket count and size")
-  }
+  self.ensure_compatible(other)
   // Both filters can hold close to the maximum slot count, so the combined
   // fingerprint count has to be compared in 64 bits: an `Int32` sum would wrap
   // around and wrongly report that a full combination still fits.
@@ -669,6 +697,20 @@ pub fn CuckooFilter::union(
 }
 
 ///|
+/// Number of 64-bit words used to track the fingerprints seen in one bucket.
+///
+/// Fingerprints are one byte, so four words cover every possible value.
+const CUCKOO_SEEN_WORDS : Int32 = 4
+
+///|
+/// Clear the fingerprint-tracking bits of one bucket.
+fn cuckoo_reset_seen(seen : FixedArray[UInt64]) -> Unit {
+  for i = 0; i < seen.length(); i = i + 1 {
+    seen[i] = 0UL
+  }
+}
+
+///|
 /// Build the intersection of two filters with matching layouts.
 ///
 /// A key's fingerprint may live in either of its two candidate buckets, and the
@@ -693,14 +735,11 @@ fn CuckooFilter::min_bucket_fingerprints(
     return result
   }
   let mut stored = 0
-  let seen = FixedArray::make(4, 0UL)
+  let seen = FixedArray::make(CUCKOO_SEEN_WORDS, 0UL)
   for bucket = 0; bucket < result.bucket_count; bucket = bucket + 1 {
     // Fingerprints are one byte, so four words track the pairs already handled
     // in this bucket without allocating a hash map for the whole intersection.
-    seen[0] = 0UL
-    seen[1] = 0UL
-    seen[2] = 0UL
-    seen[3] = 0UL
+    cuckoo_reset_seen(seen)
     let base = bucket * result.bucket_size
     for slot = 0; slot < result.bucket_size; slot = slot + 1 {
       let fingerprint = self.buckets[base + slot]
@@ -717,8 +756,8 @@ fn CuckooFilter::min_bucket_fingerprints(
         continue
       }
       let value = fingerprint.to_int()
-      let word = value / 64
-      let mask = 1UL << (value % 64)
+      let word = value / WORD_BITS
+      let mask = 1UL << (value % WORD_BITS)
       if (seen[word] & mask) != 0UL {
         continue
       }
@@ -771,10 +810,7 @@ pub fn CuckooFilter::intersection(
   self : CuckooFilter,
   other : CuckooFilter,
 ) -> CuckooFilter {
-  guard self.bucket_count == other.bucket_count &&
-    self.bucket_size == other.bucket_size else {
-    abort("cuckoo filters must have the same bucket count and size")
-  }
+  self.ensure_compatible(other)
   self.min_bucket_fingerprints(other)
 }
 
@@ -785,10 +821,7 @@ pub fn CuckooFilter::intersection(
 /// when every fingerprint was added. If the combined fingerprints cannot fit,
 /// returns `false` and leaves `self` unchanged.
 pub fn CuckooFilter::merge(self : CuckooFilter, other : CuckooFilter) -> Bool {
-  guard self.bucket_count == other.bucket_count &&
-    self.bucket_size == other.bucket_size else {
-    abort("cuckoo filters must have the same bucket count and size")
-  }
+  self.ensure_compatible(other)
   if other.inserted == 0 {
     return true
   }
@@ -824,22 +857,16 @@ pub fn CuckooFilter::is_subset_of(
   self : CuckooFilter,
   other : CuckooFilter,
 ) -> Bool {
-  guard self.bucket_count == other.bucket_count &&
-    self.bucket_size == other.bucket_size else {
-    abort("cuckoo filters must have the same bucket count and size")
-  }
+  self.ensure_compatible(other)
   if self.inserted == 0 {
     return true
   }
   if self.inserted > other.inserted {
     return false
   }
-  let seen = FixedArray::make(4, 0UL)
+  let seen = FixedArray::make(CUCKOO_SEEN_WORDS, 0UL)
   for bucket = 0; bucket < self.bucket_count; bucket = bucket + 1 {
-    seen[0] = 0UL
-    seen[1] = 0UL
-    seen[2] = 0UL
-    seen[3] = 0UL
+    cuckoo_reset_seen(seen)
     let base = bucket * self.bucket_size
     for slot = 0; slot < self.bucket_size; slot = slot + 1 {
       let fingerprint = self.buckets[base + slot]
@@ -847,8 +874,8 @@ pub fn CuckooFilter::is_subset_of(
         continue
       }
       let value = fingerprint.to_int()
-      let word = value / 64
-      let mask = 1UL << (value % 64)
+      let word = value / WORD_BITS
+      let mask = 1UL << (value % WORD_BITS)
       if (seen[word] & mask) != 0UL {
         continue
       }
@@ -874,19 +901,13 @@ pub fn CuckooFilter::is_disjoint_from(
   self : CuckooFilter,
   other : CuckooFilter,
 ) -> Bool {
-  guard self.bucket_count == other.bucket_count &&
-    self.bucket_size == other.bucket_size else {
-    abort("cuckoo filters must have the same bucket count and size")
-  }
+  self.ensure_compatible(other)
   if self.inserted == 0 || other.inserted == 0 {
     return true
   }
-  let seen = FixedArray::make(4, 0UL)
+  let seen = FixedArray::make(CUCKOO_SEEN_WORDS, 0UL)
   for bucket = 0; bucket < self.bucket_count; bucket = bucket + 1 {
-    seen[0] = 0UL
-    seen[1] = 0UL
-    seen[2] = 0UL
-    seen[3] = 0UL
+    cuckoo_reset_seen(seen)
     let base = bucket * self.bucket_size
     for slot = 0; slot < self.bucket_size; slot = slot + 1 {
       let fingerprint = self.buckets[base + slot]
@@ -894,8 +915,8 @@ pub fn CuckooFilter::is_disjoint_from(
         continue
       }
       let value = fingerprint.to_int()
-      let word = value / 64
-      let mask = 1UL << (value % 64)
+      let word = value / WORD_BITS
+      let mask = 1UL << (value % WORD_BITS)
       if (seen[word] & mask) != 0UL {
         continue
       }

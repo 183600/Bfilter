@@ -42,15 +42,15 @@ fn blocked_bloom_layout(
   expected_items : Int32,
   false_positive_rate : Double,
 ) -> (Int32, Int32) {
-  let n = expected_items.to_double()
-  let bits = -(n * @math.ln(false_positive_rate)) / (LN2 * LN2)
-  guard bits <= BLOCKED_MAX_BITS.to_double() else {
+  let raw_bits = bloom_raw_bit_count(expected_items, false_positive_rate)
+  guard raw_bits <= BLOCKED_MAX_BITS.to_double() else {
     abort("blocked bloom filter size is too large")
   }
-  let bit_count = (bits.ceil().to_int() + BLOCKED_BLOCK_BITS - 1) /
-    BLOCKED_BLOCK_BITS *
-    BLOCKED_BLOCK_BITS
-  let hash_count = (bits / n * LN2).round().to_int().max(1)
+  let bit_count = round_up_to_alignment(
+    raw_bits.ceil().to_int(),
+    BLOCKED_BLOCK_BITS,
+  )
+  let hash_count = bloom_hash_count(raw_bits, expected_items)
   (bit_count, hash_count)
 }
 
@@ -64,10 +64,8 @@ pub fn BlockedBloomFilter::optimal_size(
   expected_items : Int32,
   false_positive_rate : Double,
 ) -> (Int32, Int32) {
-  guard expected_items > 0 else { abort("expected_items must be positive") }
-  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
-    abort("false_positive_rate must be between 0 and 1")
-  }
+  validate_expected_items(expected_items)
+  validate_false_positive_rate(false_positive_rate)
   blocked_bloom_layout(expected_items, false_positive_rate)
 }
 
@@ -103,13 +101,13 @@ pub fn BlockedBloomFilter::with_size(
   guard bit_count > 0 && bit_count <= BLOCKED_MAX_BITS else {
     abort("bit_count must be positive and not too large")
   }
-  guard hash_count > 0 else { abort("hash_count must be positive") }
-  let rounded = (bit_count + BLOCKED_BLOCK_BITS - 1) /
-    BLOCKED_BLOCK_BITS *
-    BLOCKED_BLOCK_BITS
-  let block_count = rounded / BLOCKED_BLOCK_BITS
+  validate_hash_count(hash_count)
+  let rounded = round_up_to_alignment(bit_count, BLOCKED_BLOCK_BITS)
   {
-    words: FixedArray::make(block_count * BLOCKED_BLOCK_WORDS, 0UL),
+    words: FixedArray::make(
+      rounded / BLOCKED_BLOCK_BITS * BLOCKED_BLOCK_WORDS,
+      0UL,
+    ),
     bit_count: rounded,
     hash_count,
     inserted: 0,
@@ -129,12 +127,7 @@ fn BlockedBloomFilter::block_base(
 ///|
 /// Whether every addressable bit is currently set.
 fn BlockedBloomFilter::all_bits_set(self : BlockedBloomFilter) -> Bool {
-  for i = 0; i < self.words.length(); i = i + 1 {
-    if self.words[i] != WORD_ALL_ONES {
-      return false
-    }
-  }
-  true
+  words_all_set(self.words)
 }
 
 ///|
@@ -147,7 +140,7 @@ fn BlockedBloomFilter::should_check_full(
   self : BlockedBloomFilter,
   probes : Int32,
 ) -> Bool {
-  probes > WORD_BITS && probes > self.words.length()
+  probe_walk_exceeds_words(probes, self.words.length())
 }
 
 ///|

@@ -21,8 +21,8 @@ pub struct CountingBloomFilter {
 /// Number of 16-bit counters packed into a UInt64.
 const COUNTING_SLOTS_PER_WORD : Int32 = 4
 
-/// Number of counters packed into 4 UInt64 words (16 counters = 4 words * 4 counters/word).
-/// Slot counts are rounded up to this multiple to align with word boundaries.
+/// Slot counts are rounded up to this multiple so the counter array spans a
+/// whole number of four-word groups.
 const COUNTING_SLOTS_PER_WORD_ALIGN : Int32 = 16
 
 /// Maximum value of a single 16-bit counter.
@@ -110,14 +110,18 @@ fn counting_bloom_layout(
   expected_items : Int32,
   false_positive_rate : Double,
 ) -> (Int32, Int32) {
-  let n = expected_items.to_double()
-  let bits = -(n * @math.ln(false_positive_rate)) / (LN2 * LN2)
-  guard bits <= BLOOM_MAX_BITS.to_double() else { abort("bloom filter size is too large") }
-  let slot_count = (bits.ceil().to_int() + COUNTING_SLOTS_PER_WORD_ALIGN - 1) / COUNTING_SLOTS_PER_WORD_ALIGN * COUNTING_SLOTS_PER_WORD_ALIGN
+  let raw_bits = bloom_raw_bit_count(expected_items, false_positive_rate)
+  guard raw_bits <= BLOOM_MAX_BITS.to_double() else {
+    abort("bloom filter size is too large")
+  }
+  let slot_count = round_up_to_alignment(
+    raw_bits.ceil().to_int(),
+    COUNTING_SLOTS_PER_WORD_ALIGN,
+  )
   guard slot_count <= COUNTING_MAX_SLOTS else {
     abort("counting bloom filter size is too large")
   }
-  let hash_count = (bits / n * LN2).round().to_int().max(1)
+  let hash_count = bloom_hash_count(raw_bits, expected_items)
   (slot_count, hash_count)
 }
 
@@ -137,10 +141,8 @@ pub fn CountingBloomFilter::optimal_size(
   expected_items : Int32,
   false_positive_rate : Double,
 ) -> (Int32, Int32) {
-  guard expected_items > 0 else { abort("expected_items must be positive") }
-  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
-    abort("false_positive_rate must be between 0 and 1")
-  }
+  validate_expected_items(expected_items)
+  validate_false_positive_rate(false_positive_rate)
   counting_bloom_layout(expected_items, false_positive_rate)
 }
 
@@ -172,8 +174,8 @@ pub fn CountingBloomFilter::with_size(
   guard slot_count > 0 && slot_count <= COUNTING_MAX_SLOTS else {
     abort("slot_count must be positive and not too large")
   }
-  guard hash_count > 0 else { abort("hash_count must be positive") }
-  let rounded = (slot_count + COUNTING_SLOTS_PER_WORD_ALIGN - 1) / COUNTING_SLOTS_PER_WORD_ALIGN * COUNTING_SLOTS_PER_WORD_ALIGN
+  validate_hash_count(hash_count)
+  let rounded = round_up_to_alignment(slot_count, COUNTING_SLOTS_PER_WORD_ALIGN)
   let probe_length = counting_probe_length(hash_count, rounded)
   {
     counters: FixedArray::make(rounded / COUNTING_SLOTS_PER_WORD, 0UL),
@@ -590,6 +592,55 @@ fn CountingBloomFilter::raise_positions_for_merge(
 }
 
 ///|
+/// Number of complete contributions that fit in every selected lane.
+///
+/// The returned count is the largest number of whole contributions that every
+/// selected lane can still absorb, capped at `wanted`. The returned flag
+/// reports whether at least one selected lane is still empty, which means the
+/// key is not fully present yet.
+fn CountingBloomFilter::common_raise_capacity(
+  self : CountingBloomFilter,
+  positions : CountingPositionSet,
+  wanted : UInt64,
+) -> (UInt64, Bool) {
+  let mut common = wanted
+  let mut any_zero = false
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
+    let limit = counting_position_limit(occurrences)
+    let value = self.counter_at(pos)
+    if value == 0UL {
+      any_zero = true
+    }
+    let available = if value > limit {
+      0UL
+    } else {
+      (limit - value) / occurrences
+    }
+    if available < common {
+      common = available
+    }
+  }
+  (common, any_zero)
+}
+
+///|
+/// Advance every selected lane by the same number of complete contributions.
+fn CountingBloomFilter::raise_all_positions_by(
+  self : CountingBloomFilter,
+  positions : CountingPositionSet,
+  common : UInt64,
+) -> Unit {
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
+    let value = self.counter_at(pos)
+    self.set_counter(pos, value + common * occurrences)
+  }
+}
+
+///|
 /// Add a key that is entering a rebuilt merge slice for the first time.
 ///
 /// When the slice still has room for every selected lane, advance all of them by
@@ -607,28 +658,9 @@ fn CountingBloomFilter::raise_positions_for_new_merge(
 ) -> Unit {
   let positions = self.positions_for(h1, h2)
   let wanted = multiplicity.to_uint64()
-  let mut common = wanted
-  for i = 0; i < positions.length; i = i + 1 {
-    let pos = positions.positions[i]
-    let occurrences = positions.counts[i].to_uint64()
-    let limit = counting_position_limit(occurrences)
-    let value = self.counter_at(pos)
-    let available = if value > limit {
-      0UL
-    } else {
-      (limit - value) / occurrences
-    }
-    if available < common {
-      common = available
-    }
-  }
+  let (common, _) = self.common_raise_capacity(positions, wanted)
   if common > 0UL {
-    for i = 0; i < positions.length; i = i + 1 {
-      let pos = positions.positions[i]
-      let occurrences = positions.counts[i].to_uint64()
-      let value = self.counter_at(pos)
-      self.set_counter(pos, value + common * occurrences)
-    }
+    self.raise_all_positions_by(positions, common)
   } else {
     self.raise_positions_for_merge(h1, h2, multiplicity)
   }
@@ -649,12 +681,7 @@ fn CountingBloomFilter::apply_raise_positions_at(
   wanted : UInt64,
 ) -> Unit {
   if common > 0UL {
-    for i = 0; i < positions.length; i = i + 1 {
-      let pos = positions.positions[i]
-      let occurrences = positions.counts[i].to_uint64()
-      let value = self.counter_at(pos)
-      self.set_counter(pos, value + common * occurrences)
-    }
+    self.raise_all_positions_by(positions, common)
     return
   }
   if !any_zero {
@@ -689,25 +716,7 @@ fn CountingBloomFilter::raise_positions_at(
   // removals then stop early and leave positive residue on the remaining lanes
   // forever. Find how many complete contributions fit in every selected lane
   // and add the same number to all of them.
-  let mut common = wanted
-  let mut any_zero = false
-  for i = 0; i < positions.length; i = i + 1 {
-    let pos = positions.positions[i]
-    let occurrences = positions.counts[i].to_uint64()
-    let limit = counting_position_limit(occurrences)
-    let value = self.counter_at(pos)
-    if value == 0UL {
-      any_zero = true
-    }
-    let available = if value > limit {
-      0UL
-    } else {
-      (limit - value) / occurrences
-    }
-    if available < common {
-      common = available
-    }
-  }
+  let (common, any_zero) = self.common_raise_capacity(positions, wanted)
   self.apply_raise_positions_at(positions, common, any_zero, wanted)
 }
 
@@ -722,25 +731,7 @@ fn CountingBloomFilter::insert_absent_at(
   positions : CountingPositionSet,
 ) -> Bool {
   let wanted = 1UL
-  let mut common = wanted
-  let mut any_zero = false
-  for i = 0; i < positions.length; i = i + 1 {
-    let pos = positions.positions[i]
-    let occurrences = positions.counts[i].to_uint64()
-    let limit = counting_position_limit(occurrences)
-    let value = self.counter_at(pos)
-    if value == 0UL {
-      any_zero = true
-    }
-    let available = if value > limit {
-      0UL
-    } else {
-      (limit - value) / occurrences
-    }
-    if available < common {
-      common = available
-    }
-  }
+  let (common, any_zero) = self.common_raise_capacity(positions, wanted)
   if !any_zero {
     return false
   }

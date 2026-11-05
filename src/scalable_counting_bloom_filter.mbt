@@ -18,9 +18,6 @@ pub struct ScalableCountingBloomFilter {
 }
 
 ///|
-const SCALABLE_COUNTING_GROWTH : Int32 = 2
-
-///|
 /// Maximum number of counter slots a scalable counting filter can hold.
 ///
 /// Counting filters store two bytes per slot. Growth doubles the capacity from
@@ -33,16 +30,12 @@ const SCALABLE_COUNTING_GROWTH : Int32 = 2
 const SCALABLE_COUNTING_MAX_SLOTS : Int64 = 1_073_741_435L
 
 ///|
+/// False-positive rate assigned to slice `index` of a growing counting filter.
+///
+/// Counting filters follow the same slice-rate policy as the plain scalable
+/// filter, so both share one implementation.
 fn scalable_counting_slice_rate(target_rate : Double, index : Int32) -> Double {
-  let rate = target_rate * @math.pow(0.5, (index + 1).to_double())
-  if rate > 0.0 {
-    rate
-  } else {
-    // Halving a tiny target can underflow to zero. Keep every slice positive by
-    // clamping to the smallest representable double instead of loosening the
-    // later slices back to the original target rate.
-    0x0000000000000001L.reinterpret_as_double()
-  }
+  scalable_slice_rate(target_rate, index)
 }
 
 ///|
@@ -54,10 +47,10 @@ fn ScalableCountingBloomFilter::append_slice(
     self.initial_capacity
   } else {
     let previous = self.capacities[index - 1]
-    if previous > 2147483647 / SCALABLE_COUNTING_GROWTH {
+    if previous > MAX_INSERTIONS / SCALABLE_GROWTH {
       abort("scalable counting bloom filter is too large")
     }
-    previous * SCALABLE_COUNTING_GROWTH
+    previous * SCALABLE_GROWTH
   }
   let (slot_count, hash_count) = counting_bloom_layout(
     capacity,
@@ -93,10 +86,8 @@ pub fn ScalableCountingBloomFilter::optimal_size(
   expected_items : Int32,
   false_positive_rate : Double,
 ) -> (Int32, Int32) {
-  guard expected_items > 0 else { abort("expected_items must be positive") }
-  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
-    abort("false_positive_rate must be between 0 and 1")
-  }
+  validate_expected_items(expected_items)
+  validate_false_positive_rate(false_positive_rate)
   let (slot_count, hash_count) = counting_bloom_layout(
     expected_items,
     scalable_counting_slice_rate(false_positive_rate, 0),
@@ -120,10 +111,8 @@ pub fn ScalableCountingBloomFilter::new(
   expected_items : Int32,
   false_positive_rate : Double,
 ) -> ScalableCountingBloomFilter {
-  guard expected_items > 0 else { abort("expected_items must be positive") }
-  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
-    abort("false_positive_rate must be between 0 and 1")
-  }
+  validate_expected_items(expected_items)
+  validate_false_positive_rate(false_positive_rate)
   let filter : ScalableCountingBloomFilter = {
     slices: [],
     capacities: [],
@@ -158,12 +147,12 @@ fn ScalableCountingBloomFilter::insert_hashes(
   self : ScalableCountingBloomFilter,
   id : (UInt64, UInt64),
 ) -> Unit {
-  guard self.inserted < 2147483647 else {
+  guard self.inserted < MAX_INSERTIONS else {
     abort("scalable counting bloom filter insertion count overflow")
   }
   match self.locations.get(id) {
     Some((slice_index, occurrences)) => {
-      guard occurrences < 2147483647 else {
+      guard occurrences < MAX_INSERTIONS else {
         abort("scalable counting bloom filter occurrence count overflow")
       }
       self.slices[slice_index].insert_hashes(id.0, id.1)
@@ -409,13 +398,9 @@ pub fn ScalableCountingBloomFilter::copy(
   for slice in self.slices {
     slices.push(slice.copy())
   }
-  let capacities : Array[Int32] = []
-  for capacity in self.capacities {
-    capacities.push(capacity)
-  }
   {
     slices,
-    capacities,
+    capacities: self.capacities.copy(),
     locations: self.locations.copy(),
     initial_capacity: self.initial_capacity,
     target_rate: self.target_rate,
@@ -708,7 +693,7 @@ pub fn ScalableCountingBloomFilter::merge(
     return
   }
   if other.locations.length() == 0 && !other.has_positive_counters() && other.inserted > 0 {
-    guard self.inserted <= 2147483647 - other.inserted else {
+    guard self.inserted <= MAX_INSERTIONS - other.inserted else {
       abort("scalable counting bloom filter insertion count overflow")
     }
     if self.slices.length() > 0 {
@@ -718,7 +703,8 @@ pub fn ScalableCountingBloomFilter::merge(
       // slice would make the merged filter impossible to deserialize.
       let target = self.find_count_only_slice()
       if target >= 0 {
-        guard self.slices[target].inserted <= 2147483647 - other.inserted else {
+        guard self.slices[target].inserted <=
+          MAX_INSERTIONS - other.inserted else {
           abort("scalable counting bloom filter insertion count overflow")
         }
         self.slices[target].inserted += other.inserted
@@ -732,7 +718,7 @@ pub fn ScalableCountingBloomFilter::merge(
       }
     } else if self.inserted > 0 {
       self.append_slice()
-      guard self.inserted <= 2147483647 - other.inserted else {
+      guard self.inserted <= MAX_INSERTIONS - other.inserted else {
         abort("scalable counting bloom filter insertion count overflow")
       }
       self.slices[0].inserted = self.inserted + other.inserted
@@ -843,7 +829,7 @@ pub fn ScalableCountingBloomFilter::merge(
           }
           merged.set(id, (other_slice, occurrences))
         } else {
-          guard self_occurrences <= 2147483647 - other_occurrences else {
+          guard self_occurrences <= MAX_INSERTIONS - other_occurrences else {
             abort("scalable counting bloom filter occurrence count overflow")
           }
           merged.set(id, (self_slice, self_occurrences + other_occurrences))
@@ -862,7 +848,7 @@ pub fn ScalableCountingBloomFilter::merge(
       occurrences.to_int64()
     total_inserted = total_inserted + occurrences.to_int64()
   }
-  guard total_inserted <= 2147483647L else {
+  guard total_inserted <= MAX_INSERTIONS.to_int64() else {
     abort("scalable counting bloom filter insertion count overflow")
   }
   for i = 0; i < slice_count; i = i + 1 {
@@ -994,14 +980,14 @@ pub fn ScalableCountingBloomFilter::intersection(
       None => ()
     }
   }
-  guard claimed_inserted <= 2147483647L else {
+  guard claimed_inserted <= MAX_INSERTIONS.to_int64() else {
     abort("scalable counting bloom filter insertion count overflow")
   }
   let mut inserted = 0L
   for i = 0; i < slice_count; i = i + 1 {
     inserted = inserted + slice_inserted[i]
   }
-  guard inserted <= 2147483647L else {
+  guard inserted <= MAX_INSERTIONS.to_int64() else {
     abort("scalable counting bloom filter insertion count overflow")
   }
   if count_only_operand {

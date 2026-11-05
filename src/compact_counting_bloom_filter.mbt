@@ -25,10 +25,10 @@ pub struct CompactCountingBloomFilter {
 const COMPACT_COUNTER_MAX : UInt64 = 0xFUL
 
 /// Number of 4-bit counters packed into a UInt64.
+///
+/// Slot counts are rounded up to this multiple so that every counter occupies
+/// a whole word.
 const COMPACT_SLOTS_PER_WORD : Int32 = 16
-
-/// Slot counts are rounded up to this multiple (16 counters = 1 UInt64 word) to align with word boundaries.
-const COMPACT_SLOTS_PER_WORD_ALIGN : Int32 = 16
 
 /// Maximum number of counter slots.
 const COMPACT_MAX_SLOTS : Int32 = 1073741808
@@ -123,10 +123,8 @@ pub fn CompactCountingBloomFilter::optimal_size(
   expected_items : Int32,
   false_positive_rate : Double,
 ) -> (Int32, Int32) {
-  guard expected_items > 0 else { abort("expected_items must be positive") }
-  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
-    abort("false_positive_rate must be between 0 and 1")
-  }
+  validate_expected_items(expected_items)
+  validate_false_positive_rate(false_positive_rate)
   counting_bloom_layout(expected_items, false_positive_rate)
 }
 
@@ -158,8 +156,8 @@ pub fn CompactCountingBloomFilter::with_size(
   guard slot_count > 0 && slot_count <= COMPACT_MAX_SLOTS else {
     abort("slot_count must be positive and not too large")
   }
-  guard hash_count > 0 else { abort("hash_count must be positive") }
-  let rounded = (slot_count + COMPACT_SLOTS_PER_WORD_ALIGN - 1) / COMPACT_SLOTS_PER_WORD_ALIGN * COMPACT_SLOTS_PER_WORD_ALIGN
+  validate_hash_count(hash_count)
+  let rounded = round_up_to_alignment(slot_count, COMPACT_SLOTS_PER_WORD)
   let probe_length = counting_probe_length(hash_count, rounded)
   {
     counters: FixedArray::make(rounded / COMPACT_SLOTS_PER_WORD, 0UL),
@@ -245,12 +243,60 @@ fn CompactCountingBloomFilter::increment_positions(
 }
 
 ///|
+/// Number of complete contributions that fit in every selected lane.
+///
+/// The returned count is the largest number of whole contributions that every
+/// selected lane can still absorb. The returned flag reports whether at least
+/// one selected lane is still empty, which means the key is not fully present
+/// yet.
+fn CompactCountingBloomFilter::common_increment_capacity(
+  self : CompactCountingBloomFilter,
+  positions : CountingPositionSet,
+) -> (UInt64, Bool) {
+  let mut common = 1UL
+  let mut any_zero = false
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
+    let limit = compact_position_limit(occurrences)
+    let value = self.counter_at(pos)
+    if value == 0UL {
+      any_zero = true
+    }
+    let available = if value > limit {
+      0UL
+    } else {
+      (limit - value) / occurrences
+    }
+    if available < common {
+      common = available
+    }
+  }
+  (common, any_zero)
+}
+
+///|
+/// Advance every selected lane by the same number of complete contributions.
+fn CompactCountingBloomFilter::increment_all_positions_by(
+  self : CompactCountingBloomFilter,
+  positions : CountingPositionSet,
+  common : UInt64,
+) -> Unit {
+  for i = 0; i < positions.length; i = i + 1 {
+    let pos = positions.positions[i]
+    let occurrences = positions.counts[i].to_uint64()
+    let value = self.counter_at(pos)
+    self.set_counter(pos, value + common * occurrences)
+  }
+}
+
+///|
 /// Apply a precomputed increment plan to every selected counter.
 ///
 /// `common` is the number of complete contributions that fit in every selected
 /// lane. When no such contribution fits but at least one lane is still zero,
 /// the fallback advances each lane independently so a conditional insertion
-/// cannot leave a false negative.
+/// cannot cause a false negative.
 fn CompactCountingBloomFilter::apply_increment_positions_at(
   self : CompactCountingBloomFilter,
   positions : CountingPositionSet,
@@ -258,12 +304,7 @@ fn CompactCountingBloomFilter::apply_increment_positions_at(
   any_zero : Bool,
 ) -> Unit {
   if common > 0UL {
-    for i = 0; i < positions.length; i = i + 1 {
-      let pos = positions.positions[i]
-      let occurrences = positions.counts[i].to_uint64()
-      let value = self.counter_at(pos)
-      self.set_counter(pos, value + common * occurrences)
-    }
+    self.increment_all_positions_by(positions, common)
     return
   }
   if !any_zero {
@@ -295,25 +336,7 @@ fn CompactCountingBloomFilter::increment_positions_at(
   // early and leave positive residue on the remaining lanes forever. Find how
   // many complete contributions fit in every selected lane and add the same
   // number to all of them.
-  let mut common = 1UL
-  let mut any_zero = false
-  for i = 0; i < positions.length; i = i + 1 {
-    let pos = positions.positions[i]
-    let occurrences = positions.counts[i].to_uint64()
-    let limit = compact_position_limit(occurrences)
-    let value = self.counter_at(pos)
-    if value == 0UL {
-      any_zero = true
-    }
-    let available = if value > limit {
-      0UL
-    } else {
-      (limit - value) / occurrences
-    }
-    if available < common {
-      common = available
-    }
-  }
+  let (common, any_zero) = self.common_increment_capacity(positions)
   self.apply_increment_positions_at(positions, common, any_zero)
 }
 
@@ -326,25 +349,7 @@ fn CompactCountingBloomFilter::insert_absent_at(
   self : CompactCountingBloomFilter,
   positions : CountingPositionSet,
 ) -> Bool {
-  let mut common = 1UL
-  let mut any_zero = false
-  for i = 0; i < positions.length; i = i + 1 {
-    let pos = positions.positions[i]
-    let occurrences = positions.counts[i].to_uint64()
-    let limit = compact_position_limit(occurrences)
-    let value = self.counter_at(pos)
-    if value == 0UL {
-      any_zero = true
-    }
-    let available = if value > limit {
-      0UL
-    } else {
-      (limit - value) / occurrences
-    }
-    if available < common {
-      common = available
-    }
-  }
+  let (common, any_zero) = self.common_increment_capacity(positions)
   if !any_zero {
     return false
   }

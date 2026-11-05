@@ -15,29 +15,13 @@ pub struct ScalableBloomFilter {
 }
 
 ///|
-const SCALABLE_GROWTH : Int32 = 2
-
-///|
-fn scalable_slice_rate(target_rate : Double, index : Int32) -> Double {
-  let rate = target_rate * @math.pow(0.5, (index + 1).to_double())
-  if rate > 0.0 {
-    rate
-  } else {
-    // Halving a tiny target can underflow to zero. Keep every slice positive by
-    // clamping to the smallest representable double instead of loosening the
-    // later slices back to the original target rate.
-    0x0000000000000001L.reinterpret_as_double()
-  }
-}
-
-///|
 fn ScalableBloomFilter::append_slice(self : ScalableBloomFilter) -> Unit {
   let index = self.slices.length()
   let capacity = if index == 0 {
     self.initial_capacity
   } else {
     let previous = self.capacities[index - 1]
-    if previous > 2147483647 / SCALABLE_GROWTH {
+    if previous > MAX_INSERTIONS / SCALABLE_GROWTH {
       abort("scalable bloom filter is too large")
     }
     previous * SCALABLE_GROWTH
@@ -50,7 +34,7 @@ fn ScalableBloomFilter::append_slice(self : ScalableBloomFilter) -> Unit {
   for existing in self.slices {
     bit_count = bit_count + existing.bit_count().to_int64()
   }
-  guard bit_count <= 2147483584L else {
+  guard bit_count <= BLOOM_MAX_BITS.to_int64() else {
     abort("scalable bloom filter is too large")
   }
   let slice = BloomFilter::with_size(slice_bits, slice_hashes)
@@ -70,10 +54,8 @@ pub fn ScalableBloomFilter::optimal_size(
   expected_items : Int32,
   false_positive_rate : Double,
 ) -> (Int32, Int32) {
-  guard expected_items > 0 else { abort("expected_items must be positive") }
-  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
-    abort("false_positive_rate must be between 0 and 1")
-  }
+  validate_expected_items(expected_items)
+  validate_false_positive_rate(false_positive_rate)
   bloom_layout(expected_items, scalable_slice_rate(false_positive_rate, 0))
 }
 
@@ -89,10 +71,8 @@ pub fn ScalableBloomFilter::new(
   expected_items : Int32,
   false_positive_rate : Double,
 ) -> ScalableBloomFilter {
-  guard expected_items > 0 else { abort("expected_items must be positive") }
-  guard false_positive_rate > 0.0 && false_positive_rate < 1.0 else {
-    abort("false_positive_rate must be between 0 and 1")
-  }
+  validate_expected_items(expected_items)
+  validate_false_positive_rate(false_positive_rate)
   let filter : ScalableBloomFilter = {
     slices: [],
     capacities: [],
@@ -125,7 +105,7 @@ fn ScalableBloomFilter::insert_hashes(
   h1 : UInt64,
   h2 : UInt64,
 ) -> Unit {
-  guard self.inserted < 2147483647 else {
+  guard self.inserted < MAX_INSERTIONS else {
     abort("scalable bloom filter insertion count overflow")
   }
   // A whitebox-constructed filter can carry an insertion count without any
@@ -266,13 +246,9 @@ pub fn ScalableBloomFilter::copy(
   for slice in self.slices {
     slices.push(slice.copy())
   }
-  let capacities : Array[Int32] = []
-  for capacity in self.capacities {
-    capacities.push(capacity)
-  }
   {
     slices,
-    capacities,
+    capacities: self.capacities.copy(),
     initial_capacity: self.initial_capacity,
     target_rate: self.target_rate,
     inserted: self.inserted,
@@ -347,7 +323,7 @@ fn ScalableBloomFilter::total_bits(self : ScalableBloomFilter) -> Int64 {
 /// Number of addressable bits across all slices.
 pub fn ScalableBloomFilter::bit_count(self : ScalableBloomFilter) -> Int32 {
   let total = self.total_bits()
-  guard total <= 2147483584L else {
+  guard total <= BLOOM_MAX_BITS.to_int64() else {
     abort("scalable bloom filter is too large")
   }
   total.to_int()
@@ -455,7 +431,7 @@ pub fn ScalableBloomFilter::merge(
   self.ensure_same_policy(other)
   if self.slices.length() == 0 && other.slices.length() == 0 {
     let total = self.inserted.to_int64() + other.inserted.to_int64()
-    guard total >= 0L && total <= 2147483647L else {
+    guard total >= 0L && total <= MAX_INSERTIONS.to_int64() else {
       abort("scalable bloom filter insertion count overflow")
     }
     self.append_slice()
@@ -486,7 +462,7 @@ pub fn ScalableBloomFilter::merge(
         total_bits = total_bits + self.slices[i].bit_count().to_int64()
       }
     }
-    guard total_bits <= 2147483584L else {
+    guard total_bits <= BLOOM_MAX_BITS.to_int64() else {
       abort("scalable bloom filter is too large")
     }
     let slices : Array[BloomFilter] = []
@@ -504,7 +480,7 @@ pub fn ScalableBloomFilter::merge(
     self.capacities = capacities
     if other_slice_count == 0 && other.inserted > 0 {
       let total = self.slices[0].inserted.to_int64() + other.inserted.to_int64()
-      guard total <= 2147483647L else {
+      guard total <= MAX_INSERTIONS.to_int64() else {
         abort("scalable bloom filter insertion count overflow")
       }
       self.slices[0].inserted = total.to_int()
@@ -512,19 +488,19 @@ pub fn ScalableBloomFilter::merge(
     self.inserted = other.inserted
     return
   }
-  guard self.inserted <= 2147483647 - other.inserted else {
+  guard self.inserted <= MAX_INSERTIONS - other.inserted else {
     abort("scalable bloom filter insertion count overflow")
   }
   let mut total_bits = self.total_bits()
   for i = self.slices.length(); i < other.slices.length(); i = i + 1 {
     total_bits = total_bits + other.slices[i].bit_count().to_int64()
   }
-  guard total_bits <= 2147483584L else {
+  guard total_bits <= BLOOM_MAX_BITS.to_int64() else {
     abort("scalable bloom filter is too large")
   }
   if other.slices.length() == 0 && other.inserted > 0 {
     let total = self.slices[0].inserted.to_int64() + other.inserted.to_int64()
-    guard total <= 2147483647L else {
+    guard total <= MAX_INSERTIONS.to_int64() else {
       abort("scalable bloom filter insertion count overflow")
     }
     self.slices[0].inserted = total.to_int()
@@ -590,7 +566,7 @@ pub fn ScalableBloomFilter::intersection(
   for i = 0; i < slice_count; i = i + 1 {
     result_bits = result_bits + self.slices[i].bit_count().to_int64()
   }
-  guard result_bits <= 2147483584L else {
+  guard result_bits <= BLOOM_MAX_BITS.to_int64() else {
     abort("scalable bloom filter is too large")
   }
   let slices : Array[BloomFilter] = []
@@ -602,7 +578,7 @@ pub fn ScalableBloomFilter::intersection(
     slices.push(slice)
     capacities.push(self.capacities[i])
   }
-  guard slice_total <= 2147483647L else {
+  guard slice_total <= MAX_INSERTIONS.to_int64() else {
     abort("scalable bloom filter insertion count overflow")
   }
   let slice_total = slice_total.to_int()
@@ -614,7 +590,7 @@ pub fn ScalableBloomFilter::intersection(
   for slice in slices {
     total_bits = total_bits + slice.bit_count().to_int64()
   }
-  guard total_bits <= 2147483584L else {
+  guard total_bits <= BLOOM_MAX_BITS.to_int64() else {
     abort("scalable bloom filter is too large")
   }
   {
