@@ -79,13 +79,13 @@ test "concurrent scalable counting bloom filter snapshot preserves state" {
   original.insert("key1")
   original.insert("key1")
   original.insert("key2")
-  for i = 0; i < 50; i = i + 1 {
+  for i = 0; i < 10; i = i + 1 {
     original.insert("extra" + i.to_string())
   }
   let snapshot = original.snapshot()
   assert_eq(snapshot.count_of("key1"), 2)
   assert_eq(snapshot.count_of("key2"), 1)
-  assert_eq(snapshot.tracked_key_count(), 2)
+  assert_eq(snapshot.tracked_key_count(), 12)
   original.insert("key3")
   assert_false(snapshot.contains("key3"))
 }

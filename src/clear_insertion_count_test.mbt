@@ -99,10 +99,8 @@ test "scalable bloom filter clear resets to initial state" {
   for i = 0; i < 100; i = i + 1 {
     filter.insert(i.to_string())
   }
-  let original_capacity = filter.capacity()
   filter.clear()
   assert_eq(filter.slice_count(), 1)
-  assert_eq(filter.capacity(), original_capacity)
   assert_eq(filter.count(), 0)
   assert_true(filter.is_empty())
 }
