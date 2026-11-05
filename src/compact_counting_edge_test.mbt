@@ -241,6 +241,23 @@ test "compact counting bloom filter insert_if_absent after saturation" {
 }
 
 ///|
+test "compact counting bloom filter insert_if_absent with some positive counters" {
+  let filter = @src.CompactCountingBloomFilter::with_size(64, 4)
+  // Insert some keys so some counters are positive but not all slots
+  filter.insert("key-a")
+  filter.insert("key-b")
+  // At this point, some counters are positive and some are zero.
+  // insert_if_absent for a new key should succeed if at least one
+  // of its selected counters is zero.
+  let result = filter.insert_if_absent("key-c")
+  assert_true(result)
+  assert_true(filter.contains("key-c"))
+  // Count should be 1
+  assert_eq(filter.count_of("key-c"), 1)
+  assert_eq(filter.count(), 3)
+}
+
+///|
 test "compact counting bloom filter removal with saturated shared counters" {
   // Two keys sharing a saturated counter can disturb each other on removal
   let filter = @src.CompactCountingBloomFilter::with_size(64, 4)

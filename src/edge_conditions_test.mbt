@@ -148,3 +148,15 @@ test "counting filters handle hash counts wider than their counters" {
   assert_eq(restored.count(), 0)
   assert_false(restored.contains("wide"))
 }
+
+///|
+test "bloom filter insert_if_absent with partially set bits" {
+  let filter = @src.BloomFilter::with_size(4096, 4)
+  filter.insert("alpha")
+  // Only one bit is set out of many possible positions, so insert_if_absent
+  // should succeed for a new key that hashes to an unset bit position
+  let result = filter.insert_if_absent("beta")
+  assert_true(result)
+  assert_true(filter.contains("beta"))
+  assert_eq(filter.count(), 2)
+}

@@ -41,6 +41,19 @@ test "cuckoo filter insert_all_if_absent adds only new keys" {
 }
 
 ///|
+test "cuckoo filter remove_all reports failure but keeps removing later keys" {
+  let filter = @src.CuckooFilter::with_size(64, 4)
+  let keys = ["a", "b", "c"]
+  assert_true(filter.insert_all(keys))
+  let batch = ["a", "missing", "b"]
+  assert_false(filter.remove_all(batch))
+  assert_false(filter.contains("a"))
+  assert_false(filter.contains("b"))
+  assert_true(filter.contains("c"))
+  assert_eq(filter.count(), 1)
+}
+
+///|
 test "scalable bloom filter contains_any works across slices" {
   let filter = @src.ScalableBloomFilter::new(100, 0.01)
   filter.insert("alpha")
