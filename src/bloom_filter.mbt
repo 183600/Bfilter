@@ -181,31 +181,32 @@ pub fn BloomFilter::with_size(
 ///|
 /// Insert a key whose two hash values have already been computed.
 fn BloomFilter::insert_hashes(
-  self : BloomFilter,
-  h1 : UInt64,
-  h2 : UInt64,
-) -> Unit {
-  guard self.inserted < MAX_INSERTIONS else {
-    abort("bloom filter insertion count overflow")
-  }
-  let bit_count = self.bit_count.to_uint64()
-  let probes = bloom_effective_probes(self.bit_count, self.hash_count, h2)
-  // A completely full filter cannot change, so skip the nominal probe walk.
-  // Besides wide non-power-of-two layouts, this also covers power-of-two
-  // layouts whose double-hash period is long.
-  if self.should_check_full(probes) && self.all_bits_set() {
-    self.inserted += 1
-    return
-  }
-  let mut probe = h1
-  for i = 0; i < probes; i = i + 1 {
-    let pos = (probe % bit_count).to_int()
-    let word = pos / WORD_BITS
-    let bit = pos % WORD_BITS
-    self.words[word] = self.words[word] | (1UL << bit)
-    probe = probe + h2
-  }
-  self.inserted += 1
+    self : BloomFilter,
+    h1 : UInt64,
+    h2 : UInt64,
+    ) -> Unit {
+   let bit_count = self.bit_count.to_uint64()
+   let probes = bloom_effective_probes(self.bit_count, self.hash_count, h2)
+   // A completely full filter cannot change, so skip the nominal probe walk.
+   // Besides wide non-power-of-two layouts, this also covers power-of-two
+   // layouts whose double-hash period is long.
+   if self.should_check_full(probes) && self.all_bits_set() {
+       self.inserted += 1
+       return
+   }
+   // Check for overflow before entering the probe sequence
+   guard self.inserted < MAX_INSERTIONS else {
+       abort("bloom filter insertion count overflow")
+   }
+   let mut probe = h1
+   for i = 0; i < probes; i = i + 1 {
+       let pos = (probe % bit_count).to_int()
+       let word = pos / WORD_BITS
+       let bit = pos % WORD_BITS
+       self.words[word] = self.words[word] | (1UL << bit)
+       probe = probe + h2
+   }
+   self.inserted += 1
 }
 
 ///|
@@ -221,37 +222,37 @@ pub fn[K : Hash] BloomFilter::insert(self : BloomFilter, key : K) -> Unit {
 ///|
 /// Insert a key with precomputed hashes only when it is definitely absent.
 fn BloomFilter::insert_if_absent_hashes(
-  self : BloomFilter,
-  h1 : UInt64,
-  h2 : UInt64,
-  ) -> Bool {
+    self : BloomFilter,
+    h1 : UInt64,
+    h2 : UInt64,
+    ) -> Bool {
     // Every selected bit is set on a full filter, so the conditional insertion
     // must report a false positive without walking a wide probe sequence.
     let bit_count = self.bit_count.to_uint64()
     let probes = bloom_effective_probes(self.bit_count, self.hash_count, h2)
     if self.should_check_full(probes) && self.all_bits_set() {
-      return false
+        return false
     }
     // Check for overflow before entering the probe sequence
     guard self.inserted < MAX_INSERTIONS else {
-      abort("bloom filter insertion count overflow")
+        abort("bloom filter insertion count overflow")
     }
     let mut probe = h1
     for i = 0; i < probes; i = i + 1 {
-      let pos = (probe % bit_count).to_int()
-      let mask = 1UL << (pos % WORD_BITS)
-      if (self.words[pos / WORD_BITS] & mask) == 0UL {
-        let mut remaining_probe = probe
-        for j = i; j < probes; j = j + 1 {
-          let remaining = (remaining_probe % bit_count).to_int()
-          self.words[remaining / WORD_BITS] = self.words[remaining / WORD_BITS] |
-            (1UL << (remaining % WORD_BITS))
-          remaining_probe = remaining_probe + h2
+        let pos = (probe % bit_count).to_int()
+        let mask = 1UL << (pos % WORD_BITS)
+        if (self.words[pos / WORD_BITS] & mask) == 0UL {
+            let mut remaining_probe = probe
+            for j = i; j < probes; j = j + 1 {
+                let remaining = (remaining_probe % bit_count).to_int()
+                self.words[remaining / WORD_BITS] = self.words[remaining / WORD_BITS] |
+                    (1UL << (remaining % WORD_BITS))
+                remaining_probe = remaining_probe + h2
+            }
+            self.inserted += 1
+            return true
         }
-        self.inserted += 1
-        return true
-      }
-      probe = probe + h2
+        probe = probe + h2
     }
     false
 }
