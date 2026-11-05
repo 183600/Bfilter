@@ -8,6 +8,81 @@ test "guide quick start bloom filter" {
 }
 
 ///|
+test "readme quick start bloom filter" {
+  let filter = @src.BloomFilter::new(10_000, 0.01)
+  filter.insert("alpha")
+  filter.insert_all(["beta", "gamma"])
+
+  assert_true(filter.contains("alpha"))
+  assert_true(filter.contains_all(["beta", "gamma"]))
+  assert_false(filter.contains("not-inserted"))
+
+  assert_true(filter.false_positive_rate() < 0.02)
+}
+
+///|
+test "readme counting bloom filter with deletion" {
+  let filter = @src.CountingBloomFilter::new(1_000, 0.01)
+  filter.insert("session")
+  filter.insert("session")
+
+  assert_eq(filter.count_of("session"), 2)
+  assert_true(filter.remove("session"))
+  assert_eq(filter.count_of("session"), 1)
+  assert_true(filter.remove("session"))
+  assert_false(filter.contains("session"))
+}
+
+///|
+test "readme compact counting bloom filter" {
+  let compact = @src.CompactCountingBloomFilter::new(1_000, 0.01)
+  let regular = @src.CountingBloomFilter::new(1_000, 0.01)
+
+  assert_eq(regular.memory_bytes(), compact.memory_bytes() * 4L)
+
+  compact.insert("task")
+  compact.insert("task")
+  assert_eq(compact.count_of("task"), 2)
+  assert_true(compact.remove("task"))
+  assert_eq(compact.count_of("task"), 1)
+}
+
+///|
+test "readme scalable bloom filter grows automatically" {
+  let filter = @src.ScalableBloomFilter::new(100, 0.01)
+  for i = 0; i < 1000; i = i + 1 {
+    filter.insert(i)
+  }
+  assert_true(filter.slice_count() > 1)
+  assert_true(filter.contains(42))
+  assert_eq(filter.count(), 1000)
+}
+
+///|
+test "readme cuckoo filter insertion and deletion" {
+  let filter = @src.CuckooFilter::new(1_000)
+  assert_true(filter.insert("session-1"))
+  assert_true(filter.contains("session-1"))
+  assert_true(filter.remove("session-1"))
+  assert_false(filter.contains("session-1"))
+}
+
+///|
+test "readme concurrent bloom filter" {
+  let filter = @src.ConcurrentBloomFilter::new(1_000, 0.01)
+  filter.insert("shared")
+  assert_true(filter.contains("shared"))
+
+  let keys = ["a", "b", "c"]
+  filter.insert_all(keys)
+  assert_true(filter.contains_all(keys))
+
+  let snapshot = filter.snapshot()
+  filter.insert("after-snapshot")
+  assert_false(snapshot.contains("after-snapshot"))
+}
+
+///|
 test "guide bloom filter sized workload meets target rate" {
   let filter = @src.BloomFilter::new(10_000, 0.001)
   for i = 0; i < 10_000; i = i + 1 {
