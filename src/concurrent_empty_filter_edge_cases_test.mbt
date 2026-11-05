@@ -461,3 +461,36 @@ test "concurrent wrapper snapshot on empty filter" {
   assert_eq(snap7.slice_count(), 1)
   assert_eq(snap7.tracked_key_count(), 0)
 }
+
+///|
+test "concurrent wrapper empty batch queries" {
+  let empty : Array[String] = []
+
+  let bloom = @src.ConcurrentBloomFilter::with_size(1024, 4)
+  assert_true(bloom.contains_all(empty))
+  assert_false(bloom.contains_any(empty))
+
+  let blocked = @src.ConcurrentBlockedBloomFilter::with_size(1024, 4)
+  assert_true(blocked.contains_all(empty))
+  assert_false(blocked.contains_any(empty))
+
+  let counting = @src.ConcurrentCountingBloomFilter::with_size(256, 4)
+  assert_true(counting.contains_all(empty))
+  assert_false(counting.contains_any(empty))
+
+  let compact = @src.ConcurrentCompactCountingBloomFilter::with_size(256, 4)
+  assert_true(compact.contains_all(empty))
+  assert_false(compact.contains_any(empty))
+
+  let cuckoo = @src.ConcurrentCuckooFilter::with_size(16, 4)
+  assert_true(cuckoo.contains_all(empty))
+  assert_false(cuckoo.contains_any(empty))
+
+  let scalable = @src.ConcurrentScalableBloomFilter::new(4, 0.01)
+  assert_true(scalable.contains_all(empty))
+  assert_false(scalable.contains_any(empty))
+
+  let sc = @src.ConcurrentScalableCountingBloomFilter::new(4, 0.01)
+  assert_true(sc.contains_all(empty))
+  assert_false(sc.contains_any(empty))
+}
