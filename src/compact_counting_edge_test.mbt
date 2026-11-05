@@ -119,8 +119,6 @@ test "compact counting bloom filter estimated_item_count boundaries" {
 ///|
 test "compact counting bloom filter counter_max consistency" {
   assert_eq(@src.CompactCountingBloomFilter::counter_max(), 15)
-  let with_size = @src.CompactCountingBloomFilter::with_size(256, 4)
-  assert_eq(@src.CompactCountingBloomFilter::counter_max(), 15)
 }
 
 ///|
