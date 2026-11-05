@@ -440,9 +440,17 @@ pub fn[K : Hash] CompactCountingBloomFilter::remove(
   }
   let needed = (self.counter_mass + self.hash_count.to_uint64() - 1UL) /
     self.hash_count.to_uint64()
+  // Cap needed at inserted + 1 to prevent blown-up values from saturated
+  // counters while ensuring inserted does not drop to zero when residual
+  // counter mass remains.
+  let capped_needed = if needed > self.inserted.to_uint64() + 1UL {
+    self.inserted.to_uint64() + 1UL
+  } else {
+    needed
+  }
   let mut next = if self.inserted > 0 { self.inserted - 1 } else { 0 }
-  if needed > next.to_uint64() {
-    next = needed.to_int()
+  if capped_needed > next.to_uint64() {
+    next = capped_needed.to_int()
   }
   self.inserted = next
   true
