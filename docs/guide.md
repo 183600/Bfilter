@@ -383,7 +383,13 @@ but never falls below the number of successful insertions.
 **Capacity:** `capacity()` returns total fingerprints the filter can hold.
 `remaining_capacity()` reports how many fingerprints can still be inserted.
 A filter can reject an insertion before reaching capacity when no augmenting
-path exists. `is_full()` checks whether `inserted >= capacity`.
+path exists, so a non-zero `remaining_capacity()` does not guarantee the next
+`insert` succeeds. `is_full()` checks whether `inserted >= capacity`.
+
+`insert_all` continues after an insertion failure and returns `true` only
+when every key was inserted. When the filter fills mid-batch, some keys may
+be inserted while later ones are rejected; the filter's state is still
+consistent and no previously stored fingerprint is lost.
 
 **Load factor:** `load_factor()` reports the fraction of slots currently
 holding a fingerprint, in `[0, 1]`.
@@ -489,8 +495,8 @@ test "serialization round trip" {
 ```
 
 **Format:** Configuration, insertion count, backing array + type tag + version.
-**Restoration:** `from_bytes` panics on truncated data, wrong type, unknown
-version, or invalid config.
+**Restoration:** `from_bytes` panics on empty data, truncated data, wrong
+type, unknown version, or invalid config.
 **Hashing:** Fixed seeds ensure consistent positions across processes.
 **Cuckoo:** Eviction state preserved; zero state rejected (would break
 placement).
