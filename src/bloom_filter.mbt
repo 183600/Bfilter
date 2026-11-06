@@ -199,6 +199,11 @@ fn BloomFilter::insert_hashes(
     h1 : UInt64,
     h2 : UInt64,
     ) -> Unit {
+   // Guard every insertion path, including the full-filter shortcut below:
+   // that path also increments the counter and could otherwise overflow it.
+   guard self.inserted < MAX_INSERTIONS else {
+       abort("bloom filter insertion count overflow")
+   }
    let bit_count = self.bit_count.to_uint64()
    let probes = bloom_effective_probes(self.bit_count, self.hash_count, h2)
    // A completely full filter cannot change, so skip the nominal probe walk.
@@ -207,10 +212,6 @@ fn BloomFilter::insert_hashes(
    if self.should_check_full(probes) && self.all_bits_set() {
        self.inserted += 1
        return
-   }
-   // Check for overflow before entering the probe sequence
-   guard self.inserted < MAX_INSERTIONS else {
-       abort("bloom filter insertion count overflow")
    }
    let mut probe = h1
    for i = 0; i < probes; i = i + 1 {

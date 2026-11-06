@@ -160,6 +160,36 @@ test "panic bloom merge rejects count overflow" {
 }
 
 ///|
+/// A full power-of-two filter with a wide probe walk takes the full-filter
+/// shortcut; that path also increments the counter and must stay guarded.
+fn max_inserted_full_bloom() -> @src.BloomFilter {
+  let bytes = @src.BloomFilter::with_size(128, 1)
+    .to_bytes()
+    .to_fixedarray()
+  // A wide hash count makes the shortcut cheaper than the 128-position walk.
+  bytes.unsafe_write_uint32_le(12, 160U)
+  bytes.unsafe_write_uint32_le(16, 2147483647U)
+  // Fill both backing words so `all_bits_set()` selects the shortcut.
+  for i = 20; i < 36; i = i + 1 {
+    bytes[i] = b'\xFF'
+  }
+  @src.BloomFilter::from_bytes(Bytes::from_array(bytes.exact_view()))
+}
+
+///|
+test "full max-inserted bloom fixture is valid" {
+  let filter = max_inserted_full_bloom()
+  assert_eq(filter.count(), 2147483647)
+  assert_eq(filter.set_bit_count(), filter.bit_count())
+}
+
+///|
+test "panic bloom insert rejects count overflow on full filter shortcut" {
+  let filter = max_inserted_full_bloom()
+  filter.insert("overflow")
+}
+
+///|
 fn max_inserted_counting() -> @src.CountingBloomFilter {
   let bytes = @src.CountingBloomFilter::with_size(16, 1)
     .to_bytes()

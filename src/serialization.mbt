@@ -413,13 +413,14 @@ pub fn ScalableBloomFilter::to_bytes(self : ScalableBloomFilter) -> Bytes {
   )
   let mut offset = SERIAL_HEADER_BYTES + SERIAL_RATE_BYTES
   for slice in self.slices {
+    let slice_size = slice.serialized_size()
     data.unsafe_write_uint32_le(
       offset,
-      slice.serialized_size().reinterpret_as_uint(),
+      slice_size.reinterpret_as_uint(),
     )
     offset = offset + SERIAL_SLICE_LENGTH_BYTES
     slice.write_serialized(data, offset)
-    offset = offset + slice.serialized_size()
+    offset = offset + slice_size
   }
   Bytes::from_array(data.exact_view())
 }
@@ -582,13 +583,14 @@ pub fn ScalableCountingBloomFilter::to_bytes(
     offset = offset + SERIAL_COUNTING_ENTRY_BYTES
   }
   for slice in self.slices {
+    let slice_size = slice.serialized_size()
     data.unsafe_write_uint32_le(
       offset,
-      slice.serialized_size().reinterpret_as_uint(),
+      slice_size.reinterpret_as_uint(),
     )
     offset = offset + SERIAL_SLICE_LENGTH_BYTES
     slice.write_serialized(data, offset)
-    offset = offset + slice.serialized_size()
+    offset = offset + slice_size
   }
   Bytes::from_array(data.exact_view())
 }
