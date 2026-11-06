@@ -311,6 +311,30 @@ test "scalable bloom filter" {
   match. This is a strict check that may return `false` even when no shared key
   exists, simply because different slice indices use different hash layouts.
 
+```moonbit
+///|
+test "scalable bloom intersection caveat: same key in different slices" {
+  let left = @src.ScalableBloomFilter::new(4, 0.000001)
+  let right = @src.ScalableBloomFilter::new(4, 0.000001)
+  left.insert("shared")
+  for i = 0; i < 8; i = i + 1 {
+    left.insert("left-" + i.to_string())
+  }
+  for i = 0; i < 30; i = i + 1 {
+    right.insert("right-" + i.to_string())
+  }
+  right.insert("shared")
+  assert_true(left.slice_count() > 1)
+  assert_true(right.slice_count() > left.slice_count())
+  let common = left.intersection(right)
+  // The "shared" key is in slice 0 of left but a later slice of right.
+  // Slice-by-slice intersection misses it.
+  assert_false(common.contains("shared"))
+  assert_true(left.contains("shared"))
+  assert_true(right.contains("shared"))
+}
+```
+
 ### Scalable Counting Bloom Filter
 
 `ScalableCountingBloomFilter` combines slice growth with removable counters.

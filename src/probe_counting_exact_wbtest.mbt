@@ -150,17 +150,6 @@ test "probe counting exact operations against direct probe model" {
       seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
       let key = seed % 12
       let action = seed / 31 % 5
-      if step == 372 {
-        println("BEFORE step372 actual/model for key=" + key.to_string() + " action=" + action.to_string())
-        for qi = 0; qi < kp[key].length(); qi = qi + 1 {
-          let pp = kp[key][qi]
-          let occ = kc[key][qi].to_uint64()
-          let limit = if occ > 15UL { 15UL } else { 15UL - 15UL % occ }
-          let value = model[pp]
-          let av = if value > limit { 0UL } else { (limit - value) / occ }
-          println("pos=" + pp.to_string() + " n=" + occ.to_string() + " val=" + value.to_string() + " act=" + f.counter_at(pp).to_string() + " lim=" + limit.to_string() + " av=" + av.to_string())
-        }
-      }
       if action == 0 {
         f.insert(keys[key])
         probe_model_insert(model, kp[key], kc[key], 65535UL)
@@ -223,17 +212,6 @@ test "probe compact exact operations against direct probe model" {
       let before : Array[UInt64] = Array::make(f.slot_count(), 0UL)
       for bp = 0; bp < f.slot_count(); bp = bp + 1 {
         before[bp] = model[bp]
-      }
-      if step == 372 {
-        println("BEFORE step372 actual/model for key=" + key.to_string() + " action=" + action.to_string())
-        for qi = 0; qi < kp[key].length(); qi = qi + 1 {
-          let pp = kp[key][qi]
-          let occ = kc[key][qi].to_uint64()
-          let limit = if occ > 15UL { 15UL } else { 15UL - 15UL % occ }
-          let value = model[pp]
-          let av = if value > limit { 0UL } else { (limit - value) / occ }
-          println("pos=" + pp.to_string() + " n=" + occ.to_string() + " val=" + value.to_string() + " act=" + f.counter_at(pp).to_string() + " lim=" + limit.to_string() + " av=" + av.to_string())
-        }
       }
       if action == 0 {
         f.insert(keys[key])
