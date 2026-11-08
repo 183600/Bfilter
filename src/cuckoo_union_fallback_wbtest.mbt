@@ -75,12 +75,7 @@ test "scratch explore cuckoo union fallback" {
       break
     }
   }
-  println(
-    "forward failures=" +
-    forward_failures.to_string() +
-    " backward=" +
-    found_backward.to_string() +
-    " retry=" +
-    found_retry.to_string(),
-  )
+  // The search must actually exercise the forward union failure path that the
+  // retry/backward fallbacks are meant to handle.
+  assert_true(forward_failures > 0)
 }

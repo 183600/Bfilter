@@ -23,33 +23,12 @@ test "probe merge of tracked receiver and count-only source stays serializable" 
   receiver.insert("beta")
   let source = ScalableCountingBloomFilter::new(2, 0.5)
   probe_fill_count_only(source, [1], 1)
-  println(
-    "receiver count=" +
-    receiver.count().to_string() +
-    " tracked=" +
-    receiver.tracked_key_count().to_string() +
-    " slices=" +
-    receiver.slice_count().to_string(),
-  )
-  println(
-    "source count=" +
-    source.count().to_string() +
-    " tracked=" +
-    source.tracked_key_count().to_string() +
-    " slices=" +
-    source.slice_count().to_string(),
-  )
   let merged = receiver.copy()
   merged.merge(source)
-  println(
-    "merged count=" +
-    merged.count().to_string() +
-    " tracked=" +
-    merged.tracked_key_count().to_string() +
-    " slices=" +
-    merged.slice_count().to_string(),
-  )
+  assert_eq(merged.count(), 3)
+  assert_eq(merged.tracked_key_count(), 2)
+  assert_eq(merged.slice_count(), 2)
   let bytes = merged.to_bytes()
   let restored = ScalableCountingBloomFilter::from_bytes(bytes)
-  println("restored count=" + restored.count().to_string())
+  assert_eq(restored.count(), merged.count())
 }
