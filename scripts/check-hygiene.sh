@@ -13,6 +13,19 @@ if [[ -n "$bad" ]]; then
   exit 1
 fi
 
+# MoonBit sources outside the declared packages are never compiled or tested:
+# the repository root has no moon.pkg, so a stray *.mbt there (e.g. a leftover
+# manual_test.mbt) would silently accumulate without any CI coverage.
+stray="$(
+  git ls-files '*.mbt' |
+    grep -vE '^(src|examples)/' || true
+)"
+if [[ -n "$stray" ]]; then
+  echo "error: MoonBit sources must live in src/ or examples/:" >&2
+  echo "$stray" >&2
+  exit 1
+fi
+
 # The old README promised unimplemented features; keep the new README from
 # silently regressing to that state.
 if grep -q 'Core features are not yet implemented' README.md; then
