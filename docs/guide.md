@@ -134,7 +134,7 @@ Every filter exposes batch helpers for efficiency:
 - `insert_all_if_absent(keys)` — inserts only absent keys, returns count added
 - `contains_all(keys)` — returns `true` only if all keys are present
 - `contains_any(keys)` — returns `true` if at least one key is present
-- `remove_all(keys)` — removes all keys (counting and Cuckoo filters only)
+- `remove_all(keys)` — removes all keys (counting, scalable counting, and Cuckoo filters only)
 
 Empty batches are no-ops and never touch the backing storage. Batch helpers
 continue after a failure instead of aborting the batch; `remove_all` and the
@@ -146,7 +146,7 @@ Cuckoo filter's `insert_all` report the overall result as a `Bool`.
 | --- | --- | --- |
 | `count()` | all filters | Insertion calls since creation or the last `clear` |
 | `is_empty()` | all filters | Whether nothing has been inserted |
-| `is_full()` | fixed-size filters | Whether every bit or counter slot is occupied |
+| `is_full()` | fixed-size filters | Whether every bit or counter slot is occupied (Cuckoo: `inserted >= capacity`) |
 | `set_bit_count()` | Bloom family | Number of bits currently set |
 | `occupied_slot_count()` | counting family | Number of counter slots currently positive |
 | `fill_ratio()` | Bloom and counting families | Fraction of the storage that is occupied |
