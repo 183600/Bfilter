@@ -178,7 +178,8 @@ fn ScalableCountingBloomFilter::insert_hashes(
       if self.inserted > 0 && self.slices.length() > 0 {
         let last = self.slices.length() - 1
         let last_slice = self.slices[last]
-        if last_slice.count() > 0 && last_slice.occupied_slot_count() == 0 {
+        // The exact counter mass is zero exactly when no counter is positive.
+        if last_slice.count() > 0 && last_slice.counter_mass == 0UL {
           if !self.slice_has_tracked_key(last) {
             self.append_slice()
           }
@@ -633,7 +634,8 @@ fn ScalableCountingBloomFilter::find_count_only_slice(
   let mut index = self.slices.length() - 1
   while index >= 0 {
     let slice = self.slices[index]
-    if slice.occupied_slot_count() == 0 &&
+    // The exact counter mass is zero exactly when no counter is positive.
+    if slice.counter_mass == 0UL &&
       !self.slice_has_tracked_key(index) {
       return index
     }
