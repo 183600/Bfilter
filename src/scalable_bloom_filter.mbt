@@ -30,10 +30,9 @@ fn ScalableBloomFilter::append_slice(self : ScalableBloomFilter) -> Unit {
     capacity,
     scalable_slice_rate(self.target_rate, index),
   )
-  let mut bit_count = slice_bits.to_int64()
-  for existing in self.slices {
-    bit_count = bit_count + existing.bit_count().to_int64()
-  }
+  // Reuse total_bits() so the growth budget uses the same Int64 summation as
+  // the merge and serialization guards instead of a second copy of the loop.
+  let bit_count = self.total_bits() + slice_bits.to_int64()
   guard bit_count <= BLOOM_MAX_BITS.to_int64() else {
     abort("scalable bloom filter is too large")
   }

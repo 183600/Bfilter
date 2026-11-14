@@ -56,10 +56,9 @@ fn ScalableCountingBloomFilter::append_slice(
     capacity,
     scalable_counting_slice_rate(self.target_rate, index),
   )
-  let mut total_slots = slot_count.to_int64()
-  for existing in self.slices {
-    total_slots = total_slots + existing.slot_count().to_int64()
-  }
+  // Reuse slot_count() so the growth budget uses the same Int64 summation as
+  // the serialization guard instead of a second copy of the loop.
+  let total_slots = self.slot_count() + slot_count.to_int64()
   guard total_slots <= SCALABLE_COUNTING_MAX_SLOTS else {
     abort("scalable counting bloom filter is too large")
   }
