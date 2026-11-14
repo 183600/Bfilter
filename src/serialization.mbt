@@ -184,7 +184,7 @@ fn BloomFilter::read_serialized(data : BytesView) -> BloomFilter {
   let words = FixedArray::make(word_count, 0UL)
   let mut set_bits = 0
   for i = 0; i < word_count; i = i + 1 {
-    let word = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * 8)
+    let word = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * SERIAL_BYTES_PER_WORD)
     words[i] = word
     set_bits = set_bits + word.popcnt()
   }
@@ -261,7 +261,7 @@ fn CountingBloomFilter::read_serialized(data : BytesView) -> CountingBloomFilter
   let counters = FixedArray::make(word_count, 0UL)
   let mut counter_mass = 0UL
   for i = 0; i < word_count; i = i + 1 {
-    let word = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * 8)
+    let word = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * SERIAL_BYTES_PER_WORD)
     counters[i] = word
     counter_mass = counter_mass + counting_word_mass(word)
   }
@@ -814,7 +814,7 @@ pub fn CompactCountingBloomFilter::from_bytes(
   let counters = FixedArray::make(word_count, 0UL)
   let mut counter_mass = 0UL
   for i = 0; i < word_count; i = i + 1 {
-    let word = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * 8)
+    let word = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * SERIAL_BYTES_PER_WORD)
     counters[i] = word
     counter_mass = counter_mass + compact_word_mass(word)
   }
@@ -884,7 +884,7 @@ pub fn BlockedBloomFilter::from_bytes(data : Bytes) -> BlockedBloomFilter {
   let mut nonempty_blocks = 0
   let mut block_has_bit = false
   for i = 0; i < word_count; i = i + 1 {
-    let word = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * 8)
+    let word = data.unsafe_read_uint64_le(SERIAL_HEADER_BYTES + i * SERIAL_BYTES_PER_WORD)
     words[i] = word
     set_bits = set_bits + word.popcnt()
     if word != 0UL {

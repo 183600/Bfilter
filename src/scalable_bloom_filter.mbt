@@ -561,6 +561,8 @@ pub fn ScalableBloomFilter::intersection(
     }
     return result
   }
+  // Every result slice keeps the receiver's bit layout, so this budget check
+  // also covers the constructed result; scanning the result again is redundant.
   let mut result_bits = 0L
   for i = 0; i < slice_count; i = i + 1 {
     result_bits = result_bits + self.slices[i].bit_count().to_int64()
@@ -584,13 +586,6 @@ pub fn ScalableBloomFilter::intersection(
   let inserted = self.inserted.min(other.inserted)
   if slice_total < inserted {
     slices[0].inserted = slices[0].inserted + (inserted - slice_total)
-  }
-  let mut total_bits = 0L
-  for slice in slices {
-    total_bits = total_bits + slice.bit_count().to_int64()
-  }
-  guard total_bits <= BLOOM_MAX_BITS.to_int64() else {
-    abort("scalable bloom filter is too large")
   }
   {
     slices,
