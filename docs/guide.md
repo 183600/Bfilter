@@ -102,8 +102,8 @@ the filters that provide it.
 | `insert(key)` | all filters | Adds the key; counting filters raise its multiplicity |
 | `insert_if_absent(key)` | all filters | `true` when the key was added |
 | `contains(key)` | all filters | `true` when the key may be present |
-| `insert_all(keys)` | all filters | Adds every key (`Bool` for the Cuckoo filter) |
-| `insert_all_if_absent(keys)` | all filters | Number of keys added |
+| `insert_all(keys)` | all filters | Inserts every key; reports whether all insertions succeeded (`Bool` for the Cuckoo filter) |
+| `insert_all_if_absent(keys)` | all filters | Inserts only absent keys; returns how many were added |
 | `contains_all(keys)` | all filters | `true` when every key may be present |
 | `contains_any(keys)` | all filters | `true` when at least one key may be present |
 | `remove(key)` | counting, scalable counting, Cuckoo | `true` when one occurrence was removed |
@@ -113,10 +113,10 @@ the filters that provide it.
 | `is_empty()` | all filters | `true` when nothing has been inserted |
 | `clear()` | all filters | Removes every key and resets the counters |
 | `copy()` | all filters | Independent copy of the filter |
-| `merge(other)` | all filters | In-place union (`Bool` for the Cuckoo filter) |
-| `union(other)` | all filters | New filter holding the union (`None` if it does not fit) |
+| `merge(other)` | all filters | Merges `other` into `self` in place (`Bool` for the Cuckoo filter) |
+| `union(other)` | all filters | New filter holding the union (`None` for the Cuckoo filter when entries do not fit) |
 | `intersection(other)` | all filters | New filter holding the intersection |
-| `is_subset_of(other)` | all filters | `true` when `self` is covered by `other` |
+| `is_subset_of(other)` | all filters | `true` when every key `self` reports is also reported by `other` |
 | `is_disjoint_from(other)` | all filters | `true` when the filters provably share no key |
 | `memory_bytes()` | all filters | Bytes used by the backing storage |
 | `false_positive_rate()` | all filters | Estimated false-positive rate |

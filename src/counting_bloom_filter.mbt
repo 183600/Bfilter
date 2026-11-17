@@ -442,6 +442,13 @@ fn counting_gcd(left : UInt64, right : UInt64) -> UInt64 {
 /// keep the full probe count: a wrap subtracts `2^64`, which is not a multiple
 /// of the slot count, so later probes can reach positions outside the first
 /// cycle.
+///|
+/// Number of probe steps needed before the double-hash sequence repeats.
+///
+/// Returns `hash_count` when every probe can select a fresh slot. When the slot
+/// count is a power of two and the probe step divides it, the sequence is
+/// periodic, so wide hash counts can stop after one cycle instead of revisiting
+/// slots whose bits are already known to be set or clear.
 fn counting_effective_probes(
   hash_count : Int32,
   h2 : UInt64,

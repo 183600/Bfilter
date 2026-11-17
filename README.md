@@ -61,11 +61,26 @@ documented in [docs/guide.md](docs/guide.md).
 ## Installation
 
 The module is not yet published to the Mooncakes registry, so `moon add
-183600/bfilter` is unavailable. Until it is published, consume the module from
-a local git checkout via a MoonBit workspace.
+183600/bfilter` is unavailable. Until it is published, consume the library from
+a local git checkout through a MoonBit workspace.
 
-Declare the dependency in your application's `moon.mod`. The version must match
-the library's `moon.mod`:
+Clone the repository next to your application so both checkouts share a parent
+directory:
+
+```bash
+git clone https://github.com/183600/Bfilter.git
+```
+
+From that parent directory, register both modules as workspace members:
+
+```bash
+moon work init                # creates moon.work, skip if it exists
+moon work use ./Bfilter
+moon work use ./path/to/your-app
+```
+
+Then declare the dependency in your application's `moon.mod`. The version must
+match the library's `moon.mod`:
 
 ```toml
 import {
@@ -73,15 +88,13 @@ import {
 }
 ```
 
-Place the repository alongside your project so both checkouts share a parent
-directory. From that parent directory, register both modules as workspace
-members:
+Filter code is reached through the `src` package, imported with the `@src`
+alias in your package's `moon.pkg`:
 
-```bash
-git clone https://github.com/183600/Bfilter.git
-moon work init                # creates moon.work, skip if it exists
-moon work use ./Bfilter
-moon work use ./path/to/your-app
+```toml
+import {
+  "183600/bfilter/src" @src,
+}
 ```
 
 An example is provided in `examples/`. It is a separate module linked through the
@@ -93,15 +106,6 @@ moon run examples
 
 The example shows filter creation, batch insertion, queries, false-positive rate
 observation, and a `to_bytes`/`from_bytes` round trip.
-
-In the package that uses the filters, add the `src` package to its `moon.pkg`
-import block with the `@src` alias:
-
-```toml
-import {
-  "183600/bfilter/src" @src,
-}
-```
 
 ## Usage
 

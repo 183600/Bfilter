@@ -110,10 +110,8 @@ fn BloomFilter::all_bits_set(self : BloomFilter) -> Bool {
 ///|
 /// Whether a full-filter scan is cheaper than walking `probes` positions.
 ///
-/// A completely full filter cannot change, so one scan of the backing words can
-/// replace a long probe walk. Ordinary layouts (a handful of probes over many
-/// words) stay on the probe path; the threshold only selects the scan when the
-/// effective walk is already wider than the word array.
+/// Delegates to [`probe_walk_exceeds_words`]; see that helper for the
+/// threshold rationale.
 fn BloomFilter::should_check_full(
   self : BloomFilter,
   probes : Int32,
